@@ -8,6 +8,7 @@ import { documentRequestScope } from "@/server/authz/scopes";
 import { SupplierSidebar } from "@/components/app/supplier-sidebar";
 import { SupplierMobileNav } from "@/components/app/supplier-mobile-nav";
 import { CommandPalette } from "@/components/app/command-palette";
+import { DemoBanner } from "@/components/app/demo-banner";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
@@ -30,6 +31,8 @@ export default async function SupplierLayout({ children }: { children: React.Rea
   ]);
 
   return (
+    <>
+      <DemoBanner />
     <div className="flex min-h-dvh bg-surface">
       <SupplierSidebar
         user={user}
@@ -101,6 +104,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
           </span>
         </footer>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

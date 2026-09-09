@@ -2,17 +2,17 @@ import { NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { createSessionToken, SESSION_COOKIE } from "@/server/auth/session";
 import { isSupplierRole } from "@/types/auth";
+import { isDemoEnabled } from "@/lib/demo";
 
 /**
- * DEVELOPMENT ONLY — one-click entry for reviewing the UI.
+ * One-click entry for a demonstration deployment.
  *
- * This is *not* an authentication bypass: it mints the same signed session a
- * real login produces, for a seeded demo account, so every permission check,
- * scope and isolation rule behaves exactly as in production. It only skips
- * typing the password.
+ * It mints the same signed session a real login produces, for a seeded
+ * account, so every permission check, scope and isolation rule behaves exactly
+ * as in production — only the password step is skipped.
  *
- * The route returns 404 whenever NODE_ENV is "production", so it cannot exist
- * in a deployed build.
+ * Available in development, and in a deployment that sets DEMO_MODE. Anywhere
+ * else it is a 404, so it cannot be reached by accident.
  */
 const DEMO_ACCOUNTS: Record<string, string> = {
   admin: "admin@vionex.com",
@@ -27,7 +27,7 @@ const DEMO_ACCOUNTS: Record<string, string> = {
 };
 
 export async function GET(request: Request) {
-  if (process.env.NODE_ENV === "production") {
+  if (!isDemoEnabled()) {
     return new NextResponse("Not found", { status: 404 });
   }
 
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge,
   });

@@ -2,16 +2,73 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import type { StageKey } from "../src/generated/prisma";
+import { createLocalDriver } from "../src/lib/storage/local";
+import { createS3Driver } from "../src/lib/storage/s3";
+import type { StorageDriver } from "../src/lib/storage/types";
 import { buildPdf, createSeedClient, date, daysFromNow } from "./seed-helpers";
 import { DOCUMENT_BLUEPRINTS, PROJECT_BLUEPRINTS } from "./seed-projects";
 import { seedStageDetails } from "./seed-stages";
 
 const db = createSeedClient();
 
-const DEMO_PASSWORD = "vionex123";
 const STORAGE_ROOT = path.resolve(process.cwd(), process.env.STORAGE_LOCAL_DIR ?? "./storage");
+
+/**
+ * A database that is not on this machine is treated as shared: seeding it
+ * truncates every table, so it must be confirmed explicitly, and it must not
+ * be given the published development password.
+ */
+function isRemoteDatabase(): boolean {
+  const url = process.env.DATABASE_URL;
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname;
+    return !["localhost", "127.0.0.1", "::1", ""].includes(host);
+  } catch {
+    return false;
+  }
+}
+
+const REMOTE = isRemoteDatabase();
+
+/** Strong enough to sit on a reachable URL, short enough to read aloud. */
+function generatePassword(): string {
+  return randomBytes(12).toString("base64url");
+}
+
+const DEMO_PASSWORD =
+  process.env.SEED_PASSWORD ?? (REMOTE ? generatePassword() : "vionex123");
+
+/**
+ * Demo documents go through the same storage driver the application uses, so
+ * seeding a deployment that stores in S3 actually uploads the files. Writing
+ * them to the local disk instead would leave the database pointing at objects
+ * that exist only on the machine that ran the seed, and every download in the
+ * demo would 404.
+ */
+function seedStorage(): StorageDriver {
+  if (process.env.STORAGE_DRIVER === "s3") {
+    const { STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY, STORAGE_BUCKET } = process.env;
+    if (!STORAGE_ACCESS_KEY || !STORAGE_SECRET_KEY || !STORAGE_BUCKET) {
+      throw new Error(
+        "STORAGE_DRIVER=s3 exige STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY e STORAGE_BUCKET.",
+      );
+    }
+    return createS3Driver({
+      endpoint: process.env.STORAGE_ENDPOINT,
+      region: process.env.STORAGE_REGION ?? "us-east-1",
+      accessKeyId: STORAGE_ACCESS_KEY,
+      secretAccessKey: STORAGE_SECRET_KEY,
+      bucket: STORAGE_BUCKET,
+      forcePathStyle: process.env.STORAGE_FORCE_PATH_STYLE === "true",
+    });
+  }
+  return createLocalDriver(process.env.STORAGE_LOCAL_DIR ?? "./storage");
+}
+
+const storage = seedStorage();
 
 const STAGE_NAMES: Record<StageKey, string> = {
   CLINICAL: "Clinical",
@@ -21,13 +78,10 @@ const STAGE_NAMES: Record<StageKey, string> = {
 };
 const STAGE_ORDER: StageKey[] = ["CLINICAL", "REGULATORY", "IMPORT_LOGISTICS", "GO_TO_MARKET"];
 
-/** Writes a demo file through the same key layout the app uses. */
+/** Writes a demo file through the configured driver, using the app's key layout. */
 async function storeFile(organizationId: string, projectId: string, fileName: string, body: Buffer) {
   const key = `${organizationId}/${projectId}/${randomUUID()}-${fileName}`;
-  const target = path.join(STORAGE_ROOT, key);
-  await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.writeFile(target, body);
-  await fs.writeFile(`${target}.meta`, JSON.stringify({ contentType: "application/pdf" }), "utf8");
+  await storage.put(key, body, "application/pdf");
   return { key, size: body.byteLength };
 }
 
@@ -44,7 +98,11 @@ async function reset() {
       "Notification", "AuditLog", "User", "Supplier", "Organization"
     RESTART IDENTITY CASCADE;
   `);
-  await fs.rm(STORAGE_ROOT, { recursive: true, force: true });
+  // Only the local driver owns a directory we can clear wholesale; objects in
+  // a bucket are left alone, since the bucket may hold more than demo data.
+  if (storage.name === "local") {
+    await fs.rm(STORAGE_ROOT, { recursive: true, force: true });
+  }
 }
 
 async function main() {
@@ -60,10 +118,36 @@ async function main() {
         "",
         "✗ Seed bloqueado: NODE_ENV=production.",
         "",
-        "  Este script APAGA todos os dados e cria usuários com senha pública.",
+        "  Este script APAGA todos os dados e cria usuários de demonstração.",
         "  Para criar o primeiro acesso em produção use:  npm run create-admin",
         "",
         "  Se este banco é realmente descartável, force com ALLOW_DESTRUCTIVE_SEED=1.",
+        "",
+      ].join("\n"),
+    );
+    process.exit(1);
+  }
+
+  /**
+   * Pointing at a database that is not on this machine is the dangerous case:
+   * it is almost certainly a deployment, and the seed truncates every table.
+   */
+  if (REMOTE && process.env.SEED_CONFIRM !== "1") {
+    const host = new URL(process.env.DATABASE_URL ?? "postgres://x").hostname;
+    console.error(
+      [
+        "",
+        `✗ DATABASE_URL aponta para um banco remoto: ${host}`,
+        "",
+        "  O seed APAGA todas as tabelas antes de recriar os dados — inclusive",
+        "  qualquer administrador criado com create-admin.",
+        "",
+        "  Se é isso mesmo que você quer (popular um ambiente de demonstração):",
+        "",
+        "    SEED_CONFIRM=1 npm run seed",
+        "",
+        "  A senha dos usuários será gerada aleatoriamente e exibida ao final.",
+        "  Para escolher a senha:  SEED_CONFIRM=1 SEED_PASSWORD='…' npm run seed",
         "",
       ].join("\n"),
     );

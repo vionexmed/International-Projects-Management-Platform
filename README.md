@@ -22,7 +22,7 @@ de e-mail, WhatsApp, planilhas e pastas por um canal único e rastreável.
 - [Como executar](#como-executar)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Papéis e permissões](#papéis-e-permissões)
-- [Preview de desenvolvimento](#preview-de-desenvolvimento)
+- [Modo de demonstração](#modo-de-demonstração)
 - [Colocar em produção](#colocar-em-produção)
 - [Isolamento de fornecedores](#isolamento-de-fornecedores)
 - [Documentos e armazenamento](#documentos-e-armazenamento)
@@ -266,18 +266,27 @@ exibida em **Configurações → Papéis e permissões**. Toda Server Action cha
 
 ---
 
-## Preview de desenvolvimento
+## Modo de demonstração
 
-Para revisar a interface sem digitar credencial a cada vez:
+Uma tela em `/demo` lista as contas de demonstração e entra com um clique, sem senha. Ela
+serve para dois casos: revisar a interface durante o desenvolvimento, e mostrar um deploy a
+quem precisa avaliá-lo sem receber credenciais.
 
-```
-http://localhost:3000/dev
-```
+Não é um bypass parcial: a rota emite a **mesma sessão assinada** que um login real produz,
+então papéis, permissões e isolamento entre fornecedores continuam valendo integralmente.
+O que ela pula é apenas digitar a senha.
 
-A página lista todas as contas de demonstração e entra com um clique. **Não é um bypass de
-autenticação**: a rota emite a mesma sessão assinada que um login real produz, então papéis,
-permissões e isolamento continuam valendo integralmente. Ela responde **404** sempre que
-`NODE_ENV` é `production`, portanto não existe em build implantado.
+| Ambiente | Disponível? |
+|---|---|
+| Desenvolvimento | sempre |
+| Produção sem `DEMO_MODE` | **não** — `/demo` responde 404 e `/` vai para o login |
+| Produção com `DEMO_MODE=1` | sim — `/` abre a tela de escolha |
+
+> **`DEMO_MODE=1` desliga a autenticação.** Qualquer pessoa com a URL entra como
+> administrador. Use apenas com dados fictícios; nunca num deploy com dados reais de
+> fornecedores. Enquanto está ligado, toda página exibe uma faixa de aviso.
+
+Para desligar depois da aprovação: remova `DEMO_MODE` das variáveis na Vercel e redeploye.
 
 ---
 

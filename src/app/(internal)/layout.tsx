@@ -7,6 +7,7 @@ import { InternalSidebar } from "@/components/app/internal-sidebar";
 import { InternalMobileNav } from "@/components/app/internal-mobile-nav";
 import { CommandPalette } from "@/components/app/command-palette";
 import { Topbar } from "@/components/app/topbar";
+import { DemoBanner } from "@/components/app/demo-banner";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label } from "@/lib/labels";
@@ -31,6 +32,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
   ]);
 
   return (
+    <>
+      <DemoBanner />
     <div className="flex min-h-dvh bg-canvas">
       <InternalSidebar
         user={user}
@@ -71,6 +74,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           <div className="mx-auto w-full max-w-[1240px]">{children}</div>
         </main>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

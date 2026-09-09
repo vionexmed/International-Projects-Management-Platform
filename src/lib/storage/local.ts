@@ -7,7 +7,9 @@ import type { StorageDriver, StoredObject } from "@/lib/storage/types";
  * so they can only be read through the authenticated download route.
  */
 export function createLocalDriver(rootDir: string): StorageDriver {
-  const root = path.resolve(process.cwd(), rootDir);
+  // Turbopack cannot statically analyse this path and would otherwise trace
+  // the entire project into the bundle. The local driver is development-only.
+  const root = path.resolve(/* turbopackIgnore: true */ process.cwd(), rootDir);
 
   /** Refuses any key that would escape the storage root. */
   function resolveKey(key: string) {
