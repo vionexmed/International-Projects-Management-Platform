@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 /**
+ * Stand-in signing key for a deployment with no AUTH_SECRET. Deliberately
+ * constant and deliberately obvious in a diagnostic.
+ */
+export const DEMO_SIGNING_KEY = "vionex-projects-demonstration-signing-key-not-secret";
+
+/**
  * The environment contract, kept apart from the module that applies it.
  *
  * `env.ts` throws on invalid configuration, which is the right behaviour for
@@ -57,9 +63,12 @@ export const envSchema = z.preprocess(
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-    DATABASE_URL: z
-      .string({ error: "DATABASE_URL is required — the PostgreSQL connection string." })
-      .min(1, "DATABASE_URL is required — the PostgreSQL connection string."),
+    /**
+     * PostgreSQL connection string. Optional: with none set the application
+     * starts an embedded in-memory Postgres seeded with demo data, so it can
+     * be reviewed with no setup. Any real deployment sets this.
+     */
+    DATABASE_URL: z.string().optional(),
     /**
      * Direct (non-pooled) connection, used only by migrations. Managed
      * Postgres providers expose a transaction-mode pooler for the app and a
@@ -68,9 +77,25 @@ export const envSchema = z.preprocess(
      */
     DIRECT_URL: z.string().optional(),
 
+    /**
+     * Session signing key.
+     *
+     * Optional only so a demonstration deployment opens with no configuration.
+     * The fallback is a fixed, published value rather than a random one: this
+     * module is evaluated more than once across the server bundle, and a
+     * per-process random key meant tokens were signed with one key and
+     * verified with another, so nobody could stay signed in.
+     *
+     * A predictable key makes sessions forgeable — which adds no exposure to a
+     * deployment whose front door is an account chooser with no password, and
+     * would be unacceptable anywhere else. `/api/health` reports it, and any
+     * real deployment sets AUTH_SECRET.
+     */
     AUTH_SECRET: z
-      .string({ error: "AUTH_SECRET is required — generate one with: openssl rand -base64 32" })
-      .min(32, "AUTH_SECRET must be at least 32 characters — openssl rand -base64 32"),
+      .string()
+      .min(32, "AUTH_SECRET must be at least 32 characters — openssl rand -base64 32")
+      .optional()
+      .default(DEMO_SIGNING_KEY),
     /**
      * Public origin, used to build absolute links in outbound notifications.
      * Nothing reads it yet, so it never blocks startup; on Vercel it is

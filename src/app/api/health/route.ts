@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { environmentIssues } from "@/lib/env-schema";
+import { DEMO_SIGNING_KEY, environmentIssues } from "@/lib/env-schema";
 
 /**
  * Liveness probe, and the first thing to check after a fresh deploy.
@@ -49,18 +49,24 @@ export async function GET() {
      * instance recycles and nothing would ever say why.
      */
     const ephemeralStorage = env.NODE_ENV === "production" && env.STORAGE_DRIVER === "local";
+    const embeddedDatabase = !env.DATABASE_URL;
+    const publishedKey = env.AUTH_SECRET === DEMO_SIGNING_KEY;
+
+    const warnings = [
+      embeddedDatabase &&
+        "No DATABASE_URL: running on an in-memory database reseeded on every cold start. For demonstration only.",
+      publishedKey &&
+        "No AUTH_SECRET: sessions are signed with a published key and can be forged. Set AUTH_SECRET before real use.",
+      ephemeralStorage &&
+        "STORAGE_DRIVER=local on a serverless platform: uploaded documents are lost when the instance recycles.",
+    ].filter((entry): entry is string => typeof entry === "string");
 
     return NextResponse.json(
       {
         status: "ok",
-        database: "reachable",
+        database: embeddedDatabase ? "embedded (in-memory)" : "reachable",
         storage: ephemeralStorage ? "ephemeral" : env.STORAGE_DRIVER,
-        ...(ephemeralStorage
-          ? {
-              warning:
-                "STORAGE_DRIVER=local on a serverless platform: uploaded documents are lost when the instance recycles. Fine for a demo, not for real data — set STORAGE_DRIVER=s3.",
-            }
-          : {}),
+        ...(warnings.length > 0 ? { warnings } : {}),
         latencyMs: Date.now() - startedAt,
         timestamp: new Date().toISOString(),
       },

@@ -52,3 +52,5 @@
 {"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/app/api/health/route.ts","success":true,"timestamp":1788978174122,"sessionId":null}
 {"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/lib/env-schema.ts","success":true,"timestamp":1788978247243,"sessionId":null}
 {"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/lib/env-schema.ts","success":true,"timestamp":1788978257839,"sessionId":null}
+{"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/server/demo/embedded-db.ts","success":true,"timestamp":1788978613899,"sessionId":null}
+{"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/prisma/seed.ts","success":true,"timestamp":1788978748444,"sessionId":null}

@@ -299,15 +299,29 @@ que a mudança seja consciente.
 
 ## Colocar em produção
 
-Recomendação: **Vercel** para a aplicação e **Supabase** para Postgres + Storage. O motivo
-é específico deste código, não preferência: o Prisma 7 aqui usa o driver adapter `pg` sobre
-TCP e a rota de download faz stream de `Buffer` pelo AWS SDK — APIs de Node, que rodam sem
-alteração no Fluid Compute da Vercel. Em runtimes de edge seria necessário trocar a camada
-de dados. E o Storage do Supabase é compatível com S3, então o driver que já existe funciona
-apenas preenchendo variáveis.
+### Sem configurar nada
 
-Alternativas legítimas: qualquer host Node (VPS, Docker, ECS) e qualquer Postgres + bucket
-S3. Nada no código é específico de provedor.
+O deploy funciona **sem nenhuma variável de ambiente**. Sem `DATABASE_URL`, a aplicação
+sobe um Postgres embutido — PGlite, o próprio Postgres compilado para WebAssembly — dentro
+do processo, aplica o schema e carrega os dados de demonstração. O Prisma conversa com ele
+pelo protocolo real do Postgres, então nenhuma consulta, service ou página sabe a diferença.
+
+Serve para exatamente uma coisa: abrir a plataforma e olhar as telas, sem provisionar nada.
+Os dados vivem em memória e são recriados a cada instância nova.
+
+| | Sem configuração | Com `DATABASE_URL` |
+|---|---|---|
+| Banco | Embutido, em memória | O seu |
+| Dados | Recriados a cada cold start | Persistentes |
+| Sessões | Chave de assinatura pública | `AUTH_SECRET` |
+| Documentos | Só as linhas, sem arquivo | Storage S3 |
+
+`/api/health` diz em qual dos dois está e lista o que falta para o outro.
+
+> **Isso não é um modo de produção.** Sessões assinadas com chave pública podem ser
+> forjadas, e todo dado se perde quando a instância recicla. Serve para avaliar a interface.
+
+### Para uso real
 
 ### 1. Provisionar os serviços
 

@@ -23,6 +23,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * PGlite ships a WebAssembly build of Postgres. Bundling it breaks the
+   * module's own WASM instantiation, so it is loaded from node_modules at
+   * runtime instead. It is only reached when no DATABASE_URL is configured.
+   */
+  serverExternalPackages: ["@electric-sql/pglite", "@electric-sql/pglite-socket"],
+
   // Do not advertise the framework or its version.
   poweredByHeader: false,
 

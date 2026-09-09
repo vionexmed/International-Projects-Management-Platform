@@ -1,5 +1,5 @@
-import type { DocumentType, StageKey } from "../src/generated/prisma";
-import { date } from "./seed-helpers";
+import type { DocumentType, StageKey } from "@/generated/prisma";
+import { date } from "@/server/demo/helpers";
 
 /** Per-stage completion used to derive each seeded project's progress. */
 export type StageProgress = Record<StageKey, number>;

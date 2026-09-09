@@ -1,5 +1,5 @@
-import type { PrismaClient } from "../src/generated/prisma";
-import { date, daysFromNow } from "./seed-helpers";
+import type { PrismaClient } from "@/generated/prisma";
+import { date, daysFromNow } from "@/server/demo/helpers";
 
 type Ids = {
   organizationId: string;

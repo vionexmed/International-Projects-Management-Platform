@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envSchema, environmentIssues } from "@/lib/env-schema";
+import { DEMO_SIGNING_KEY, envSchema, environmentIssues } from "@/lib/env-schema";
 
 /**
  * These guards are the difference between a deployment that quietly loses
@@ -73,18 +73,31 @@ describe("environment validation", () => {
     expect(result.success).toBe(true);
   });
 
-  it("boots a production deployment on DATABASE_URL and AUTH_SECRET alone", () => {
-    // The smallest configuration someone can reasonably be asked for.
+  it("boots a production deployment with no configuration at all", () => {
+    // Nothing set: the app falls back to the embedded demo database and a
+    // published signing key, so it can be opened and reviewed immediately.
+    const result = envSchema.safeParse({ NODE_ENV: "production" });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.DATABASE_URL).toBeUndefined();
+      expect(result.data.AUTH_SECRET).toBe(DEMO_SIGNING_KEY);
+      expect(result.data.STORAGE_DRIVER).toBe("local");
+      expect(result.data.UPLOAD_MAX_SIZE_MB).toBe(25);
+    }
+  });
+
+  it("uses the real values whenever they are supplied", () => {
     const result = envSchema.safeParse({
+      ...base,
       NODE_ENV: "production",
       DATABASE_URL: "postgresql://user:pass@db.example.com:5432/app",
-      AUTH_SECRET: "a-genuinely-random-secret-of-enough-length",
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.STORAGE_DRIVER).toBe("local");
-      expect(result.data.UPLOAD_MAX_SIZE_MB).toBe(25);
+      expect(result.data.DATABASE_URL).toContain("db.example.com");
+      expect(result.data.AUTH_SECRET).not.toBe(DEMO_SIGNING_KEY);
     }
   });
 
@@ -146,9 +159,9 @@ describe("environment validation", () => {
       const issues = environmentIssues();
       const names = issues.map((issue) => issue.variable);
 
-      // Required fields are reported first: Zod stops before the
-      // production-only checks when the shape itself does not hold.
-      expect(names).toEqual(expect.arrayContaining(["DATABASE_URL", "AUTH_SECRET"]));
+      // DATABASE_URL is optional now — absent means "use the embedded demo
+      // database" — so only the malformed secret is reported.
+      expect(names).toEqual(expect.arrayContaining(["AUTH_SECRET"]));
 
       // The diagnostic must never echo a configured value back to the caller.
       const serialised = JSON.stringify(issues);
