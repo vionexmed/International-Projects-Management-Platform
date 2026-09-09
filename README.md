@@ -23,6 +23,7 @@ de e-mail, WhatsApp, planilhas e pastas por um canal único e rastreável.
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Papéis e permissões](#papéis-e-permissões)
 - [Preview de desenvolvimento](#preview-de-desenvolvimento)
+- [Colocar em produção](#colocar-em-produção)
 - [Isolamento de fornecedores](#isolamento-de-fornecedores)
 - [Documentos e armazenamento](#documentos-e-armazenamento)
 - [Regras automáticas de status](#regras-automáticas-de-status)
@@ -200,6 +201,7 @@ npm start            # serve o build
 npm run lint         # ESLint
 npm run typecheck    # TypeScript sem emitir
 npm test             # suíte de testes
+npm run create-admin # cria um administrador (usar em produção)
 ```
 
 ---
@@ -276,6 +278,117 @@ A página lista todas as contas de demonstração e entra com um clique. **Não 
 autenticação**: a rota emite a mesma sessão assinada que um login real produz, então papéis,
 permissões e isolamento continuam valendo integralmente. Ela responde **404** sempre que
 `NODE_ENV` é `production`, portanto não existe em build implantado.
+
+---
+
+## Colocar em produção
+
+Recomendação: **Vercel** para a aplicação e **Supabase** para Postgres + Storage. O motivo
+é específico deste código, não preferência: o Prisma 7 aqui usa o driver adapter `pg` sobre
+TCP e a rota de download faz stream de `Buffer` pelo AWS SDK — APIs de Node, que rodam sem
+alteração no Fluid Compute da Vercel. Em runtimes de edge seria necessário trocar a camada
+de dados. E o Storage do Supabase é compatível com S3, então o driver que já existe funciona
+apenas preenchendo variáveis.
+
+Alternativas legítimas: qualquer host Node (VPS, Docker, ECS) e qualquer Postgres + bucket
+S3. Nada no código é específico de provedor.
+
+### 1. Provisionar os serviços
+
+No Supabase, crie o projeto e anote:
+
+| Onde | O que copiar |
+|---|---|
+| Settings → Database → Connection string → **Transaction pooler** (porta 6543) | `DATABASE_URL` |
+| Settings → Database → Connection string → **Direct** (porta 5432) | `DIRECT_URL` |
+| Storage → crie o bucket `documents` (**privado**) | `STORAGE_BUCKET` |
+| Storage → S3 Connection → access keys | `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` |
+
+O bucket precisa ser **privado**: todo download passa por `/api/files/[versionId]`, que
+revalida o acesso a cada requisição. Um bucket público anularia o isolamento entre
+fornecedores.
+
+> O free tier do Supabase **pausa o projeto** por inatividade. Para uma ferramenta que a
+> equipe usa todo dia, use plano pago.
+
+### 2. Variáveis de ambiente
+
+```bash
+DATABASE_URL="postgresql://…@…pooler.supabase.com:6543/postgres"   # pooled
+DIRECT_URL="postgresql://…@db.….supabase.co:5432/postgres"          # migrations
+AUTH_SECRET="<openssl rand -base64 32>"                             # gere um novo
+APP_URL="https://projetos.vionex.com"                               # https obrigatório
+STORAGE_DRIVER="s3"
+STORAGE_ENDPOINT="https://<projeto>.supabase.co/storage/v1/s3"
+STORAGE_REGION="us-east-1"
+STORAGE_ACCESS_KEY="…"
+STORAGE_SECRET_KEY="…"
+STORAGE_BUCKET="documents"
+STORAGE_FORCE_PATH_STYLE="true"
+```
+
+A aplicação **se recusa a subir** em produção com `STORAGE_DRIVER=local`, com `APP_URL` em
+http, ou com um `AUTH_SECRET` de template — falhar na inicialização é melhor que aceitar
+uploads que desaparecem depois. As regras estão em `src/lib/env.ts` e são cobertas por
+testes.
+
+### 3. Migrations e primeiro acesso
+
+```bash
+npm run db:deploy      # aplica migrations (usa DIRECT_URL)
+npm run create-admin   # cria o primeiro administrador, interativamente
+```
+
+`npm run seed` é **bloqueado** quando `NODE_ENV=production`: ele apaga tudo e cria contas
+com senha pública. Use `create-admin`, que é aditivo, nunca sobrescreve uma conta existente
+e registra a criação no audit log. A partir do login, crie a equipe em **Equipe** e os
+acessos dos fabricantes em **Fornecedores → [empresa] → Adicionar usuário**.
+
+### 4. Deploy
+
+Na Vercel: conecte o repositório, cole as variáveis acima em Project Settings →
+Environment Variables e faça o deploy. O `postinstall` roda `prisma generate`
+automaticamente.
+
+**Fixe a região da função na mesma região do banco** (Project Settings → Functions). Toda
+requisição faz várias idas ao Postgres; função e banco em continentes diferentes é o maior
+custo de latência evitável desta arquitetura.
+
+### 5. Depois de subir — verifique
+
+```bash
+curl https://projetos.vionex.com/api/health     # {"status":"ok","database":"reachable"}
+curl https://projetos.vionex.com/robots.txt     # Disallow: /
+curl -I https://projetos.vionex.com/login       # CSP, HSTS, X-Frame-Options: DENY
+```
+
+E, com dois logins de fornecedores diferentes, confirme que cada um só vê a própria empresa.
+
+### O que já está endurecido
+
+| Item | Onde |
+|---|---|
+| CSP com nonce por requisição (`strict-dynamic`) | `src/proxy.ts` |
+| HSTS, X-Frame-Options, Referrer-Policy, COOP/CORP, sem `x-powered-by` | `next.config.ts` |
+| Toda página como `private, no-store` (conteúdo é por usuário) | `next.config.ts` |
+| `robots.txt` bloqueando indexação (aplicação privada) | `src/app/robots.ts` |
+| Health check com round-trip no banco | `src/app/api/health/route.ts` |
+| Throttle de login no banco, por e-mail **e** por IP | `src/server/auth/throttle.ts` |
+| Boundary de último recurso para falhas no root layout | `src/app/global-error.tsx` |
+| Validação de ambiente que recusa configuração insegura | `src/lib/env.ts` |
+| Seed bloqueado em produção + bootstrap seguro de admin | `prisma/seed.ts`, `scripts/create-admin.ts` |
+| CI: lint, tipos, 85 testes e build a cada push | `.github/workflows/ci.yml` |
+
+### O que ainda falta para operar com tranquilidade
+
+1. **E-mail transacional** — sem ele o fornecedor só descobre uma solicitação se entrar no
+   portal. É a maior lacuna funcional; depende de escolher provedor. Veja o Roadmap.
+2. **Monitoramento de erros** — hoje os erros vão para o log do servidor. Um coletor
+   (Sentry ou equivalente) mostra o que quebra em produção sem depender de alguém relatar.
+3. **Backups verificados** — o Supabase faz backup automático nos planos pagos, mas
+   restauração só conta depois de ser testada uma vez.
+4. **Retenção** — `AuditLog`, `TimelineEvent` e `Notification` crescem para sempre. Não é
+   problema no primeiro ano; vale uma política antes que seja.
 
 ---
 
@@ -395,6 +508,8 @@ Cobertura das partes críticas:
 | `tests/integration/workflows.test.ts` | Criação de projeto com etapas, tarefas, ciclo completo de solicitação → envio → revisão, versionamento, upload inválido, mensagens, status automático. |
 | `tests/integration/auth.test.ts` | Hash de senha, sessão assinada, token adulterado, ausência de papel no token, rotação de senha. |
 | `tests/unit/route-structure.test.ts` | Nenhum `loading.tsx` cobre uma rota dinâmica — a invariante que mantém o 404 real. |
+| `tests/unit/env.test.ts` | Produção recusa storage local, http e segredo de template. |
+| `tests/integration/throttle.test.ts` | Bloqueio de login por e-mail e por IP; trocar de IP não zera o bloqueio da conta. |
 
 ---
 

@@ -11,6 +11,12 @@ import {
 } from "@/server/auth/session";
 import { getCurrentUser } from "@/server/auth/current-user";
 import { recordAudit } from "@/server/services/audit";
+import {
+  checkLoginThrottle,
+  clearLoginThrottle,
+  clientIp,
+  recordFailedLogin,
+} from "@/server/auth/throttle";
 import { isSupplierRole } from "@/types/auth";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { DEFAULT_INTERNAL_LOCALE, isLocale, type Locale } from "@/lib/i18n/config";
@@ -30,30 +36,6 @@ export type SignInState = { error?: string };
  */
 const DUMMY_HASH = "$2a$12$C6UzMDM.H6dfI/f/IKcEe.7Vd0xVh9pRbXqvJdG0e5xVX5Wt1Kx4W";
 
-/** Simple in-process throttle. Real deployments should front this with a shared store. */
-const attempts = new Map<string, { count: number; firstAt: number }>();
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_ATTEMPTS = 8;
-
-function throttled(key: string) {
-  const entry = attempts.get(key);
-  if (!entry) return false;
-  if (Date.now() - entry.firstAt > WINDOW_MS) {
-    attempts.delete(key);
-    return false;
-  }
-  return entry.count >= MAX_ATTEMPTS;
-}
-
-function registerFailure(key: string) {
-  const entry = attempts.get(key);
-  if (!entry || Date.now() - entry.firstAt > WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAt: Date.now() });
-    return;
-  }
-  entry.count += 1;
-}
-
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const localeValue = String(formData.get("locale") ?? "");
   const locale: Locale = isLocale(localeValue) ? localeValue : DEFAULT_INTERNAL_LOCALE;
@@ -71,8 +53,12 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
 
   const { email, password, remember } = parsed.data;
 
-  if (throttled(email)) {
-    return { error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." };
+  const ip = await clientIp();
+  const throttle = await checkLoginThrottle(email, ip);
+  if (throttle.blocked) {
+    return {
+      error: `Muitas tentativas. Aguarde ${throttle.retryAfterMinutes} minutos e tente novamente.`,
+    };
   }
 
   const user = await db.user.findUnique({
@@ -83,7 +69,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const matches = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
 
   if (!user || !matches) {
-    registerFailure(email);
+    await recordFailedLogin(email, ip);
     return { error: dict.auth.invalidCredentials };
   }
 
@@ -96,7 +82,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
     return { error: dict.auth.accountInactive };
   }
 
-  attempts.delete(email);
+  await clearLoginThrottle(email);
 
   const { token, maxAge } = await createSessionToken(
     { id: user.id, organizationId: user.organizationId },

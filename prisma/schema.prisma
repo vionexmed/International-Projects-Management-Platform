@@ -700,3 +700,18 @@ model AuditLog {
   @@index([organizationId, createdAt])
   @@index([entity, entityId])
 }
+
+/// Failed sign-in attempts, used to throttle credential stuffing.
+///
+/// Kept in the database rather than in process memory: on any horizontally
+/// scaled or serverless deployment an in-memory counter is per-instance, so an
+/// attacker simply spreads attempts across instances and the limit never trips.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  /// Either "email:<address>" or "ip:<address>" — both are throttled.
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+}

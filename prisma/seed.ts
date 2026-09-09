@@ -48,6 +48,28 @@ async function reset() {
 }
 
 async function main() {
+  /**
+   * The seed wipes every table and creates accounts with a published
+   * password. Running it against a real deployment would both destroy the
+   * customer's data and open a public back door, so it refuses outright.
+   * `ALLOW_DESTRUCTIVE_SEED=1` exists for throwaway staging databases.
+   */
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DESTRUCTIVE_SEED !== "1") {
+    console.error(
+      [
+        "",
+        "✗ Seed bloqueado: NODE_ENV=production.",
+        "",
+        "  Este script APAGA todos os dados e cria usuários com senha pública.",
+        "  Para criar o primeiro acesso em produção use:  npm run create-admin",
+        "",
+        "  Se este banco é realmente descartável, force com ALLOW_DESTRUCTIVE_SEED=1.",
+        "",
+      ].join("\n"),
+    );
+    process.exit(1);
+  }
+
   console.log("→ Limpando dados existentes…");
   await reset();
 

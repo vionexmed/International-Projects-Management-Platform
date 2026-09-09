@@ -4,31 +4,116 @@ import { z } from "zod";
  * Server-side environment. Parsed once at module load so that a
  * misconfigured deployment fails fast instead of at the first request.
  * Never import this module from a client component.
+ *
+ * `next build` runs with NODE_ENV=production but without the deployment's real
+ * environment, so the runtime-only checks must not fire during it — otherwise
+ * a perfectly valid project fails to compile. Next sets NEXT_PHASE for exactly
+ * this kind of distinction.
  */
-const schema = z.object({
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
-  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
-  STORAGE_LOCAL_DIR: z.string().default("./storage"),
-  STORAGE_ENDPOINT: z.string().optional(),
-  STORAGE_REGION: z.string().default("us-east-1"),
-  STORAGE_ACCESS_KEY: z.string().optional(),
-  STORAGE_SECRET_KEY: z.string().optional(),
-  STORAGE_BUCKET: z.string().optional(),
-  STORAGE_FORCE_PATH_STYLE: z
-    .string()
-    .optional()
-    .transform((value) => value === "true"),
+/**
+ * Exact values that ship in templates or get typed in a hurry. Matched
+ * exactly rather than as substrings: a random base64 secret can legitimately
+ * contain a word like "secret", and rejecting it would be a false positive on
+ * a perfectly good key.
+ */
+const PLACEHOLDER_SECRETS = new Set([
+  "change_me",
+  "change_me_generate_with_openssl_rand_base64_32",
+  "secret",
+  "changeme",
+  "development",
+  "production",
+  "todo",
+  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+]);
 
-  UPLOAD_MAX_SIZE_MB: z.coerce.number().int().positive().default(25),
+/** Exported so the production guards can be exercised in tests. */
+export const envSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  EMAIL_SERVER: z.string().optional(),
-  EMAIL_FROM: z.string().optional(),
-});
+    DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+    /**
+     * Direct (non-pooled) connection, used only by migrations. Managed
+     * Postgres providers expose a transaction-mode pooler for the app and a
+     * direct port for schema changes; migrations need session-level advisory
+     * locks, which a transaction pooler does not provide.
+     */
+    DIRECT_URL: z.string().optional(),
 
-const parsed = schema.safeParse(process.env);
+    AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
+    APP_URL: z.string().url().default("http://localhost:3000"),
+
+    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+    STORAGE_LOCAL_DIR: z.string().default("./storage"),
+    STORAGE_ENDPOINT: z.string().optional(),
+    STORAGE_REGION: z.string().default("us-east-1"),
+    STORAGE_ACCESS_KEY: z.string().optional(),
+    STORAGE_SECRET_KEY: z.string().optional(),
+    STORAGE_BUCKET: z.string().optional(),
+    STORAGE_FORCE_PATH_STYLE: z
+      .string()
+      .optional()
+      .transform((value) => value === "true"),
+
+    UPLOAD_MAX_SIZE_MB: z.coerce.number().int().positive().default(25),
+
+    EMAIL_SERVER: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const inProduction = value.NODE_ENV === "production";
+
+    // A placeholder secret would sign every session with a public value.
+    if (PLACEHOLDER_SECRETS.has(value.AUTH_SECRET.trim().toLowerCase())) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_SECRET"],
+        message: "AUTH_SECRET is still a placeholder. Generate one with: openssl rand -base64 32",
+      });
+    }
+
+    // Serving in production is what these guard; building is not serving.
+    if (!inProduction || isBuildPhase) return;
+
+    /**
+     * The local driver writes to the instance filesystem, which is ephemeral
+     * on every serverless and most container platforms: uploads would appear
+     * to succeed and then vanish. Refuse to boot rather than lose documents.
+     */
+    if (value.STORAGE_DRIVER === "local") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["STORAGE_DRIVER"],
+        message:
+          "STORAGE_DRIVER=local is not safe in production (ephemeral filesystem). Set STORAGE_DRIVER=s3.",
+      });
+    }
+
+    if (value.STORAGE_DRIVER === "s3") {
+      for (const key of ["STORAGE_ACCESS_KEY", "STORAGE_SECRET_KEY", "STORAGE_BUCKET"] as const) {
+        if (!value[key]) {
+          ctx.addIssue({
+            code: "custom",
+            path: [key],
+            message: `${key} is required when STORAGE_DRIVER=s3`,
+          });
+        }
+      }
+    }
+
+    if (!value.APP_URL.startsWith("https://")) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["APP_URL"],
+        message: "APP_URL must use https in production (session cookies are Secure).",
+      });
+    }
+  });
+
+const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   const issues = parsed.error.issues
@@ -40,3 +125,5 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 export const UPLOAD_MAX_BYTES = env.UPLOAD_MAX_SIZE_MB * 1024 * 1024;
+
+export const isProduction = env.NODE_ENV === "production";
