@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UPLOAD_MAX_BYTES, env } from "@/lib/env";
+import { env, uploadMaxBytes } from "@/lib/env";
 
 /** MIME type → canonical extension. Anything outside this map is rejected. */
 export const ALLOWED_FILE_TYPES: Record<string, string[]> = {
@@ -13,7 +13,10 @@ export const ALLOWED_FILE_TYPES: Record<string, string[]> = {
 
 export const ALLOWED_EXTENSIONS = Object.values(ALLOWED_FILE_TYPES).flat();
 export const ACCEPT_ATTRIBUTE = ALLOWED_EXTENSIONS.join(",");
-export const MAX_UPLOAD_MB = env.UPLOAD_MAX_SIZE_MB;
+/** Upload ceiling in MB. A function so no configuration is read at import. */
+export function maxUploadMb(): number {
+  return env.UPLOAD_MAX_SIZE_MB;
+}
 
 export type UploadValidationError = { message: string };
 
@@ -27,8 +30,8 @@ export function validateUpload(file: File): UploadValidationError | null {
   if (file.size === 0) {
     return { message: "O arquivo está vazio." };
   }
-  if (file.size > UPLOAD_MAX_BYTES) {
-    return { message: `O arquivo excede o limite de ${MAX_UPLOAD_MB} MB.` };
+  if (file.size > uploadMaxBytes()) {
+    return { message: `O arquivo excede o limite de ${maxUploadMb()} MB.` };
   }
 
   const allowedExtensions = ALLOWED_FILE_TYPES[file.type];

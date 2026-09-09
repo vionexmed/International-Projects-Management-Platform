@@ -14,7 +14,7 @@ import { UploadDocumentDialog } from "@/features/documents/upload-document-dialo
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label } from "@/lib/labels";
-import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_MB } from "@/lib/upload";
+import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 
 export const metadata: Metadata = { title: "Documentos" };
 
@@ -58,7 +58,7 @@ export default async function DocumentsPage({
             <UploadDocumentDialog
               projects={projects.items.map((project) => ({ id: project.id, name: project.name }))}
               accept={ACCEPT_ATTRIBUTE}
-              maxSizeMb={MAX_UPLOAD_MB}
+              maxSizeMb={maxUploadMb()}
             />
           ) : null
         }

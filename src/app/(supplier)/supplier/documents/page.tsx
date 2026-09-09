@@ -11,7 +11,7 @@ import { SupplierUploadDialog } from "@/features/supplier-portal/upload-document
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label } from "@/lib/labels";
-import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_MB } from "@/lib/upload";
+import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 
 export const metadata: Metadata = { title: "Documents" };
 
@@ -47,7 +47,7 @@ export default async function SupplierDocumentsPage({
             projects={projects.items.map((project) => ({ id: project.id, name: project.name }))}
             dict={dict}
             accept={ACCEPT_ATTRIBUTE}
-            maxSizeMb={MAX_UPLOAD_MB}
+            maxSizeMb={maxUploadMb()}
           />
         }
       />

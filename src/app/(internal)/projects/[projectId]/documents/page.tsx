@@ -7,7 +7,7 @@ import { DocumentsTable } from "@/features/documents/documents-table";
 import { UploadDocumentDialog } from "@/features/documents/upload-document-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_MB } from "@/lib/upload";
+import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 
 export default async function ProjectDocumentsPage({
   params,
@@ -32,7 +32,7 @@ export default async function ProjectDocumentsPage({
             <UploadDocumentDialog
               projectId={projectId}
               accept={ACCEPT_ATTRIBUTE}
-              maxSizeMb={MAX_UPLOAD_MB}
+              maxSizeMb={maxUploadMb()}
             />
           ) : null
         }

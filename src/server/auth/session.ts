@@ -10,7 +10,10 @@ export const SESSION_COOKIE = "vionex_session";
 const SHORT_SESSION_SECONDS = 60 * 60 * 8; // 8 hours
 const REMEMBERED_SESSION_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
-const secret = new TextEncoder().encode(env.AUTH_SECRET);
+/** Derived on demand so importing this module needs no configuration. */
+function signingKey(): Uint8Array {
+  return new TextEncoder().encode(env.AUTH_SECRET);
+}
 
 const payloadSchema = z.object({
   sub: z.string().min(1),
@@ -30,14 +33,14 @@ export async function createSessionToken(user: Pick<SessionUser, "id" | "organiz
     .setIssuedAt()
     .setIssuer("vionex-projects")
     .setExpirationTime(`${maxAge}s`)
-    .sign(secret);
+    .sign(signingKey());
 
   return { token, maxAge };
 }
 
 export async function verifySessionToken(token: string) {
   try {
-    const { payload } = await jwtVerify(token, secret, { issuer: "vionex-projects" });
+    const { payload } = await jwtVerify(token, signingKey(), { issuer: "vionex-projects" });
     const parsed = payloadSchema.safeParse(payload);
     return parsed.success ? { userId: parsed.data.sub, organizationId: parsed.data.org } : null;
   } catch {

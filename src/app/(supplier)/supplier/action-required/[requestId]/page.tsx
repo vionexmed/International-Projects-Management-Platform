@@ -10,7 +10,7 @@ import { getDictionary, interpolate, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
 import { daysUntil, formatDate, formatDateTime, formatFileSize } from "@/lib/format";
-import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_MB } from "@/lib/upload";
+import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata({ params }: { params: Promise<{ requestId: string }> }) {
@@ -184,7 +184,7 @@ export default async function SupplierRequestPage({
               requestId={request.id}
               dict={dict}
               accept={ACCEPT_ATTRIBUTE}
-              maxSizeMb={MAX_UPLOAD_MB}
+              maxSizeMb={maxUploadMb()}
             />
           </div>
         </Panel>

@@ -5,7 +5,7 @@ import { orNotFound } from "@/server/authz/rsc";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { SupplierDocumentsTable } from "@/features/supplier-portal/supplier-documents-table";
 import { SupplierUploadDialog } from "@/features/supplier-portal/upload-document-dialog";
-import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_MB } from "@/lib/upload";
+import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
@@ -32,7 +32,7 @@ export default async function SupplierProjectDocumentsPage({
             projectId={projectId}
             dict={dict}
             accept={ACCEPT_ATTRIBUTE}
-            maxSizeMb={MAX_UPLOAD_MB}
+            maxSizeMb={maxUploadMb()}
           />
         }
       />

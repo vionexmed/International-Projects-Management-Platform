@@ -18,7 +18,7 @@ import { ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from "@/server/authz/permissions"
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { LOCALE_LABELS, localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label } from "@/lib/labels";
-import { ALLOWED_EXTENSIONS, MAX_UPLOAD_MB } from "@/lib/upload";
+import { ALLOWED_EXTENSIONS, maxUploadMb } from "@/lib/upload";
 import { STAGE_ORDER } from "@/server/services/project-health";
 import { formatDate } from "@/lib/format";
 
@@ -218,7 +218,7 @@ export default async function SettingsPage() {
             <dl className="space-y-5 p-5">
               <Field label="Sessão">Cookie httpOnly assinado · 8h, ou 30 dias com “manter conectado”</Field>
               <Field label="Senhas">Hash bcrypt com fator de custo 12</Field>
-              <Field label="Tamanho máximo de upload">{MAX_UPLOAD_MB} MB</Field>
+              <Field label="Tamanho máximo de upload">{maxUploadMb()} MB</Field>
               <Field label="Formatos permitidos">{ALLOWED_EXTENSIONS.join(", ")}</Field>
               <Field label="Isolamento de fornecedores">
                 Aplicado no servidor em todas as consultas e downloads
