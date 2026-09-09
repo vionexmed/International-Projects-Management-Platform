@@ -18,7 +18,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { VionexMark } from "@/components/app/logo";
+import { VionexLogo } from "@/components/app/logo";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/server/actions/auth";
@@ -76,17 +76,7 @@ export function InternalMobileNav({
 
           <div className="relative flex w-[264px] flex-col bg-navy">
             <div className="flex items-center justify-between px-4 py-5">
-              <span className="flex items-center gap-2.5">
-                <VionexMark className="size-7 text-brand" />
-                <span className="leading-tight">
-                  <span className="block text-[13px] font-semibold tracking-[0.14em] text-white">
-                    VIONEX
-                  </span>
-                  <span className="block text-[10px] tracking-[0.1em] text-navy-ink">
-                    INTERNATIONAL PROJECTS
-                  </span>
-                </span>
-              </span>
+              <VionexLogo tone="light" width={124} />
               <button
                 type="button"
                 onClick={() => setOpen(false)}

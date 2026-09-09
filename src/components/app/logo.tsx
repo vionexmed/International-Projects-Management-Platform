@@ -1,11 +1,12 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * The Vionex mark: a circle held by an open embrace. Drawn with `currentColor`
- * so it inherits the surrounding text colour — turquoise on light chrome,
- * white on the navy sidebar. The mask keeps the gap between the circle and
- * the embrace transparent rather than painting it white, so the mark sits
- * cleanly on any background.
+ * The Vionex mark alone: a circle held by an open embrace.
+ *
+ * Drawn rather than loaded so it inherits `currentColor` — it appears at 17px
+ * in a collapsed sidebar, where a raster asset would be muddy, and it has to
+ * work in turquoise on light chrome and in white on the navy rail.
  */
 export function VionexMark({ className }: { className?: string }) {
   return (
@@ -34,33 +35,44 @@ export function VionexMark({ className }: { className?: string }) {
 }
 
 /**
- * Mark plus wordmark. `tone` switches between the light chrome of the
- * Supplier Portal and the navy chrome of the internal environment.
+ * The full brand lockup — the official artwork, not a reproduction — with the
+ * product name set beneath it.
+ *
+ * `tone="light"` swaps in the white artwork for the navy sidebar; the
+ * turquoise original would sit too close to that background.
  */
 export function VionexLogo({
   className,
-  markClassName,
   tone = "brand",
-  wordmark = true,
+  subtitle = "INTERNATIONAL PROJECTS",
+  width = 132,
 }: {
   className?: string;
-  markClassName?: string;
   tone?: "brand" | "light";
-  wordmark?: boolean;
+  /** Set to null to show the logo on its own. */
+  subtitle?: string | null;
+  width?: number;
 }) {
+  const light = tone === "light";
+
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <VionexMark
-        className={cn("size-7", tone === "light" ? "text-white" : "text-brand", markClassName)}
+    <span className={cn("inline-flex flex-col items-start gap-1.5", className)}>
+      <Image
+        src={light ? "/brand/vionex-white.png" : "/brand/vionex.png"}
+        alt="Vionex"
+        width={width}
+        height={Math.round((width * 198) / 720)}
+        priority
+        className="h-auto"
       />
-      {wordmark ? (
+      {subtitle ? (
         <span
           className={cn(
-            "text-[19px] leading-none font-semibold tracking-[-0.02em]",
-            tone === "light" ? "text-white" : "text-brand-deep",
+            "text-[10px] leading-none font-medium tracking-[0.16em]",
+            light ? "text-navy-ink" : "text-muted",
           )}
         >
-          vionex
+          {subtitle}
         </span>
       ) : null}
     </span>

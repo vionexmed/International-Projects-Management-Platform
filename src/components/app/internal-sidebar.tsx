@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { VionexMark } from "@/components/app/logo";
+import { VionexLogo, VionexMark } from "@/components/app/logo";
 import { UserAvatar } from "@/components/ui/avatar";
 import {
   Dropdown,
@@ -127,15 +127,11 @@ export function InternalSidebar({
       )}
     >
       <div className={cn("flex items-center gap-2.5 px-4 py-5", collapsed && "justify-center px-0")}>
-        <VionexMark className="size-7 shrink-0 text-brand" />
-        {!collapsed ? (
-          <div className="min-w-0 leading-tight">
-            <div className="text-[13px] font-semibold tracking-[0.14em] text-white">VIONEX</div>
-            <div className="mt-0.5 truncate text-[10px] tracking-[0.1em] text-navy-ink">
-              INTERNATIONAL PROJECTS
-            </div>
-          </div>
-        ) : null}
+        {collapsed ? (
+          <VionexMark className="size-7 shrink-0 text-brand" />
+        ) : (
+          <VionexLogo tone="light" width={124} />
+        )}
       </div>
 
       <nav className="scroll-slim flex-1 overflow-y-auto px-2.5 pb-3" aria-label="Navegação principal">

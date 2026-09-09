@@ -60,7 +60,7 @@ export function SupplierMobileNav({
           />
           <div className="relative flex w-[260px] flex-col border-r border-line bg-surface">
             <div className="flex items-center justify-between px-5 py-5">
-              <VionexLogo />
+              <VionexLogo subtitle={dict.portal.brandLine} />
               <Button variant="ghost" size="iconSm" onClick={() => setOpen(false)} aria-label={dict.common.close}>
                 <X />
               </Button>

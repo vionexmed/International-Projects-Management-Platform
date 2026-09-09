@@ -76,10 +76,7 @@ export function SupplierSidebar({
   return (
     <aside className="sticky top-0 hidden h-dvh w-[244px] shrink-0 flex-col border-r border-line bg-surface md:flex">
       <div className="px-6 pt-6 pb-7">
-        <VionexLogo />
-        <p className="mt-2 text-[10px] font-medium tracking-[0.14em] text-muted">
-          {dict.portal.brandLine}
-        </p>
+        <VionexLogo subtitle={dict.portal.brandLine} />
       </div>
 
       <nav className="flex-1 px-3" aria-label={dict.nav.projects}>
