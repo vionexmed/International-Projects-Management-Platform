@@ -362,6 +362,21 @@ curl https://projetos.vionex.com/robots.txt     # Disallow: /
 curl -I https://projetos.vionex.com/login       # CSP, HSTS, X-Frame-Options: DENY
 ```
 
+O health check é o primeiro lugar a olhar depois de um deploy, porque distingue três
+situações que pedem correções diferentes:
+
+| Resposta | Significa | O que fazer |
+|---|---|---|
+| `misconfigured` (503) | Faltam variáveis — e ele **diz quais** | Preencher em Environment Variables e redeployar |
+| `degraded` (503) | Configurado, mas o banco não responde | Conferir `DATABASE_URL` e se o projeto do banco não está pausado |
+| `ok` (200) | Servindo | — |
+
+Ele reporta apenas **nomes** de variáveis, nunca valores.
+
+> **Antes de configurar as variáveis, o build passa mas toda página responde 500.** Isso é
+> proposital: sem banco e sem storage a aplicação não tem como servir, e falhar fechado é
+> melhor que servir pela metade. `/api/health` é o que explica o motivo.
+
 E, com dois logins de fornecedores diferentes, confirme que cada um só vê a própria empresa.
 
 ### O que já está endurecido

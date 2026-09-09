@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envSchema } from "@/lib/env";
+import { envSchema, environmentIssues } from "@/lib/env-schema";
 
 /**
  * These guards are the difference between a deployment that quietly loses
@@ -92,5 +92,50 @@ describe("environment validation", () => {
     const parsed = envSchema.parse({ ...base, UPLOAD_MAX_SIZE_MB: "50" });
     expect(parsed.UPLOAD_MAX_SIZE_MB).toBe(50);
     expect(envSchema.parse(base).UPLOAD_MAX_SIZE_MB).toBe(25);
+  });
+  it("reports offending variable names without leaking their values", () => {
+    const original = { ...process.env };
+
+    try {
+      // NODE_ENV is typed read-only, so the whole set goes through assign.
+      Object.assign(process.env, {
+        NODE_ENV: "production",
+        DATABASE_URL: "",
+        AUTH_SECRET: "too-short-to-be-safe",
+        APP_URL: "http://insecure.example.com",
+        STORAGE_DRIVER: "local",
+      });
+
+      const issues = environmentIssues();
+      const names = issues.map((issue) => issue.variable);
+
+      expect(names).toEqual(
+        expect.arrayContaining(["DATABASE_URL", "AUTH_SECRET", "APP_URL", "STORAGE_DRIVER"]),
+      );
+
+      // The diagnostic must never echo a configured value back to the caller.
+      const serialised = JSON.stringify(issues);
+      expect(serialised).not.toContain("too-short-to-be-safe");
+      expect(serialised).not.toContain("insecure.example.com");
+    } finally {
+      for (const key of Object.keys(process.env)) {
+        if (!(key in original)) delete process.env[key];
+      }
+      Object.assign(process.env, original);
+    }
+  });
+
+  it("reports no issues for a valid configuration", () => {
+    const original = { ...process.env };
+
+    try {
+      Object.assign(process.env, { ...base, NODE_ENV: "production" });
+      expect(environmentIssues()).toEqual([]);
+    } finally {
+      for (const key of Object.keys(process.env)) {
+        if (!(key in original)) delete process.env[key];
+      }
+      Object.assign(process.env, original);
+    }
   });
 });
