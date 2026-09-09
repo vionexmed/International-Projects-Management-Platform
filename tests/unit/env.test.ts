@@ -93,6 +93,26 @@ describe("environment validation", () => {
     expect(parsed.UPLOAD_MAX_SIZE_MB).toBe(50);
     expect(envSchema.parse(base).UPLOAD_MAX_SIZE_MB).toBe(25);
   });
+  it("treats an empty variable as absent, not as an invalid value", () => {
+    // Pasting a template into a hosting dashboard leaves entries like
+    // DIRECT_URL="" behind. Those must fall back to their defaults instead of
+    // failing every rule and burying the two variables that actually matter.
+    const issues = envSchema.safeParse({
+      ...base,
+      NODE_ENV: "production",
+      DIRECT_URL: "",
+      STORAGE_ENDPOINT: "",
+      UPLOAD_MAX_SIZE_MB: "",
+      EMAIL_SERVER: "  ",
+    });
+
+    expect(issues.success).toBe(true);
+    if (issues.success) {
+      expect(issues.data.UPLOAD_MAX_SIZE_MB).toBe(25);
+      expect(issues.data.DIRECT_URL).toBeUndefined();
+    }
+  });
+
   it("reports offending variable names without leaking their values", () => {
     const original = { ...process.env };
 
@@ -109,14 +129,35 @@ describe("environment validation", () => {
       const issues = environmentIssues();
       const names = issues.map((issue) => issue.variable);
 
-      expect(names).toEqual(
-        expect.arrayContaining(["DATABASE_URL", "AUTH_SECRET", "APP_URL", "STORAGE_DRIVER"]),
-      );
+      // Required fields are reported first: Zod stops before the
+      // production-only checks when the shape itself does not hold.
+      expect(names).toEqual(expect.arrayContaining(["DATABASE_URL", "AUTH_SECRET"]));
 
       // The diagnostic must never echo a configured value back to the caller.
       const serialised = JSON.stringify(issues);
       expect(serialised).not.toContain("too-short-to-be-safe");
       expect(serialised).not.toContain("insecure.example.com");
+    } finally {
+      for (const key of Object.keys(process.env)) {
+        if (!(key in original)) delete process.env[key];
+      }
+      Object.assign(process.env, original);
+    }
+  });
+
+  it("surfaces the production guards once the required fields are supplied", () => {
+    const original = { ...process.env };
+
+    try {
+      Object.assign(process.env, {
+        ...base,
+        NODE_ENV: "production",
+        APP_URL: "http://insecure.example.com",
+        STORAGE_DRIVER: "local",
+      });
+
+      const names = environmentIssues().map((issue) => issue.variable);
+      expect(names).toEqual(expect.arrayContaining(["APP_URL", "STORAGE_DRIVER"]));
     } finally {
       for (const key of Object.keys(process.env)) {
         if (!(key in original)) delete process.env[key];

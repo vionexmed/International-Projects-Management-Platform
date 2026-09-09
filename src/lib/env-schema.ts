@@ -32,8 +32,28 @@ const PLACEHOLDER_SECRETS = new Set([
   "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 ]);
 
+/**
+ * An environment variable set to an empty string is treated as absent.
+ *
+ * Hosting dashboards make this the common case: pasting a template leaves
+ * entries like `DIRECT_URL=""` behind, and a bare `""` would otherwise fail
+ * every rule instead of falling back to its default — reporting
+ * "STORAGE_DRIVER: invalid option" when the honest answer is "not set".
+ */
+function blankToUndefined(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null) return raw;
+
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    cleaned[key] = typeof value === "string" && value.trim() === "" ? undefined : value;
+  }
+  return cleaned;
+}
+
 /** Exported so the production guards can be exercised in tests. */
-export const envSchema = z
+export const envSchema = z.preprocess(
+  blankToUndefined,
+  z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
@@ -118,7 +138,8 @@ export const envSchema = z
         message: "APP_URL must use https in production (session cookies are Secure).",
       });
     }
-  });
+  }),
+);
 
 export type Env = z.infer<typeof envSchema>;
 
