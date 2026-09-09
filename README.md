@@ -268,25 +268,32 @@ exibida em **Configurações → Papéis e permissões**. Toda Server Action cha
 
 ## Modo de demonstração
 
-Uma tela em `/demo` lista as contas de demonstração e entra com um clique, sem senha. Ela
-serve para dois casos: revisar a interface durante o desenvolvimento, e mostrar um deploy a
-quem precisa avaliá-lo sem receber credenciais.
+A raiz do site abre em **`/demo`**, uma tela que lista as contas e entra com um clique, sem
+senha. Ela existe para que alguém possa avaliar a plataforma — os dois ambientes — sem
+receber credenciais.
 
-Não é um bypass parcial: a rota emite a **mesma sessão assinada** que um login real produz,
-então papéis, permissões e isolamento entre fornecedores continuam valendo integralmente.
-O que ela pula é apenas digitar a senha.
+Não é um bypass parcial: a rota emite a **mesma sessão assinada** que um login real produz.
+Papéis, permissões e o isolamento entre fornecedores continuam valendo integralmente; o que
+se pula é apenas digitar a senha. A tela de login segue funcional em `/login`.
 
-| Ambiente | Disponível? |
-|---|---|
-| Desenvolvimento | sempre |
-| Produção sem `DEMO_MODE` | **não** — `/demo` responde 404 e `/` vai para o login |
-| Produção com `DEMO_MODE=1` | sim — `/` abre a tela de escolha |
+> **Neste build o acesso é aberto: qualquer pessoa com a URL entra como administrador.**
+> É aceitável enquanto os dados são fictícios, e é a razão de o deploy exibir uma faixa de
+> aviso em toda página.
 
-> **`DEMO_MODE=1` desliga a autenticação.** Qualquer pessoa com a URL entra como
-> administrador. Use apenas com dados fictícios; nunca num deploy com dados reais de
-> fornecedores. Enquanto está ligado, toda página exibe uma faixa de aviso.
+### Voltar a exigir login
 
-Para desligar depois da aprovação: remova `DEMO_MODE` das variáveis na Vercel e redeploye.
+Uma mudança, em `src/lib/demo.ts`:
+
+```ts
+export function isDemoEnabled(): boolean {
+  return env.NODE_ENV !== "production";
+}
+```
+
+Feito isso, `/` volta a levar ao login e `/demo` responde 404 no deploy. **Faça isso antes
+de a plataforma receber dados reais de fornecedores.**
+`tests/unit/demo-mode.test.ts` documenta o comportamento atual e falha ao ser alterado, para
+que a mudança seja consciente.
 
 ---
 

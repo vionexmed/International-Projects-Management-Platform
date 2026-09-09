@@ -67,19 +67,6 @@ export const envSchema = z
 
     UPLOAD_MAX_SIZE_MB: z.coerce.number().int().positive().default(25),
 
-    /**
-     * Opens the account chooser and lets anyone with the URL sign in as any
-     * seeded user, with no password. It exists so a deployment can be shown
-     * and evaluated without handing out credentials.
-     *
-     * Off unless explicitly set. Never enable it on a deployment that holds
-     * real supplier data — it disables authentication entirely.
-     */
-    DEMO_MODE: z
-      .string()
-      .optional()
-      .transform((value) => value === "1" || value === "true"),
-
     EMAIL_SERVER: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
   })

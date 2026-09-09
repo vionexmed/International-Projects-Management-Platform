@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Demo mode turns off authentication: anyone with the URL becomes any user.
- * That is the point, and exactly why "off unless explicitly asked for" is an
- * invariant worth a test rather than a habit.
+ * This build deliberately ships with open access: `/demo` lets anyone sign in
+ * as any seeded user so the deployment can be evaluated without credentials.
+ *
+ * These tests pin that decision rather than assume it, and — more usefully —
+ * pin the labelling that goes with it. The day the platform holds real
+ * supplier data, `isDemoEnabled` must stop returning true outside development,
+ * and the first of these tests is what will fail and say so.
  */
 const original = { ...process.env };
 
-/** A configuration a real production deployment would actually have. */
 const PRODUCTION = {
   NODE_ENV: "production",
   DATABASE_URL: "postgresql://user:pass@db.example.com:5432/app",
@@ -17,6 +20,14 @@ const PRODUCTION = {
   STORAGE_ACCESS_KEY: "key",
   STORAGE_SECRET_KEY: "secret",
   STORAGE_BUCKET: "documents",
+};
+
+const DEVELOPMENT = {
+  NODE_ENV: "development",
+  DATABASE_URL: "postgresql://vionex:pass@localhost:5433/app",
+  AUTH_SECRET: "a-genuinely-random-secret-of-enough-length",
+  APP_URL: "http://localhost:3000",
+  STORAGE_DRIVER: "local",
 };
 
 async function loadDemo(overrides: Record<string, string>) {
@@ -36,45 +47,31 @@ afterEach(() => {
 });
 
 describe("demo mode", () => {
-  it("is closed in production by default", async () => {
-    const { isDemoEnabled, isPublicDemo } = await loadDemo({
-      ...PRODUCTION,
-      DEMO_MODE: "",
-    });
-
-    expect(isDemoEnabled()).toBe(false);
-    expect(isPublicDemo()).toBe(false);
-  });
-
-  it("stays closed for values that merely look truthy", async () => {
-    for (const value of ["0", "false", "no", "yes", "on", "TRUE "]) {
-      const { isDemoEnabled } = await loadDemo({ ...PRODUCTION, DEMO_MODE: value });
-      expect(isDemoEnabled(), `DEMO_MODE=${JSON.stringify(value)}`).toBe(false);
-    }
-  });
-
-  it("opens only for an explicit opt-in", async () => {
-    for (const value of ["1", "true"]) {
-      const { isDemoEnabled, isPublicDemo } = await loadDemo({
-        ...PRODUCTION,
-        DEMO_MODE: value,
-      });
-      expect(isDemoEnabled()).toBe(true);
-      // A production deployment with it on must announce itself.
-      expect(isPublicDemo()).toBe(true);
-    }
-  });
-
-  it("is available in development without any flag", async () => {
-    const { isDemoEnabled, isPublicDemo } = await loadDemo({
-      NODE_ENV: "development",
-      DEMO_MODE: "",
-      APP_URL: "http://localhost:3000",
-      STORAGE_DRIVER: "local",
-    });
-
+  it("keeps the account chooser open, including in production", async () => {
+    const { isDemoEnabled } = await loadDemo(PRODUCTION);
     expect(isDemoEnabled()).toBe(true);
-    // Local development needs no banner.
+  });
+
+  it("is open in development too", async () => {
+    const { isDemoEnabled } = await loadDemo(DEVELOPMENT);
+    expect(isDemoEnabled()).toBe(true);
+  });
+
+  it("labels a deployed environment on screen", async () => {
+    // A reachable URL that asks for no password has to announce itself.
+    const { isPublicDemo } = await loadDemo(PRODUCTION);
+    expect(isPublicDemo()).toBe(true);
+  });
+
+  it("does not clutter local development with the banner", async () => {
+    const { isPublicDemo } = await loadDemo(DEVELOPMENT);
     expect(isPublicDemo()).toBe(false);
+  });
+
+  it("needs no environment variable to decide", async () => {
+    // The behaviour is a property of the build, not of configuration: a
+    // deployment cannot end up half-open because a variable was mistyped.
+    const withNoise = await loadDemo({ ...PRODUCTION, DEMO_MODE: "0" });
+    expect(withNoise.isDemoEnabled()).toBe(true);
   });
 });
