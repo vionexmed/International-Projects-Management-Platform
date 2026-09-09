@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run demo:snapshot && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -21,7 +21,8 @@
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate",
     "create-admin": "tsx scripts/create-admin.ts",
-    "schema:sql": "node scripts/generate-schema-sql.mjs"
+    "schema:sql": "node scripts/generate-schema-sql.mjs",
+    "demo:snapshot": "tsx scripts/build-demo-snapshot.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

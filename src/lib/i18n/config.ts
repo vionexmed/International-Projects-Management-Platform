@@ -4,6 +4,13 @@ export const LOCALES = ["pt-BR", "en", "zh"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 /** The Vionex team works in Portuguese; the Supplier Portal defaults to English. */
+/**
+ * Offered in the language picker. `zh` stays in `LOCALES` because the database
+ * enum and the dictionaries still carry it, but it is not presented for
+ * selection.
+ */
+export const SELECTABLE_LOCALES = ["pt-BR", "en"] as const satisfies readonly Locale[];
+
 export const DEFAULT_INTERNAL_LOCALE: Locale = "pt-BR";
 export const DEFAULT_SUPPLIER_LOCALE: Locale = "en";
 

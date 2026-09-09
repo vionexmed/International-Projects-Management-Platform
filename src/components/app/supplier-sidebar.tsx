@@ -27,7 +27,7 @@ import {
 import { signOut } from "@/server/actions/auth";
 import { setLanguageAction } from "@/server/actions/preferences";
 import { ChangePasswordDialog } from "@/features/account/change-password-dialog";
-import { LOCALE_LABELS, LOCALES, type Locale } from "@/lib/i18n/config";
+import { LOCALE_LABELS, SELECTABLE_LOCALES, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
@@ -219,7 +219,7 @@ function LanguagePicker({ locale, label }: { locale: Locale; label: string }) {
       </DropdownTrigger>
       <DropdownContent side="top" align="start" className="min-w-52">
         <DropdownLabel>{label}</DropdownLabel>
-        {LOCALES.map((option) => (
+        {SELECTABLE_LOCALES.map((option) => (
           <form key={option} action={setLanguageAction}>
             <input type="hidden" name="locale" value={option} />
             <DropdownItem asChild>

@@ -54,3 +54,5 @@
 {"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/lib/env-schema.ts","success":true,"timestamp":1788978257839,"sessionId":null}
 {"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/server/demo/embedded-db.ts","success":true,"timestamp":1788978613899,"sessionId":null}
 {"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/prisma/seed.ts","success":true,"timestamp":1788978748444,"sessionId":null}
+{"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/src/server/demo/seed-data.ts","success":true,"timestamp":1788990645088,"sessionId":null}
+{"type":"edit","file":"/Users/lucas/Desktop/Vionex/International Projects Management Platform/scripts/build-demo-snapshot.mjs","success":true,"timestamp":1788990729408,"sessionId":null}

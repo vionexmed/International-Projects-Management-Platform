@@ -46,36 +46,41 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
   }
 
   const org = await db.organization.create({
-    data: { name: "Vionex", slug: "vionex" },
+    data: { id: "org-vionex", name: "Vionex", slug: "vionex" },
   });
 
   const [lucas, stefany, joao, maria] = await Promise.all([
     db.user.create({
       data: {
+        id: "usr-admin",
         organizationId: org.id, name: "Lucas Silva", email: "admin@vionex.com", passwordHash,
         role: "ADMIN", jobTitle: "Diretor", department: "Management", language: "PT_BR",
       },
     }),
     db.user.create({
       data: {
+        id: "usr-regulatory",
         organizationId: org.id, name: "Stefany Rocha", email: "regulatory@vionex.com", passwordHash,
         role: "REGULATORY", jobTitle: "Especialista Regulatória", department: "Regulatory", language: "PT_BR",
       },
     }),
     db.user.create({
       data: {
+        id: "usr-manager",
         organizationId: org.id, name: "João Mendes", email: "manager@vionex.com", passwordHash,
         role: "MANAGER", jobTitle: "Gerente de Importação", department: "Import & Logistics", language: "PT_BR",
       },
     }),
     db.user.create({
       data: {
+        id: "usr-marketing",
         organizationId: org.id, name: "Maria Santos", email: "marketing@vionex.com", passwordHash,
         role: "MARKETING", jobTitle: "Coordenadora de Marketing", department: "Marketing", language: "PT_BR",
       },
     }),
     db.user.create({
       data: {
+        id: "usr-viewer",
         organizationId: org.id, name: "Paulo Reis", email: "viewer@vionex.com", passwordHash,
         role: "VIEWER", jobTitle: "Analista", department: "Operations", language: "PT_BR",
       },
@@ -84,6 +89,7 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
   const [manufacturerA, manufacturerB, manufacturerC, manufacturerD] = await Promise.all([
     db.supplier.create({
       data: {
+        id: "sup-a",
         organizationId: org.id, name: "Manufacturer A", country: "China", status: "AT_RISK",
         website: "https://manufacturer-a.example.com", address: "Building 4, Pudong, Shanghai",
         primaryContact: "John Smith", email: "contact@manufacturer-a.example.com", phone: "+86 21 5555 0100",
@@ -91,6 +97,7 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     }),
     db.supplier.create({
       data: {
+        id: "sup-b",
         organizationId: org.id, name: "Manufacturer B", country: "Germany", status: "ON_TRACK",
         website: "https://manufacturer-b.example.com", address: "Industriestraße 12, Munich",
         primaryContact: "Klaus Weber", email: "contact@manufacturer-b.example.com", phone: "+49 89 5555 0110",
@@ -98,6 +105,7 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     }),
     db.supplier.create({
       data: {
+        id: "sup-c",
         organizationId: org.id, name: "Manufacturer C", country: "United States", status: "ON_TRACK",
         website: "https://manufacturer-c.example.com", address: "220 Harbor Drive, Boston, MA",
         primaryContact: "Emily Carter", email: "contact@manufacturer-c.example.com", phone: "+1 617 555 0120",
@@ -105,15 +113,17 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     }),
     db.supplier.create({
       data: {
+        id: "sup-d",
         organizationId: org.id, name: "Manufacturer D", country: "Italy", status: "ON_TRACK",
         website: "https://manufacturer-d.example.com", address: "Via Roma 45, Milan",
         primaryContact: "Marco Bianchi", email: "contact@manufacturer-d.example.com", phone: "+39 02 5555 0130",
       },
     }),
   ]);
-  const [johnSmith, liWei] = await Promise.all([
+  const [johnSmith] = await Promise.all([
     db.user.create({
       data: {
+        id: "usr-supplier",
         organizationId: org.id, supplierId: manufacturerA.id, name: "John Smith",
         email: "supplier@example.com", passwordHash, role: "SUPPLIER_ADMIN",
         jobTitle: "Regulatory Contact", language: "EN",
@@ -121,13 +131,7 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     }),
     db.user.create({
       data: {
-        organizationId: org.id, supplierId: manufacturerA.id, name: "Li Wei",
-        email: "liwei@example.com", passwordHash, role: "SUPPLIER_USER",
-        jobTitle: "Export Manager", language: "ZH",
-      },
-    }),
-    db.user.create({
-      data: {
+        id: "usr-klaus",
         organizationId: org.id, supplierId: manufacturerB.id, name: "Klaus Weber",
         email: "klaus@example.com", passwordHash, role: "SUPPLIER_ADMIN",
         jobTitle: "Quality Manager", language: "EN",
@@ -135,6 +139,7 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     }),
     db.user.create({
       data: {
+        id: "usr-emily",
         organizationId: org.id, supplierId: manufacturerC.id, name: "Emily Carter",
         email: "emily@example.com", passwordHash, role: "SUPPLIER_ADMIN",
         jobTitle: "Program Manager", language: "EN",
@@ -168,6 +173,9 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     const project = await db.project.create({
       data: {
         ...data,
+        // Stable id: project URLs must survive the embedded database being
+        // rebuilt on the next instance, or a shared link breaks.
+        id: `prj-${data.projectCode.toLowerCase()}`,
         organizationId: org.id,
         stages: {
           create: STAGE_ORDER.map((key, index) => ({
@@ -323,7 +331,6 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
       { userId: lucas.id, type: "PROJECT_UPDATED", title: "Product Beta", description: "Projeto bloqueado: protocolo clínico pendente.", href: `/projects/${beta}` },
       { userId: joao.id, type: "TASK_DUE_SOON", title: "Shipment preparation", description: "Vence em 6 dias.", href: `/tasks/${tasks[5].id}` },
       { userId: johnSmith.id, type: "DOCUMENT_REQUESTED", title: "Certificate of Analysis", description: "New request for Product Alpha.", href: `/supplier/action-required/${coaRequest.id}` },
-      { userId: liWei.id, type: "DOCUMENT_REQUESTED", title: "Certificate of Analysis", description: "New request for Product Alpha.", href: `/supplier/action-required/${coaRequest.id}` },
     ],
   });
 

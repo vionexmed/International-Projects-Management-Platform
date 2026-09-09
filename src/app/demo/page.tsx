@@ -35,10 +35,9 @@ const INTERNAL = [
 ];
 
 const SUPPLIERS = [
-  { key: "supplier", name: "John Smith", role: "Manufacturer A · China", note: "Tem solicitações pendentes" },
-  { key: "liwei", name: "Li Wei", role: "Manufacturer A · 中文", note: "Mesmo portal, em chinês" },
+  { key: "emily", name: "Emily Carter", role: "Manufacturer C · Estados Unidos", note: "Só enxerga os projetos da C" },
+  { key: "supplier", name: "John Smith", role: "Manufacturer A", note: "Tem solicitações pendentes" },
   { key: "klaus", name: "Klaus Weber", role: "Manufacturer B · Alemanha", note: "Só enxerga os projetos da B" },
-  { key: "emily", name: "Emily Carter", role: "Manufacturer C · EUA", note: "Só enxerga os projetos da C" },
 ];
 
 export default function DemoPage() {
@@ -140,8 +139,8 @@ export default function DemoPage() {
         </div>
 
         <p className="mt-8 text-[13px] text-muted">
-          Para ver o isolamento na prática: entre como <strong className="font-medium text-ink-soft">John
-          Smith</strong> e anote os projetos, depois entre como <strong className="font-medium text-ink-soft">Klaus
+          Para ver o isolamento na prática: entre como <strong className="font-medium text-ink-soft">Emily
+          Carter</strong> e anote os projetos, depois entre como <strong className="font-medium text-ink-soft">Klaus
           Weber</strong> — nenhum dos dois enxerga nada do outro.
         </p>
 

@@ -1,5 +1,4 @@
 import { Pool, type PoolClient, type QueryResult } from "pg";
-import { SCHEMA_SQL } from "@/server/demo/schema-sql";
 
 /**
  * A Postgres that needs no Postgres.
@@ -27,7 +26,17 @@ async function start(): Promise<Ready> {
   const { PGlite } = await import("@electric-sql/pglite");
   const { PGLiteSocketServer } = await import("@electric-sql/pglite-socket");
 
-  const database = await PGlite.create();
+  /**
+   * The database is restored from a snapshot built at build time rather than
+   * being created and seeded here. Creating the schema and inserting the whole
+   * demo dataset on every instance made each cold start pay for work that
+   * never changes — and a demo that is clicked occasionally starts new
+   * instances constantly.
+   */
+  const { DEMO_SNAPSHOT_BASE64 } = await import("@/server/demo/snapshot/data");
+  const snapshot = new Blob([Buffer.from(DEMO_SNAPSHOT_BASE64, "base64")]);
+
+  const database = await PGlite.create({ loadDataDir: snapshot });
   const server = new PGLiteSocketServer({ db: database, port: PORT, host: "127.0.0.1" });
   await server.start();
 
@@ -41,18 +50,6 @@ async function start(): Promise<Ready> {
     // the right trade for a demonstration.
     max: 1,
   });
-
-  await pool.query(SCHEMA_SQL);
-
-  const { PrismaClient } = await import("@/generated/prisma");
-  const { PrismaPg } = await import("@prisma/adapter-pg");
-  const { seedDemoData } = await import("@/server/demo/seed-data");
-
-  const client = new PrismaClient({ adapter: new PrismaPg(pool) });
-  // No storage: the document rows are what a visual review needs, and files
-  // written here would disappear with the database anyway.
-  await seedDemoData(client, { password: "vionex123", storage: null });
-  await client.$disconnect();
 
   return { pool };
 }
