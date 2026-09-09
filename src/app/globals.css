@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Vionex Projects — design tokens
+
+   The palette is deliberately narrow: white and near-white surfaces, a navy
+   ink, a grey scale for structure, and turquoise reserved for identity and
+   state. Depth comes from hairline borders, not shadows.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* Surfaces */
+  --color-canvas: #f7f9fa;
+  --color-surface: #ffffff;
+  --color-subtle: #fbfcfd;
+  --color-raised: #f2f5f7;
+
+  /* Ink */
+  --color-ink: #14202c;
+  --color-ink-soft: #3d4d5c;
+  --color-muted: #687784;
+  --color-faint: #8b98a3;
+
+  /* Structure */
+  --color-line: #dee5e9;
+  --color-line-soft: #eaeff2;
+  --color-line-strong: #cbd5db;
+
+  /* Brand — turquoise */
+  --color-brand: #00a4b5;
+  --color-brand-strong: #00707c;
+  --color-brand-deep: #075a63;
+  --color-brand-soft: #e6f5f7;
+  --color-brand-line: #b8e0e5;
+
+  /* Navy — internal sidebar */
+  --color-navy: #0a1826;
+  --color-navy-soft: #142433;
+  --color-navy-line: #23384a;
+  --color-navy-ink: #93a5b3;
+
+  /* Status — discreet, never saturated */
+  --color-ok: #1f8a5b;
+  --color-ok-dot: #22a06b;
+  --color-ok-soft: #e8f6ef;
+  --color-warn: #93610a;
+  --color-warn-dot: #e0a112;
+  --color-warn-soft: #fdf4e3;
+  --color-risk: #b42318;
+  --color-risk-dot: #d64545;
+  --color-risk-soft: #fdefee;
+  --color-info: #1f5f8b;
+  --color-info-dot: #3b82c4;
+  --color-info-soft: #eef4fa;
+
+  /* Radii — restrained */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  /* Type */
+  --font-sans: var(--font-inter), ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* A single, consistent focus treatment across the whole product. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background: var(--color-brand-soft);
+    color: var(--color-brand-deep);
+  }
+
+  /* Headings default to the tighter tracking used throughout the UI. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.011em;
+  }
+}
+
+@layer components {
+  /* Column labels in every data table. */
+  .table-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  /* Thin scrollbars that do not fight the minimal chrome. */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: var(--color-line-strong);
+    border-radius: 999px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

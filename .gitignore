@@ -1,0 +1,43 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# Environment — secrets never get versioned, but the template does.
+.env
+.env.*
+!.env.example
+
+# Local development database cluster (scripts/local-db.mjs)
+/.postgres
+
+# Documents written by the local storage driver
+/storage
+
+# Generated Prisma client
+/src/generated
+
+# Testing
+/coverage
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Editor / OS
+.DS_Store
+*.pem
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

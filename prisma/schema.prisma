@@ -1,0 +1,702 @@
+// Vionex Projects — International Projects Management Platform
+// Multi-tenant schema. Every tenant-scoped record carries `organizationId`;
+// supplier-facing records additionally carry `supplierId` so that isolation
+// can be enforced with a single indexed predicate on the server.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  REGULATORY
+  IMPORT
+  MARKETING
+  VIEWER
+  SUPPLIER_ADMIN
+  SUPPLIER_USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum Language {
+  PT_BR
+  EN
+  ZH
+}
+
+enum SupplierStatus {
+  ON_TRACK
+  AT_RISK
+  BLOCKED
+  INACTIVE
+}
+
+enum ProjectStatus {
+  ON_TRACK
+  AT_RISK
+  BLOCKED
+  COMPLETED
+}
+
+enum StageKey {
+  CLINICAL
+  REGULATORY
+  IMPORT_LOGISTICS
+  GO_TO_MARKET
+}
+
+enum StageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskCategory {
+  CLINICAL
+  REGULATORY
+  IMPORT
+  GO_TO_MARKET
+  GENERAL
+}
+
+enum DocumentType {
+  CONTRACT
+  NDA
+  CERTIFICATE
+  IFU
+  CLINICAL
+  REGULATORY
+  PRESENTATION
+  IMPORT
+  COMMERCIAL
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  REQUESTED
+  RECEIVED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+/// Controls whether a document is visible inside the Supplier Portal.
+enum DocumentVisibility {
+  INTERNAL_ONLY
+  SHARED_WITH_SUPPLIER
+}
+
+enum RequestStatus {
+  PENDING
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+enum ClinicalStudyStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  SUSPENDED
+}
+
+enum RegulatoryItemStatus {
+  PENDING
+  REQUESTED
+  RECEIVED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ShipmentStage {
+  PRODUCTION
+  READY_FOR_SHIPMENT
+  SHIPPED
+  IN_TRANSIT
+  ARRIVED
+  CUSTOMS
+  DELIVERED
+}
+
+enum GtmCategory {
+  MARKET_ANALYSIS
+  COMMERCIAL_STRATEGY
+  PRICING
+  SALES_CHANNELS
+  KOLS
+  MARKETING
+  TRAINING
+  LAUNCH_PLAN
+}
+
+enum GtmItemStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum TimelineEventType {
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  STATUS_CHANGED
+  STAGE_UPDATED
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_COMPLETED
+  COMMENT_ADDED
+  DOCUMENT_UPLOADED
+  DOCUMENT_REQUESTED
+  DOCUMENT_SUBMITTED
+  DOCUMENT_REVIEWED
+  MESSAGE_SENT
+  MILESTONE_REACHED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  DOCUMENT_REQUESTED
+  DOCUMENT_RECEIVED
+  DOCUMENT_REVIEWED
+  COMMENT_ADDED
+  MESSAGE_RECEIVED
+  PROJECT_UPDATED
+  SUPPLIER_REPLIED
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy & identity
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  suppliers Supplier[]
+  projects  Project[]
+  documents Document[]
+  tasks     Task[]
+  auditLogs AuditLog[]
+}
+
+model Supplier {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  country        String
+  website        String?
+  address        String?
+  primaryContact String?
+  email          String?
+  phone          String?
+  status         SupplierStatus @default(ON_TRACK)
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+  projects     Project[]
+  tasks        Task[]
+  documents    Document[]
+  requests     DocumentRequest[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status])
+}
+
+model User {
+  id             String     @id @default(cuid())
+  organizationId String
+  supplierId     String?
+  name           String
+  email          String     @unique
+  passwordHash   String
+  role           UserRole
+  jobTitle       String?
+  department     String?
+  language       Language   @default(PT_BR)
+  status         UserStatus @default(ACTIVE)
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  ownedProjects     Project[]         @relation("ProjectOwner")
+  assignedTasks     Task[]            @relation("TaskAssignee")
+  createdTasks      Task[]            @relation("TaskCreator")
+  comments          TaskComment[]
+  uploadedDocuments Document[]        @relation("DocumentCreator")
+  documentVersions  DocumentVersion[]
+  requestedDocs     DocumentRequest[] @relation("RequestAuthor")
+  timelineEvents    TimelineEvent[]
+  notifications     Notification[]
+  messages          Message[]
+  messageReads      MessageRead[]
+  auditLogs         AuditLog[]
+
+  @@index([organizationId, role])
+  @@index([supplierId])
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+model Project {
+  id               String        @id @default(cuid())
+  organizationId   String
+  supplierId       String
+  ownerId          String
+  name             String
+  projectCode      String
+  description      String?
+  country          String
+  productType      String?
+  category         String?
+  status           ProjectStatus @default(ON_TRACK)
+  currentStage     StageKey      @default(CLINICAL)
+  blockerNote      String?
+  startDate        DateTime?
+  targetLaunchDate DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  owner        User         @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  stages         ProjectStage[]
+  tasks          Task[]
+  documents      Document[]
+  requests       DocumentRequest[]
+  milestones     Milestone[]
+  clinicalStudy  ClinicalStudy?
+  regulatoryItems RegulatoryItem[]
+  shipments      ImportShipment[]
+  gtmItems       GtmItem[]
+  threads        MessageThread[]
+  timeline       TimelineEvent[]
+
+  @@unique([organizationId, projectCode])
+  @@index([organizationId, status])
+  @@index([supplierId])
+  @@index([ownerId])
+}
+
+model ProjectStage {
+  id        String      @id @default(cuid())
+  projectId String
+  key       StageKey
+  name      String
+  position  Int
+  status    StageStatus @default(NOT_STARTED)
+  /// Manual progress override, 0–100. When null, progress is derived from tasks.
+  progress  Int?
+  startDate DateTime?
+  dueDate   DateTime?
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
+  @@index([projectId])
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  stage       StageKey?
+  dueDate     DateTime?
+  status      MilestoneStatus @default(PLANNED)
+  position    Int             @default(0)
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+model Task {
+  id             String       @id @default(cuid())
+  organizationId String
+  projectId      String
+  assignedToId   String?
+  createdById    String
+  /// Supplier the task is waiting on. Also grants that supplier read access.
+  supplierId     String?
+  title          String
+  description    String?
+  category       TaskCategory @default(GENERAL)
+  priority       TaskPriority @default(MEDIUM)
+  status         TaskStatus   @default(OPEN)
+  dueDate        DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo   User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  supplier     Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  comments TaskComment[]
+  requests DocumentRequest[]
+
+  @@index([organizationId, status])
+  @@index([projectId])
+  @@index([assignedToId])
+  @@index([supplierId])
+  @@index([dueDate])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  /// Internal notes are never exposed to the Supplier Portal.
+  internal  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+// ---------------------------------------------------------------------------
+// Documents
+// ---------------------------------------------------------------------------
+
+model Document {
+  id               String             @id @default(cuid())
+  organizationId   String
+  projectId        String
+  supplierId       String?
+  createdById      String
+  currentVersionId String?            @unique
+  name             String
+  type             DocumentType       @default(OTHER)
+  status           DocumentStatus     @default(RECEIVED)
+  visibility       DocumentVisibility @default(INTERNAL_ONLY)
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplier       Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  createdBy      User             @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  currentVersion DocumentVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+
+  versions DocumentVersion[] @relation("DocumentVersions")
+  requests DocumentRequest[]
+
+  @@index([organizationId, type])
+  @@index([projectId])
+  @@index([supplierId, visibility])
+}
+
+model DocumentVersion {
+  id           String   @id @default(cuid())
+  documentId   String
+  uploadedById String
+  version      Int
+  /// Opaque storage key resolved by the storage driver — never a public URL.
+  storageKey   String
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  checksum     String?
+  createdAt    DateTime @default(now())
+
+  document   Document @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  currentOf Document? @relation("CurrentVersion")
+
+  @@unique([documentId, version])
+  @@index([documentId])
+}
+
+model DocumentRequest {
+  id            String        @id @default(cuid())
+  projectId     String
+  supplierId    String
+  requestedById String
+  documentId    String?
+  taskId        String?
+  title         String
+  description   String?
+  type          DocumentType  @default(OTHER)
+  status        RequestStatus @default(PENDING)
+  dueDate       DateTime?
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplier    Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  requestedBy User      @relation("RequestAuthor", fields: [requestedById], references: [id], onDelete: Restrict)
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  task        Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  replies DocumentRequestReply[]
+
+  @@index([supplierId, status])
+  @@index([projectId])
+}
+
+model DocumentRequestReply {
+  id        String   @id @default(cuid())
+  requestId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  request DocumentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+}
+
+// ---------------------------------------------------------------------------
+// Stage detail records
+// ---------------------------------------------------------------------------
+
+model ClinicalStudy {
+  id                 String              @id @default(cuid())
+  projectId          String              @unique
+  institution        String?
+  country            String?
+  protocol           String?
+  studyType          String?
+  status             ClinicalStudyStatus @default(PLANNED)
+  startDate          DateTime?
+  expectedCompletion DateTime?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model RegulatoryItem {
+  id            String               @id @default(cuid())
+  projectId     String
+  title         String
+  authority     String?
+  requestedFrom String?
+  ownerName     String?
+  status        RegulatoryItemStatus @default(PENDING)
+  dueDate       DateTime?
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+}
+
+model ImportShipment {
+  id             String        @id @default(cuid())
+  projectId      String
+  reference      String?
+  stage          ShipmentStage @default(PRODUCTION)
+  shippingMethod String?
+  carrier        String?
+  trackingNumber String?
+  portOfOrigin   String?
+  portOfArrival  String?
+  etd            DateTime?
+  eta            DateTime?
+  arrivedAt      DateTime?
+  productionNote String?
+  documentsNote  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model GtmItem {
+  id        String        @id @default(cuid())
+  projectId String
+  category  GtmCategory
+  title     String
+  detail    String?
+  owner     String?
+  status    GtmItemStatus @default(NOT_STARTED)
+  dueDate   DateTime?
+  position  Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, category])
+}
+
+// ---------------------------------------------------------------------------
+// Messaging, timeline, notifications, audit
+// ---------------------------------------------------------------------------
+
+model MessageThread {
+  id         String   @id @default(cuid())
+  projectId  String
+  subject    String
+  /// Threads visible to the supplier are the shared Vionex ↔ supplier channel.
+  withSupplier Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([projectId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  senderId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  thread MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  reads MessageRead[]
+
+  @@index([threadId, createdAt])
+}
+
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model TimelineEvent {
+  id          String            @id @default(cuid())
+  projectId   String
+  actorId     String?
+  type        TimelineEventType
+  description String
+  /// Events flagged internal are hidden from the Supplier Portal timeline.
+  internal    Boolean           @default(false)
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  description String?
+  /// Relative in-app path the notification points to.
+  href        String?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entity         String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entity, entityId])
+}
