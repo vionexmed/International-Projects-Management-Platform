@@ -25,13 +25,15 @@ describe("environment validation", () => {
     expect(envSchema.safeParse({ ...base, NODE_ENV: "production" }).success).toBe(true);
   });
 
-  it("refuses local storage in production", () => {
-    const messages = messagesFor({
+  it("allows local storage in production instead of refusing to boot", () => {
+    // Ephemeral storage affects documents only. Blocking startup over it made
+    // every unrelated page unreachable too; /api/health reports it instead.
+    const result = envSchema.safeParse({
       ...base,
       NODE_ENV: "production",
       STORAGE_DRIVER: "local",
     });
-    expect(messages.join(" ")).toMatch(/ephemeral filesystem/);
+    expect(result.success).toBe(true);
   });
 
   it("allows local storage in development", () => {
@@ -62,13 +64,28 @@ describe("environment validation", () => {
     );
   });
 
-  it("refuses plain http in production, because the session cookie is Secure", () => {
-    const messages = messagesFor({
+  it("does not block startup over APP_URL, which nothing reads yet", () => {
+    const result = envSchema.safeParse({
       ...base,
       NODE_ENV: "production",
       APP_URL: "http://projetos.vionex.com",
     });
-    expect(messages.join(" ")).toMatch(/https/);
+    expect(result.success).toBe(true);
+  });
+
+  it("boots a production deployment on DATABASE_URL and AUTH_SECRET alone", () => {
+    // The smallest configuration someone can reasonably be asked for.
+    const result = envSchema.safeParse({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://user:pass@db.example.com:5432/app",
+      AUTH_SECRET: "a-genuinely-random-secret-of-enough-length",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.STORAGE_DRIVER).toBe("local");
+      expect(result.data.UPLOAD_MAX_SIZE_MB).toBe(25);
+    }
   });
 
   it("rejects a placeholder AUTH_SECRET in any environment", () => {
@@ -145,7 +162,7 @@ describe("environment validation", () => {
     }
   });
 
-  it("surfaces the production guards once the required fields are supplied", () => {
+  it("reports nothing once the two required fields are supplied", () => {
     const original = { ...process.env };
 
     try {
@@ -156,8 +173,8 @@ describe("environment validation", () => {
         STORAGE_DRIVER: "local",
       });
 
-      const names = environmentIssues().map((issue) => issue.variable);
-      expect(names).toEqual(expect.arrayContaining(["APP_URL", "STORAGE_DRIVER"]));
+      // Nothing left to complain about: the remaining guards are advisory.
+      expect(environmentIssues()).toEqual([]);
     } finally {
       for (const key of Object.keys(process.env)) {
         if (!(key in original)) delete process.env[key];

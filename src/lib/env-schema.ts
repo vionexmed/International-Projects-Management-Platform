@@ -71,7 +71,20 @@ export const envSchema = z.preprocess(
     AUTH_SECRET: z
       .string({ error: "AUTH_SECRET is required — generate one with: openssl rand -base64 32" })
       .min(32, "AUTH_SECRET must be at least 32 characters — openssl rand -base64 32"),
-    APP_URL: z.string().url().default("http://localhost:3000"),
+    /**
+     * Public origin, used to build absolute links in outbound notifications.
+     * Nothing reads it yet, so it never blocks startup; on Vercel it is
+     * derived from the deployment URL and needs no configuration at all.
+     */
+    APP_URL: z
+      .string()
+      .url()
+      .optional()
+      .default(
+        process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000",
+      ),
 
     STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     STORAGE_LOCAL_DIR: z.string().default("./storage"),
@@ -107,18 +120,15 @@ export const envSchema = z.preprocess(
 
     /**
      * The local driver writes to the instance filesystem, which is ephemeral
-     * on every serverless and most container platforms: uploads would appear
-     * to succeed and then vanish. Refuse to boot rather than lose documents.
+     * on every serverless and most container platforms: uploaded documents
+     * survive only until the instance recycles.
+     *
+     * This used to refuse to boot, which turned out to be the wrong trade: it
+     * blocked every page that has nothing to do with documents, so the whole
+     * application became unreachable over a limitation that affects one
+     * feature. It is now reported by `/api/health` as a degraded state instead
+     * — visible, but not fatal.
      */
-    if (value.STORAGE_DRIVER === "local") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["STORAGE_DRIVER"],
-        message:
-          "STORAGE_DRIVER=local is not safe in production (ephemeral filesystem). Set STORAGE_DRIVER=s3.",
-      });
-    }
-
     if (value.STORAGE_DRIVER === "s3") {
       for (const key of ["STORAGE_ACCESS_KEY", "STORAGE_SECRET_KEY", "STORAGE_BUCKET"] as const) {
         if (!value[key]) {
@@ -131,13 +141,9 @@ export const envSchema = z.preprocess(
       }
     }
 
-    if (!value.APP_URL.startsWith("https://")) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["APP_URL"],
-        message: "APP_URL must use https in production (session cookies are Secure).",
-      });
-    }
+    // APP_URL is not checked here: nothing consumes it yet, and on Vercel it
+    // is derived from the deployment. Refusing to start over a value no code
+    // reads would be friction without a benefit.
   }),
 );
 

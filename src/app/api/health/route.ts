@@ -40,12 +40,27 @@ export async function GET() {
 
   try {
     const { db } = await import("@/server/db");
+    const { env } = await import("@/lib/env");
     await db.$queryRaw`SELECT 1`;
+
+    /**
+     * Ephemeral storage no longer blocks startup, so it has to be visible
+     * here — otherwise uploaded documents would quietly disappear when the
+     * instance recycles and nothing would ever say why.
+     */
+    const ephemeralStorage = env.NODE_ENV === "production" && env.STORAGE_DRIVER === "local";
 
     return NextResponse.json(
       {
         status: "ok",
         database: "reachable",
+        storage: ephemeralStorage ? "ephemeral" : env.STORAGE_DRIVER,
+        ...(ephemeralStorage
+          ? {
+              warning:
+                "STORAGE_DRIVER=local on a serverless platform: uploaded documents are lost when the instance recycles. Fine for a demo, not for real data — set STORAGE_DRIVER=s3.",
+            }
+          : {}),
         latencyMs: Date.now() - startedAt,
         timestamp: new Date().toISOString(),
       },
