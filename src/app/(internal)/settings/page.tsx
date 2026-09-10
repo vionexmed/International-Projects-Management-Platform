@@ -108,7 +108,7 @@ export default async function SettingsPage() {
             description="Matriz aplicada no servidor em todas as operações."
           />
           <TableScroll>
-            <Table>
+            <Table stacked={false}>
               <THead>
                 <TR>
                   <TH>Permissão</TH>
@@ -143,7 +143,7 @@ export default async function SettingsPage() {
             </Table>
           </TableScroll>
 
-          <div className="grid gap-4 border-t border-line p-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 border-t border-line p-5 sm:grid-cols-2">
             {OPTIONS.supplierRoles.map((role) => (
               <div key={role}>
                 <p className="text-[13px] font-semibold text-ink">{label.role(role, dict)}</p>
@@ -153,7 +153,7 @@ export default async function SettingsPage() {
           </div>
         </Panel>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Project stages */}
           <Panel>
             <PanelHeader
@@ -188,7 +188,7 @@ export default async function SettingsPage() {
           </Panel>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Notifications */}
           <Panel>
             <PanelHeader

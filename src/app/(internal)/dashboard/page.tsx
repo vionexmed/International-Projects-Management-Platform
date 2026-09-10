@@ -62,7 +62,7 @@ export default async function DashboardPage() {
 
       {/* Portfolio — four numbers, no charts. */}
       <Panel className="mb-8">
-        <div className="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
+        <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
           <Stat label="Total de projetos" value={summary.total} href="/projects" />
           <Stat label="Em dia" value={summary.onTrack} tone="ok" href="/projects?tab=ON_TRACK" />
           <Stat label="Em risco" value={summary.atRisk} tone="warn" href="/projects?tab=AT_RISK" />
@@ -117,16 +117,16 @@ export default async function DashboardPage() {
                             <CellStack title={project.name} subtitle={project.projectCode} />
                           </Link>
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{project.supplier.name}</TD>
-                        <TD className="text-[13px] text-ink-soft">
+                        <TD label="Fornecedor" className="text-[13px] text-ink-soft">{project.supplier.name}</TD>
+                        <TD label="Etapa" className="text-[13px] text-ink-soft">
                           {label.stageKey(project.currentStage, dict)}
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{project.owner.name}</TD>
-                        <TD>
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.owner.name}</TD>
+                        <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
-                        <TD className="max-w-[240px] text-[13px] text-ink-soft">
-                          <span className="block truncate">
+                        <TD label="Próximo passo" className="text-[13px] text-ink-soft md:max-w-[240px]">
+                          <span className="block md:truncate">
                             {project.nextStep?.title ?? project.blockerNote ?? "—"}
                           </span>
                         </TD>
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
         </TableShell>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Upcoming deadlines */}
         <section>
           <SectionHeader title="Próximos prazos" description="Tarefas com vencimento próximo." />
@@ -296,7 +296,7 @@ function Stat({
   return (
     <Link
       href={href}
-      className="group border-b border-line px-5 py-4 transition-colors last:border-b-0 hover:bg-subtle sm:border-b-0"
+      className="group px-5 py-4 transition-colors hover:bg-subtle"
     >
       <div className="flex items-center gap-2">
         {dot ? <span className={cn("size-[7px] rounded-full", dot)} aria-hidden /> : null}

@@ -43,7 +43,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line px-5 lg:px-8">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-line px-4 sm:gap-4 sm:px-5 lg:px-8">
           <SupplierMobileNav
             dict={dict}
             actionRequiredCount={actionRequired}
@@ -64,7 +64,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
             }}
           />
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/supplier/action-required"
               aria-label={dict.nav.notifications}
@@ -79,20 +79,20 @@ export default async function SupplierLayout({ children }: { children: React.Rea
               ) : null}
             </Link>
 
-            <span className="h-5 w-px bg-line" aria-hidden />
+            <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
 
-            <span className="inline-flex items-center gap-2.5 rounded-md border border-line px-3 py-2 text-[13px] font-medium text-ink">
-              <Building2 className="size-4 text-muted" />
-              {user.supplierName}
+            <span className="inline-flex min-w-0 items-center gap-2 rounded-md border border-line px-2.5 py-2 text-[13px] font-medium text-ink sm:gap-2.5 sm:px-3">
+              <Building2 className="size-4 shrink-0 text-muted" />
+              <span className="truncate">{user.supplierName}</span>
             </span>
           </div>
         </header>
 
-        <main className="flex-1 px-5 py-8 lg:px-8">
+        <main className="flex-1 px-4 py-7 sm:px-5 sm:py-8 lg:px-8">
           <div className="mx-auto w-full max-w-[1160px]">{children}</div>
         </main>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-5 text-[12px] text-muted lg:px-8">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-5 text-[12px] text-muted sm:px-5 lg:px-8">
           <span>© {new Date().getFullYear()} Vionex. All rights reserved.</span>
           <span className="flex items-center gap-5">
             <a href="mailto:projects@vionex.com" className="hover:text-brand-strong">

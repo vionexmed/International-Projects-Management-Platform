@@ -105,13 +105,13 @@ export default async function SupplierProjectsPage({
                             <CellStack title={project.name} subtitle={user.supplierName} />
                           </Link>
                         </TD>
-                        <TD>
+                        <TD label={dict.portal.projects.currentStage}>
                           <span className="inline-flex items-center gap-2 text-[13px] text-ink-soft">
                             <span className="size-[7px] rounded-full bg-brand" aria-hidden />
                             {label.stageKey(project.currentStage, dict)}
                           </span>
                         </TD>
-                        <TD>
+                        <TD label={dict.common.progress}>
                           <div className="w-32">
                             <div className="mb-1 text-[13px] font-semibold text-ink tabular-nums">
                               {project.progress}%
@@ -119,7 +119,7 @@ export default async function SupplierProjectsPage({
                             <ProgressBar value={project.progress} />
                           </div>
                         </TD>
-                        <TD>
+                        <TD label={dict.common.nextMilestone}>
                           {project.nextMilestone ? (
                             <CellStack
                               title={
@@ -136,13 +136,13 @@ export default async function SupplierProjectsPage({
                             <span className="text-[13px] text-muted">—</span>
                           )}
                         </TD>
-                        <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label={dict.common.targetLaunch} className="text-[13px] whitespace-nowrap text-ink-soft">
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
-                        <TD>
+                        <TD label={dict.common.status}>
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
-                        <TD className="text-right">
+                        <TD className="max-md:hidden text-right">
                           <ChevronRight className="inline size-4 text-faint" />
                         </TD>
                       </TR>

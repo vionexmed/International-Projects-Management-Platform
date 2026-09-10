@@ -178,20 +178,20 @@ export default async function ProjectsPage({
                             <CellStack title={project.name} subtitle={project.projectCode} />
                           </Link>
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">
+                        <TD label="Fornecedor" className="text-[13px] text-ink-soft">
                           <CellStack
                             title={<span className="font-normal">{project.supplier.name}</span>}
                             subtitle={project.supplier.country}
                           />
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">
+                        <TD label="Etapa" className="text-[13px] text-ink-soft">
                           {label.stageKey(project.currentStage, dict)}
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{project.owner.name}</TD>
-                        <TD>
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.owner.name}</TD>
+                        <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
-                        <TD>
+                        <TD label="Progresso">
                           <div className="w-32">
                             <div className="mb-1 text-[13px] font-semibold text-ink tabular-nums">
                               {project.progress}%
@@ -199,10 +199,10 @@ export default async function ProjectsPage({
                             <ProgressBar value={project.progress} />
                           </div>
                         </TD>
-                        <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label="Lançamento" className="text-[13px] whitespace-nowrap text-ink-soft">
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
-                        <TD className="text-right">
+                        <TD className="text-right max-md:hidden">
                           <ChevronRight className="inline size-4 text-faint" />
                         </TD>
                       </TR>

@@ -88,24 +88,24 @@ export default async function SuppliersPage({
                             <CellStack title={supplier.name} />
                           </Link>
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{supplier.country}</TD>
-                        <TD className="text-[13px] text-ink-soft tabular-nums">
+                        <TD label="País" className="text-[13px] text-ink-soft">{supplier.country}</TD>
+                        <TD label="Projetos" className="text-[13px] text-ink-soft tabular-nums">
                           {supplier.projectCount}
                         </TD>
-                        <TD className="text-[13px] text-ink-soft tabular-nums">
+                        <TD label="Pendências" className="text-[13px] text-ink-soft tabular-nums">
                           {supplier.openTaskCount}
                         </TD>
-                        <TD className="text-[13px] tabular-nums">
+                        <TD label="Atrasadas" className="text-[13px] tabular-nums">
                           {supplier.overdueTaskCount > 0 ? (
                             <span className="font-medium text-risk">{supplier.overdueTaskCount}</span>
                           ) : (
                             <span className="text-muted">—</span>
                           )}
                         </TD>
-                        <TD>
+                        <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
-                        <TD className="text-right">
+                        <TD className="max-md:hidden text-right">
                           <ChevronRight className="inline size-4 text-faint" />
                         </TD>
                       </TR>

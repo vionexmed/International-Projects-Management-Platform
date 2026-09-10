@@ -81,18 +81,18 @@ export function TasksTable({
                     <CellStack title={task.title} />
                   </Link>
                 </TD>
-                <TD className="text-[13px] text-ink-soft">
+                <TD label="Projeto" className="text-[13px] text-ink-soft">
                   <CellStack
                     title={<span className="font-normal">{task.project.name}</span>}
                     subtitle={task.project.projectCode}
                   />
                 </TD>
-                <TD className="text-[13px] text-ink-soft">
+                <TD label="Categoria" className="text-[13px] text-ink-soft">
                   {label.taskCategory(task.category, dict)}
                 </TD>
-                <TD className="text-[13px] text-ink-soft">{task.assignedTo?.name ?? "—"}</TD>
-                <TD className="text-[13px] text-ink-soft">{task.supplier?.name ?? "—"}</TD>
-                <TD
+                <TD label="Responsável" className="text-[13px] text-ink-soft">{task.assignedTo?.name ?? "—"}</TD>
+                <TD label="Aguardando" className="text-[13px] text-ink-soft">{task.supplier?.name ?? "—"}</TD>
+                <TD label="Prazo"
                   className={cn(
                     "text-[13px] whitespace-nowrap",
                     overdue ? "font-medium text-risk" : "text-ink-soft",
@@ -103,10 +103,10 @@ export function TasksTable({
                     <span className="ml-1.5 text-[12px]">({Math.abs(remaining)}d)</span>
                   ) : null}
                 </TD>
-                <TD>
+                <TD label="Status">
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </TD>
-                <TD>
+                <TD label="Prioridade">
                   <PriorityBadge tone={priority.tone}>{priority.label}</PriorityBadge>
                 </TD>
               </TR>

@@ -56,7 +56,7 @@ export default async function ProjectOverviewPage({
             </span>
           }
         />
-        <div className="grid gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
           {stages.map((stage) => {
             const status = meta.stage(stage.status, dict);
             return (
@@ -79,7 +79,7 @@ export default async function ProjectOverviewPage({
         </div>
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Blockers */}
         <Panel>
           <PanelHeader title="Bloqueios atuais" />

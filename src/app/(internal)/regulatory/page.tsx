@@ -100,10 +100,10 @@ export default async function RegulatoryPage() {
                             <CellStack title={request.title} />
                           </Link>
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{request.project.name}</TD>
-                        <TD className="text-[13px] text-ink-soft">{request.supplier.name}</TD>
-                        <TD className="text-[13px] text-ink-soft">{request.requestedBy.name}</TD>
-                        <TD
+                        <TD label="Projeto" className="text-[13px] text-ink-soft">{request.project.name}</TD>
+                        <TD label="Solicitado a" className="text-[13px] text-ink-soft">{request.supplier.name}</TD>
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{request.requestedBy.name}</TD>
+                        <TD label="Prazo"
                           className={cn(
                             "text-[13px] whitespace-nowrap",
                             late ? "font-medium text-risk" : "text-ink-soft",
@@ -112,7 +112,7 @@ export default async function RegulatoryPage() {
                           {formatDate(request.dueDate, locale)}
                           {late ? ` · ${Math.abs(remaining)}d` : ""}
                         </TD>
-                        <TD>
+                        <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
                       </TR>
@@ -159,13 +159,13 @@ export default async function RegulatoryPage() {
                             <CellStack title={item.title} />
                           </Link>
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{item.project.name}</TD>
-                        <TD className="text-[13px] text-ink-soft">{item.authority ?? "—"}</TD>
-                        <TD className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
-                        <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label="Projeto" className="text-[13px] text-ink-soft">{item.project.name}</TD>
+                        <TD label="Órgão" className="text-[13px] text-ink-soft">{item.authority ?? "—"}</TD>
+                        <TD label="Solicitado a" className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
+                        <TD label="Prazo" className="text-[13px] whitespace-nowrap text-ink-soft">
                           {formatDate(item.dueDate, locale)}
                         </TD>
-                        <TD>
+                        <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
                       </TR>

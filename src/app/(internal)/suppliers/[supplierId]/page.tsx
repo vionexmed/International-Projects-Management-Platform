@@ -106,7 +106,7 @@ export default async function SupplierProfilePage({
             </Field>
           </dl>
 
-          <div className="grid grid-cols-2 divide-line border-t border-line sm:grid-cols-4 sm:divide-x">
+          <div className="stat-grid grid grid-cols-2 divide-line border-t border-line sm:grid-cols-4 sm:divide-x">
             <Metric label="Projetos" value={projects.length} />
             <Metric label="Pendências" value={openTasks} />
             <Metric label="Atrasadas" value={overdueTasks} tone={overdueTasks > 0 ? "risk" : undefined} />
@@ -143,14 +143,14 @@ export default async function SupplierProfilePage({
                             <CellStack title={project.name} subtitle={project.projectCode} />
                           </Link>
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">
+                        <TD label="Etapa" className="text-[13px] text-ink-soft">
                           {label.stageKey(project.currentStage, dict)}
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{project.owner.name}</TD>
-                        <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.owner.name}</TD>
+                        <TD label="Lançamento" className="text-[13px] whitespace-nowrap text-ink-soft">
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
-                        <TD>
+                        <TD label="Status">
                           <StatusBadge tone={projectStatus.tone}>{projectStatus.label}</StatusBadge>
                         </TD>
                       </TR>
@@ -212,7 +212,7 @@ export default async function SupplierProfilePage({
 
 function Metric({ label: metricLabel, value, tone }: { label: string; value: number; tone?: "risk" }) {
   return (
-    <div className="border-b border-line px-5 py-4 last:border-b-0 sm:border-b-0">
+    <div className="px-5 py-4">
       <div className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
         {metricLabel}
       </div>

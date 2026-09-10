@@ -98,7 +98,7 @@ export function DocumentsTable({
                 </TD>
 
                 {showProject ? (
-                  <TD className="text-[13px]">
+                  <TD label="Projeto" className="text-[13px]">
                     <Link
                       href={`/projects/${document.project.id}/documents`}
                       className="text-ink-soft hover:text-brand-strong hover:underline"
@@ -108,11 +108,11 @@ export function DocumentsTable({
                   </TD>
                 ) : null}
 
-                <TD className="text-[13px] text-ink-soft">{document.supplier?.name ?? "—"}</TD>
-                <TD className="text-[13px] text-ink-soft">
+                <TD label="Fornecedor" className="text-[13px] text-ink-soft">{document.supplier?.name ?? "—"}</TD>
+                <TD label="Tipo" className="text-[13px] text-ink-soft">
                   {label.documentType(document.type, dict)}
                 </TD>
-                <TD className="text-[13px] text-ink-soft">
+                <TD label="Versão" className="text-[13px] text-ink-soft">
                   {document.currentVersion ? (
                     <span className="inline-flex items-center gap-1.5">
                       v{document.currentVersion.version}
@@ -130,14 +130,14 @@ export function DocumentsTable({
                     "—"
                   )}
                 </TD>
-                <TD className="text-[13px] text-ink-soft">{document.createdBy.name}</TD>
-                <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                <TD label="Enviado por" className="text-[13px] text-ink-soft">{document.createdBy.name}</TD>
+                <TD label="Data" className="text-[13px] whitespace-nowrap text-ink-soft">
                   {formatDate(document.updatedAt, locale)}
                 </TD>
-                <TD>
+                <TD label="Status">
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </TD>
-                <TD className="text-right">
+                <TD className="text-right max-md:mt-3">
                   {document.currentVersion ? (
                     <a
                       href={`/api/files/${document.currentVersion.id}`}

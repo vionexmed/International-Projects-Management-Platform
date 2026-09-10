@@ -48,7 +48,7 @@ export default async function SupplierMessagesPage({
           />
         </Panel>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_1fr]">
           <Panel className="h-fit overflow-hidden">
             <ul className="divide-y divide-line-soft">
               {threads.map((thread) => {

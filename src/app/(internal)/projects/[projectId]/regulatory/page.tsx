@@ -78,7 +78,7 @@ export default async function ProjectRegulatoryPage({
     <div className="space-y-6">
       {/* Status summary */}
       <Panel>
-        <div className="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
+        <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
           <Summary label="Itens regulatórios" value={items.length} />
           <Summary label="Aprovados" value={approved} tone="ok" />
           <Summary label="Solicitações abertas" value={openRequests} tone={openRequests ? "warn" : undefined} />
@@ -137,16 +137,16 @@ export default async function ProjectRegulatoryPage({
                           </div>
                         ) : null}
                       </TD>
-                      <TD className="text-[13px] text-ink-soft">{request.supplier.name}</TD>
-                      <TD className="text-[13px] text-ink-soft">{request.requestedBy.name}</TD>
-                      <TD className={cn("text-[13px] whitespace-nowrap", late ? "font-medium text-risk" : "text-ink-soft")}>
+                      <TD label="Solicitado a" className="text-[13px] text-ink-soft">{request.supplier.name}</TD>
+                      <TD label="Responsável" className="text-[13px] text-ink-soft">{request.requestedBy.name}</TD>
+                      <TD label="Prazo" className={cn("text-[13px] whitespace-nowrap", late ? "font-medium text-risk" : "text-ink-soft")}>
                         {formatDate(request.dueDate, locale)}
                         {late ? " · atrasado" : ""}
                       </TD>
-                      <TD>
+                      <TD label="Status">
                         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                       </TD>
-                      <TD className="text-right whitespace-nowrap">
+                      <TD className="whitespace-nowrap text-right max-md:mt-3">
                         {can(user, "document:review") &&
                         ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
                           <ReviewRequestDialog
@@ -202,12 +202,12 @@ export default async function ProjectRegulatoryPage({
                           <div className="mt-0.5 text-[13px] text-muted">{item.authority}</div>
                         ) : null}
                       </TD>
-                      <TD className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
-                      <TD className="text-[13px] text-ink-soft">{item.ownerName ?? "—"}</TD>
-                      <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                      <TD label="Solicitado a" className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
+                      <TD label="Responsável" className="text-[13px] text-ink-soft">{item.ownerName ?? "—"}</TD>
+                      <TD label="Prazo" className="text-[13px] whitespace-nowrap text-ink-soft">
                         {formatDate(item.dueDate, locale)}
                       </TD>
-                      <TD>
+                      <TD label="Status">
                         {canManage ? (
                           <InlineStatusSelect
                             action={updateRegulatoryItemAction}
@@ -230,7 +230,7 @@ export default async function ProjectRegulatoryPage({
         )}
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel>
           <PanelHeader
             title="Tarefas regulatórias"
@@ -278,7 +278,7 @@ function Summary({
   tone?: "ok" | "warn";
 }) {
   return (
-    <div className="border-b border-line px-5 py-4 last:border-b-0 sm:border-b-0">
+    <div className="px-5 py-4">
       <div className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">{label}</div>
       {typeof value === "number" ? (
         <div

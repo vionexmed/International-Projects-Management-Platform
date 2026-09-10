@@ -78,21 +78,21 @@ export function SupplierDocumentsTable({
                   />
                 </TD>
                 {showProject ? (
-                  <TD className="text-[13px] text-ink-soft">{document.project.name}</TD>
+                  <TD label={dict.common.project} className="text-[13px] text-ink-soft">{document.project.name}</TD>
                 ) : null}
-                <TD className="text-[13px] text-ink-soft">
+                <TD label={dict.common.type} className="text-[13px] text-ink-soft">
                   {label.documentType(document.type, dict)}
                 </TD>
-                <TD className="text-[13px] text-ink-soft">
+                <TD label={dict.common.version} className="text-[13px] text-ink-soft">
                   {document.currentVersion ? `v${document.currentVersion.version}` : "—"}
                 </TD>
-                <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                <TD label={dict.common.date} className="text-[13px] whitespace-nowrap text-ink-soft">
                   {formatDate(document.updatedAt, locale)}
                 </TD>
-                <TD>
+                <TD label={dict.common.status}>
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </TD>
-                <TD className="text-right">
+                <TD className="text-right max-md:mt-3">
                   {document.currentVersion ? (
                     <a
                       href={`/api/files/${document.currentVersion.id}`}

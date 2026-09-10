@@ -55,7 +55,7 @@ export default async function ReportsPage() {
 
       <section className="mb-8">
         <SectionHeader title="Exportações" />
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {REPORTS.map((report) => (
             <Panel key={report.key} className="flex flex-col justify-between p-5">
               <div>
@@ -76,7 +76,7 @@ export default async function ReportsPage() {
       <section className="mb-8">
         <SectionHeader title="Portfolio overview" />
         <Panel>
-          <div className="grid grid-cols-2 divide-line border-b border-line sm:grid-cols-5 sm:divide-x">
+          <div className="stat-grid grid grid-cols-2 divide-line border-b border-line sm:grid-cols-5 sm:divide-x">
             <Metric label="Total" value={summary.total} />
             <Metric label="Em dia" value={summary.onTrack} />
             <Metric label="Em risco" value={summary.atRisk} />
@@ -108,12 +108,12 @@ export default async function ReportsPage() {
                         <TD>
                           <CellStack title={project.name} subtitle={project.projectCode} />
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{project.supplierName}</TD>
-                        <TD className="text-[13px] text-ink-soft">
+                        <TD label="Fornecedor" className="text-[13px] text-ink-soft">{project.supplierName}</TD>
+                        <TD label="Etapa" className="text-[13px] text-ink-soft">
                           {label.stageKey(project.currentStage, dict)}
                         </TD>
-                        <TD className="text-[13px] text-ink-soft">{project.ownerName}</TD>
-                        <TD>
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.ownerName}</TD>
+                        <TD label="Progresso">
                           <div className="w-32">
                             <div className="mb-1 text-[13px] font-semibold text-ink tabular-nums">
                               {project.progress}%
@@ -121,10 +121,10 @@ export default async function ReportsPage() {
                             <ProgressBar value={project.progress} />
                           </div>
                         </TD>
-                        <TD className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label="Lançamento" className="text-[13px] whitespace-nowrap text-ink-soft">
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
-                        <TD>
+                        <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
                       </TR>
@@ -182,7 +182,7 @@ export default async function ReportsPage() {
 
 function Metric({ label: metricLabel, value }: { label: string; value: number }) {
   return (
-    <div className="border-b border-line px-5 py-4 last:border-b-0 sm:border-b-0">
+    <div className="px-5 py-4">
       <div className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
         {metricLabel}
       </div>

@@ -134,6 +134,89 @@
   .scroll-slim::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  /*
+    Faixa de indicadores.
+
+    No celular ela quebra em duas colunas, e a borda inferior de cada célula
+    deixava um traço pela metade embaixo da última linha — `last:border-b-0`
+    só apaga a borda da última célula, não a da vizinha ao lado dela. Aqui a
+    linha final inteira é identificada pelo seu primeiro elemento (a última
+    célula de índice ímpar entre as duas finais) e apagada junto com o que
+    vier depois, valendo tanto para uma contagem par quanto ímpar.
+  */
+  .stat-grid > * {
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .stat-grid > *:nth-last-child(-n + 2):nth-child(odd),
+  .stat-grid > *:nth-last-child(-n + 2):nth-child(odd) ~ * {
+    border-bottom: 0;
+  }
+
+  @media (width >= 40rem) {
+    .stat-grid > * {
+      border-bottom: 0;
+    }
+  }
+
+  /*
+    Tabelas em telas estreitas.
+
+    Um grid de sete colunas ocupa cerca de 1200px; num celular de 390px ele
+    vira uma faixa que se arrasta de lado e corta as palavras no meio. Abaixo
+    de `md` cada linha passa a ser um cartão: o cabeçalho sai e cada célula
+    imprime o próprio rótulo. A marcação continua sendo uma tabela de verdade,
+    então no desktop nada muda.
+  */
+  @media (width < 48rem) {
+    .table-stacked,
+    .table-stacked > thead,
+    .table-stacked > tbody,
+    .table-stacked > tbody > tr,
+    .table-stacked > tbody > tr > td {
+      display: block;
+      width: 100%;
+    }
+
+    .table-stacked > thead {
+      display: none;
+    }
+
+    .table-stacked > tbody > tr {
+      padding: 0.875rem 1rem;
+    }
+
+    .table-stacked > tbody > tr > td {
+      padding: 0;
+      text-align: left;
+    }
+
+    /* Rótulo à esquerda, valor à direita — sem estourar a largura da tela. */
+    .table-stacked > tbody > tr > td[data-label] {
+      display: grid;
+      grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+      align-items: start;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .table-stacked > tbody > tr > td[data-label]::before {
+      content: attr(data-label);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      line-height: 1.45;
+      text-transform: uppercase;
+      color: var(--color-muted);
+    }
+
+    /* Larguras pensadas para a coluna do desktop não valem no cartão. */
+    .table-stacked > tbody > tr > td > .w-32,
+    .table-stacked > tbody > tr > td > .w-40 {
+      width: 100%;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

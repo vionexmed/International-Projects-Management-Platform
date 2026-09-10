@@ -10,7 +10,7 @@ export default function Loading() {
       </div>
 
       <Panel className="mb-8">
-        <div className="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
+        <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="space-y-3 px-5 py-4">
               <Skeleton className="h-3 w-24" />
@@ -25,7 +25,7 @@ export default function Loading() {
         <PanelSkeleton lines={5} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <PanelSkeleton lines={4} />
         <PanelSkeleton lines={4} />
       </div>

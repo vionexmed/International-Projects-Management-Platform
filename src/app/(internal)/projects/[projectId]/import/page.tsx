@@ -110,7 +110,7 @@ export default async function ProjectImportPage({
             </dl>
 
             {shipment.productionNote || shipment.documentsNote ? (
-              <div className="grid gap-5 border-t border-line px-5 py-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 border-t border-line px-5 py-4 sm:grid-cols-2">
                 {shipment.productionNote ? (
                   <div>
                     <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
@@ -137,7 +137,7 @@ export default async function ProjectImportPage({
         ))
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel>
           <PanelHeader
             title="Tarefas de importação"

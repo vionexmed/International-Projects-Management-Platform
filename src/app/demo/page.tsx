@@ -68,7 +68,7 @@ export default function DemoPage() {
           </div>
         ) : null}
 
-        <div className="mt-9 grid gap-6 lg:grid-cols-2">
+        <div className="mt-9 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section>
             <div className="mb-3 flex items-center gap-2">
               <ShieldCheck className="size-4 text-muted" />
