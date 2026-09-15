@@ -1,39 +1,84 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CircleCheck } from "lucide-react";
+import { ArrowRight, CircleCheck, Clock, FileText, ListChecks } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
-import { listDocumentRequests } from "@/server/services/documents";
+import { listSupplierQueue, type QueueItem } from "@/server/services/supplier-queue";
 import { PageHeader } from "@/components/app/page-header";
-import { Panel } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { TabsNav } from "@/components/app/tabs-nav";
+import { Panel, PanelHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getDictionary, interpolate, plural } from "@/lib/i18n/dictionary";
-import { localeFromLanguage } from "@/lib/i18n/config";
-import { label, meta } from "@/lib/labels";
+import { getDictionary, plural, type Dictionary } from "@/lib/i18n/dictionary";
+import { localeFromLanguage, type Locale } from "@/lib/i18n/config";
+import { meta } from "@/lib/labels";
 import { daysUntil, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Action Required" };
 
+const FILTERS = [
+  { key: "all", label: (d: Dictionary) => d.portal.requests.filterAll },
+  { key: "document", label: (d: Dictionary) => d.portal.requests.filterDocuments },
+  { key: "task", label: (d: Dictionary) => d.portal.requests.filterTasks },
+];
+
 /**
- * The heart of the Supplier Portal: one card per request, each stating what is
- * needed, by when, and a single way forward.
+ * One queue: everything Vionex is waiting on.
+ *
+ * The portal used to split this in two — Action Required for document
+ * requests, Tasks for the rest — which asked a manufacturer to know which of
+ * our two models their work happens to live in before they could find it.
+ * Both are now one list with a type label, and `/supplier/tasks` redirects
+ * here with the filter already applied.
+ *
+ * The mirror task of a document request never appears: the service excludes
+ * it, so one pendency is one row.
  */
-export default async function ActionRequiredPage() {
+export default async function ActionRequiredPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
   const user = await requireSupplierUser();
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const requests = await listDocumentRequests(user);
-  const open = requests.filter((request) => ["PENDING", "REJECTED"].includes(request.status));
-  const closed = requests.filter((request) => !["PENDING", "REJECTED"].includes(request.status));
+  const { open, waiting, done } = await listSupplierQueue(user);
+
+  const active = FILTERS.find((filter) => filter.key === params.type) ?? FILTERS[0];
+  const matches = (item: QueueItem) =>
+    active.key === "all" ||
+    (active.key === "document" ? item.type === "DOCUMENT" : item.type === "TASK");
+
+  const visibleOpen = open.filter(matches);
+  const visibleWaiting = waiting.filter(matches);
+  const visibleDone = done.filter(matches);
+
+  const countFor = (key: string) =>
+    key === "all"
+      ? open.length
+      : open.filter((item) => (key === "document" ? item.type === "DOCUMENT" : item.type === "TASK"))
+          .length;
 
   return (
     <>
       <PageHeader title={dict.portal.requests.title} description={dict.portal.requests.subtitle} />
 
-      {open.length === 0 ? (
+      <TabsNav
+        className="mb-5"
+        items={FILTERS.map((filter) => ({
+          href:
+            filter.key === "all"
+              ? "/supplier/action-required"
+              : `/supplier/action-required?type=${filter.key}`,
+          label: filter.label(dict),
+          count: countFor(filter.key),
+          active: filter.key === active.key,
+        }))}
+      />
+
+      {visibleOpen.length === 0 ? (
         <Panel>
           <EmptyState
             icon={CircleCheck}
@@ -42,112 +87,126 @@ export default async function ActionRequiredPage() {
           />
         </Panel>
       ) : (
-        <ul className="space-y-4">
-          {open.map((request) => {
-            const status = meta.request(request.status, dict);
-            const remaining = daysUntil(request.dueDate);
-            const overdue = remaining !== null && remaining < 0;
-
-            return (
-              <li key={request.id}>
-                <Panel className="p-5 transition-colors hover:border-line-strong">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-[15px] font-semibold text-ink">{request.title}</h2>
-                      <p className="mt-1 text-[13px] text-muted">
-                        {request.project.name} · {label.documentType(request.type, dict)}
-                      </p>
-
-                      {request.description ? (
-                        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-                          {request.description}
-                        </p>
-                      ) : null}
-
-                      <dl className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-2 text-[13px]">
-                        <div>
-                          <dt className="text-muted">{dict.portal.requests.requestedBy}</dt>
-                          <dd className="mt-0.5 font-medium text-ink">{request.requestedBy.name}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-muted">{dict.portal.requests.due}</dt>
-                          <dd
-                            className={cn(
-                              "mt-0.5 font-medium",
-                              overdue ? "text-risk" : "text-ink",
-                            )}
-                          >
-                            {formatDate(request.dueDate, locale)}
-                            {remaining !== null ? (
-                              <span className="ml-1.5 font-normal">
-                                ·{" "}
-                                {overdue
-                                  ? dict.portal.requests.overdue
-                                  : remaining === 0
-                                    ? dict.portal.requests.dueToday
-                                    : plural(dict.portal.requests.dueInDays, remaining)}
-                              </span>
-                            ) : null}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-muted">{dict.common.status}</dt>
-                          <dd className="mt-0.5">
-                            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-
-                    <Button variant="primary" asChild>
-                      <Link href={`/supplier/action-required/${request.id}`}>
-                        {dict.portal.requests.openRequest}
-                        <ArrowRight />
-                      </Link>
-                    </Button>
-                  </div>
-                </Panel>
-              </li>
-            );
-          })}
-        </ul>
+        <Panel>
+          <ul className="divide-y divide-line-soft">
+            {visibleOpen.map((item) => (
+              <QueueRow key={item.id} item={item} dict={dict} locale={locale} />
+            ))}
+          </ul>
+        </Panel>
       )}
 
-      {closed.length > 0 ? (
-        <section className="mt-10">
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">
-            {dict.portal.requests.history}
-          </h2>
+      {visibleWaiting.length > 0 ? (
+        <section className="mt-8">
           <Panel>
+            <PanelHeader
+              title={dict.portal.requests.underReview}
+              description={dict.portal.requests.underReviewHint}
+            />
             <ul className="divide-y divide-line-soft">
-              {closed.map((request) => {
-                const status = meta.request(request.status, dict);
-                return (
-                  <li key={request.id}>
-                    <Link
-                      href={`/supplier/action-required/${request.id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-subtle"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-ink">{request.title}</p>
-                        <p className="mt-0.5 truncate text-[13px] text-muted">
-                          {request.project.name}
-                          {request.submittedAt
-                            ? ` · ${interpolate(dict.portal.requests.submittedOn, {
-                                date: formatDate(request.submittedAt, locale),
-                              })}`
-                            : ""}
-                        </p>
-                      </div>
-                      <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                    </Link>
-                  </li>
-                );
-              })}
+              {visibleWaiting.map((item) => (
+                <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
+              ))}
             </ul>
           </Panel>
         </section>
       ) : null}
+
+      {visibleDone.length > 0 ? (
+        <section className="mt-8">
+          <Panel>
+            <PanelHeader title={dict.portal.requests.done} />
+            <ul className="divide-y divide-line-soft">
+              {visibleDone.map((item) => (
+                <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
+              ))}
+            </ul>
+          </Panel>
+        </section>
+      ) : null}
+
+      {active.key === "task" ? (
+        <p className="mt-4 text-[13px] text-muted">{dict.portal.requests.taskHint}</p>
+      ) : null}
     </>
+  );
+}
+
+/**
+ * One pendency. The type is stated plainly rather than implied by which page
+ * you happened to open.
+ */
+function QueueRow({
+  item,
+  dict,
+  locale,
+  muted = false,
+}: {
+  item: QueueItem;
+  dict: Dictionary;
+  locale: Locale;
+  muted?: boolean;
+}) {
+  const remaining = daysUntil(item.dueDate);
+  const overdue = remaining !== null && remaining < 0 && item.state === "open";
+  const Icon = item.type === "DOCUMENT" ? FileText : ListChecks;
+  const status = item.requestStatus ? meta.request(item.requestStatus, dict) : null;
+
+  return (
+    <li>
+      <Link
+        href={item.href}
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-subtle"
+      >
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-sm border",
+            muted ? "border-line bg-subtle text-muted" : "border-brand-line bg-brand-soft text-brand-strong",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-ink">{item.title}</span>
+          <span className="mt-0.5 block truncate text-[13px] text-muted">
+            {item.type === "DOCUMENT"
+              ? dict.portal.requests.typeDocument
+              : dict.portal.requests.typeTask}{" "}
+            · {item.project.name}
+          </span>
+        </span>
+
+        {item.dueDate ? (
+          <span
+            className={cn(
+              "shrink-0 text-[13px] whitespace-nowrap",
+              overdue ? "font-medium text-risk" : "text-muted",
+            )}
+          >
+            {overdue ? (
+              dict.portal.requests.overdue
+            ) : remaining !== null && remaining <= 7 && item.state === "open" ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="size-3.5" />
+                {remaining === 0
+                  ? dict.portal.requests.dueToday
+                  : plural(dict.portal.requests.dueInDays, remaining)}
+              </span>
+            ) : (
+              formatDate(item.dueDate, locale)
+            )}
+          </span>
+        ) : null}
+
+        {status ? (
+          <span className="shrink-0">
+            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+          </span>
+        ) : null}
+
+        <ArrowRight className="size-4 shrink-0 text-faint" />
+      </Link>
+    </li>
   );
 }

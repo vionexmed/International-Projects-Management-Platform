@@ -17,6 +17,13 @@ import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 
+/**
+ * "How is this project right now?"
+ *
+ * Current state only. The full tables — tasks, documents, regulatory items,
+ * the complete history — live in the tabs, and this page links to them rather
+ * than reproducing them.
+ */
 export default async function ProjectOverviewPage({
   params,
 }: {
@@ -29,7 +36,12 @@ export default async function ProjectOverviewPage({
 
   const [{ project, stages, milestones, progress }, timeline] = await Promise.all([
     orNotFound(getProjectWorkspace(user, projectId)),
-    listProjectTimeline(user, projectId, 8),
+    /**
+     * Three, not eight. This block is a preview of the Timeline tab, which is
+     * the canonical history of the project; a longer list here would be the
+     * same information twice, and the second copy is the one nobody trusts.
+     */
+    listProjectTimeline(user, projectId, 3),
   ]);
 
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");

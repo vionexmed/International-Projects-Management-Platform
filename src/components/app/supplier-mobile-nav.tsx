@@ -4,12 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
   FileText,
   Folder,
   Globe,
   Home,
-  ListChecks,
   LogOut,
   Menu,
   MessageSquare,
@@ -56,10 +54,8 @@ export function SupplierMobileNav({
       icon: SquareCheck,
       badge: actionRequiredCount,
     },
-    { href: "/supplier/tasks", label: dict.portal.tasks.title, icon: ListChecks },
     { href: "/supplier/documents", label: dict.nav.documents, icon: FileText },
     { href: "/supplier/messages", label: dict.nav.messages, icon: MessageSquare, badge: messageCount },
-    { href: "/supplier/notifications", label: dict.nav.notifications, icon: Bell },
     { href: "/supplier/profile", label: dict.portal.profile.title, icon: UserRound },
     ...(manageUsers
       ? [{ href: "/supplier/users", label: dict.portal.team.title, icon: Users }]

@@ -6,6 +6,7 @@ import { listDocumentRequests } from "@/server/services/documents";
 import { db } from "@/server/db";
 import { projectScope } from "@/server/authz/scopes";
 import { PageHeader, SectionHeader } from "@/components/app/page-header";
+import { TabsNav } from "@/components/app/tabs-nav";
 import { Panel } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -32,7 +33,51 @@ export const metadata: Metadata = { title: "Regulatório" };
  * Portfolio-wide regulatory view: every open request and every regulatory item
  * across projects, so the regulatory team has one queue instead of many.
  */
-export default async function RegulatoryPage() {
+/**
+ * The filters exist so that a number elsewhere can bring somebody here with
+ * the question already narrowed — "12 atrasadas" lands on the twelve, not on
+ * everything. Anything that shows a regulatory count links through these keys.
+ */
+const FILTERS: {
+  key: string;
+  label: string;
+  matches: (request: RequestRow, now: Date) => boolean;
+}[] = [
+  {
+    key: "open",
+    label: "Em aberto",
+    matches: (request) =>
+      ["PENDING", "SUBMITTED", "IN_REVIEW", "REJECTED"].includes(request.status),
+  },
+  {
+    key: "supplier",
+    label: "Aguardando fornecedor",
+    matches: (request) => ["PENDING", "REJECTED"].includes(request.status),
+  },
+  {
+    key: "review",
+    label: "Aguardando análise",
+    matches: (request) => ["SUBMITTED", "IN_REVIEW"].includes(request.status),
+  },
+  {
+    key: "overdue",
+    label: "Atrasadas",
+    matches: (request, now) =>
+      ["PENDING", "REJECTED"].includes(request.status) &&
+      request.dueDate !== null &&
+      request.dueDate < now,
+  },
+  { key: "all", label: "Todas", matches: () => true },
+];
+
+type RequestRow = Awaited<ReturnType<typeof listDocumentRequests>>[number];
+
+export default async function RegulatoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
   const user = await requireInternalUser();
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
@@ -47,9 +92,9 @@ export default async function RegulatoryPage() {
     }),
   ]);
 
-  const openRequests = requests.filter((request) =>
-    ["PENDING", "SUBMITTED", "IN_REVIEW", "REJECTED"].includes(request.status),
-  );
+  const now = new Date();
+  const activeFilter = FILTERS.find((filter) => filter.key === params.status) ?? FILTERS[0];
+  const openRequests = requests.filter((request) => activeFilter.matches(request, now));
 
   return (
     <>
@@ -60,15 +105,25 @@ export default async function RegulatoryPage() {
 
       <section className="mb-8">
         <SectionHeader
-          title="Solicitações em aberto"
-          description="Documentos pedidos aos fornecedores que ainda não foram concluídos."
+          title="Solicitações"
+          description="Documentos pedidos aos fornecedores em todo o portfólio."
+        />
+
+        <TabsNav
+          className="mb-4"
+          items={FILTERS.map((filter) => ({
+            href: filter.key === "open" ? "/regulatory" : `/regulatory?status=${filter.key}`,
+            label: filter.label,
+            count: requests.filter((request) => filter.matches(request, now)).length,
+            active: filter.key === activeFilter.key,
+          }))}
         />
         <TableShell>
           {openRequests.length === 0 ? (
             <EmptyState
               icon={ShieldCheck}
-              title="Nenhuma solicitação em aberto."
-              description="Todas as solicitações aos fornecedores foram concluídas."
+              title="Nenhuma solicitação neste recorte."
+              description="Troque o filtro acima para ver as demais solicitações."
               compact
             />
           ) : (

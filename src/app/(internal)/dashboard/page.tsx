@@ -1,34 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, History, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarClock } from "lucide-react";
 import { requireInternalUser } from "@/server/auth/current-user";
-import {
-  getPortfolioSummary,
-  listProjectsRequiringAttention,
-  listSupplierBottlenecks,
-  listUpcomingDeadlines,
-} from "@/server/services/dashboard";
-import { listRecentActivity } from "@/server/services/timeline";
+import { getPortfolioSummary, listUpcomingDeadlines } from "@/server/services/dashboard";
+import { countAttentionItems, listAttentionItems } from "@/server/services/attention";
+import { getPortfolioBreakdown } from "@/server/services/analytics";
 import { PageHeader, SectionHeader } from "@/components/app/page-header";
+import { AttentionList } from "@/components/app/attention-list";
 import { Panel } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  CellStack,
-  Table,
-  TableScroll,
-  TableShell,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-} from "@/components/ui/table";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { label, meta } from "@/lib/labels";
-import { formatDeadlineParts, formatRelative, daysUntil } from "@/lib/format";
+import { label } from "@/lib/labels";
+import { formatDeadlineParts, daysUntil } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { StageKey } from "@/generated/prisma";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -40,27 +26,58 @@ function greeting(name: string) {
   return `Boa noite, ${firstName}.`;
 }
 
+/**
+ * Triage. One question: what needs attention now?
+ *
+ * This page used to answer it with the portfolio table — the same columns,
+ * the same query and the same actions as `/projects`, one filter apart. That
+ * made two screens for one job and taught people that the dashboard is just a
+ * shorter list of projects.
+ *
+ * Now nothing here is a canonical list. The numbers link into `/projects`, the
+ * exceptions link to wherever each one is resolved, and the deadlines link to
+ * the task. Every block is a doorway; none of them is a destination.
+ */
 export default async function DashboardPage() {
   const user = await requireInternalUser();
-  const dict = getDictionary(localeFromLanguage(user.language));
   const locale = localeFromLanguage(user.language);
+  const dict = getDictionary(locale);
 
-  const [summary, attention, deadlines, activity, bottlenecks] = await Promise.all([
+  const [summary, attention, counts, deadlines, breakdown] = await Promise.all([
     getPortfolioSummary(user),
-    listProjectsRequiringAttention(user),
-    listUpcomingDeadlines(user),
-    listRecentActivity(user),
-    listSupplierBottlenecks(user),
+    listAttentionItems(user, 6),
+    countAttentionItems(user),
+    listUpcomingDeadlines(user, 6),
+    getPortfolioBreakdown(user),
   ]);
+
+  /** Only the kinds that actually have rows get a link — no empty promises. */
+  const attentionLinks = [
+    counts.tasks > 0
+      ? { label: `${counts.tasks} tarefas atrasadas`, href: "/tasks?tab=OVERDUE" }
+      : null,
+    counts.requests > 0
+      ? { label: `${counts.requests} documentos atrasados`, href: "/regulatory?status=overdue" }
+      : null,
+    counts.reviews > 0
+      ? { label: `${counts.reviews} aguardando análise`, href: "/regulatory?status=review" }
+      : null,
+    counts.projects > 0
+      ? { label: `${counts.projects} projetos bloqueados`, href: "/projects?tab=BLOCKED" }
+      : null,
+    counts.milestones > 0
+      ? { label: `${counts.milestones} marcos atrasados`, href: "/projects?tab=ATTENTION" }
+      : null,
+  ].filter((link): link is { label: string; href: string } => link !== null);
 
   return (
     <>
       <PageHeader
         title={greeting(user.name)}
-        description="Veja o que está acontecendo nos seus projetos."
+        description="O que precisa da sua atenção agora."
       />
 
-      {/* Portfolio — four numbers, no charts. */}
+      {/* Portfolio — four numbers, each a way into the canonical list. */}
       <Panel className="mb-8">
         <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
           <Stat label="Total de projetos" value={summary.total} href="/projects" />
@@ -70,80 +87,41 @@ export default async function DashboardPage() {
         </div>
       </Panel>
 
-      {/* Projects requiring attention */}
+      {/* Exceptions */}
       <section className="mb-8">
         <SectionHeader
-          title="Projetos que precisam de atenção"
-          description="Projetos em risco ou bloqueados e o próximo passo de cada um."
-          action={
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-            >
-              Ver todos
-              <ArrowRight className="size-3.5" />
-            </Link>
+          title="Precisa da sua atenção"
+          description={
+            counts.total > 0
+              ? `${counts.total} pendências fora do previsto em todo o portfólio.`
+              : "Exceções do portfólio: atrasos, bloqueios e análises paradas."
           }
         />
-
-        <TableShell>
-          {attention.length === 0 ? (
-            <EmptyState
-              icon={TriangleAlert}
-              title="Nenhum projeto precisa de atenção."
-              description="Todos os projetos do portfólio estão em dia."
-              compact
-            />
-          ) : (
-            <TableScroll>
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>Projeto</TH>
-                    <TH>Fornecedor</TH>
-                    <TH>Etapa</TH>
-                    <TH>Responsável</TH>
-                    <TH>Status</TH>
-                    <TH>Próximo passo</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {attention.map((project) => {
-                    const status = meta.project(project.status, dict);
-                    return (
-                      <TR key={project.id} interactive>
-                        <TD>
-                          <Link href={`/projects/${project.id}`} className="block hover:underline">
-                            <CellStack title={project.name} subtitle={project.projectCode} />
-                          </Link>
-                        </TD>
-                        <TD label="Fornecedor" className="text-[13px] text-ink-soft">{project.supplier.name}</TD>
-                        <TD label="Etapa" className="text-[13px] text-ink-soft">
-                          {label.stageKey(project.currentStage, dict)}
-                        </TD>
-                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.owner.name}</TD>
-                        <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                        </TD>
-                        <TD label="Próximo passo" className="text-[13px] text-ink-soft md:max-w-[240px]">
-                          <span className="block md:truncate">
-                            {project.nextStep?.title ?? project.blockerNote ?? "—"}
-                          </span>
-                        </TD>
-                      </TR>
-                    );
-                  })}
-                </TBody>
-              </Table>
-            </TableScroll>
-          )}
-        </TableShell>
+        <AttentionList
+          items={attention}
+          locale={locale}
+          links={attentionLinks}
+          emptyTitle="Nada fora do previsto."
+          emptyDescription="Nenhum atraso, bloqueio ou análise parada no portfólio."
+        />
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Upcoming deadlines */}
         <section>
-          <SectionHeader title="Próximos prazos" description="Tarefas com vencimento próximo." />
+          <SectionHeader
+            title="Próximos prazos"
+            description="Tarefas com vencimento próximo."
+            action={
+              <Link
+                href="/tasks"
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
+              >
+                Ver tarefas
+                <ArrowRight className="size-3.5" />
+              </Link>
+            }
+          />
           <Panel>
             {deadlines.length === 0 ? (
               <EmptyState icon={CalendarClock} title="Nenhum prazo próximo." compact />
@@ -208,73 +186,58 @@ export default async function DashboardPage() {
           </Panel>
         </section>
 
-        {/* Recent activity */}
+        {/*
+          Portfolio health — where the projects are, not which projects they
+          are. Counts and shares only; the names live one click away.
+        */}
         <section>
-          <SectionHeader title="Atividade recente" description="Últimos eventos do portfólio." />
+          <SectionHeader
+            title="Saúde do portfólio"
+            description="Distribuição por etapa."
+            action={
+              <Link
+                href="/reports"
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
+              >
+                Ver relatórios
+                <ArrowRight className="size-3.5" />
+              </Link>
+            }
+          />
           <Panel>
-            {activity.length === 0 ? (
-              <EmptyState icon={History} title="Nenhuma atividade ainda." compact />
+            {breakdown.total === 0 ? (
+              <EmptyState title="Nenhum projeto no portfólio." compact />
             ) : (
               <ul className="divide-y divide-line-soft">
-                {activity.map((event) => (
-                  <li key={event.id} className="px-5 py-3.5">
-                    <Link href={`/projects/${event.projectId}`} className="group block">
-                      <p className="text-sm text-ink group-hover:underline">{event.description}</p>
-                      <p className="mt-0.5 text-[12px] text-muted">
-                        {event.project.name}
-                        {event.actor ? ` · ${event.actor.name}` : ""} ·{" "}
-                        {formatRelative(event.createdAt, locale)}
-                      </p>
-                    </Link>
-                  </li>
-                ))}
+                {breakdown.stage.map((slice) => {
+                  const share = Math.round((slice.count / breakdown.total) * 100);
+                  return (
+                    <li key={slice.key}>
+                      <Link
+                        href={slice.href}
+                        className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-subtle"
+                      >
+                        <span className="w-44 shrink-0 truncate text-[13px] text-ink">
+                          {label.stageKey(slice.key as StageKey, dict)}
+                        </span>
+                        <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-raised">
+                          <span
+                            className="block h-full rounded-full bg-brand"
+                            style={{ width: `${share}%` }}
+                          />
+                        </span>
+                        <span className="w-10 shrink-0 text-right text-[13px] font-semibold text-ink tabular-nums">
+                          {slice.count}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Panel>
         </section>
       </div>
-
-      {/* Supplier bottlenecks */}
-      {bottlenecks.length > 0 ? (
-        <section className="mt-8">
-          <SectionHeader
-            title="Fornecedores com pendências"
-            description="Quem precisa responder para destravar os projetos."
-          />
-          <Panel>
-            <ul className="divide-y divide-line-soft">
-              {bottlenecks.map((supplier) => {
-                const status = meta.supplier(supplier.status, dict);
-                return (
-                  <li key={supplier.id}>
-                    <Link
-                      href={`/suppliers/${supplier.id}`}
-                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-subtle"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-ink">{supplier.name}</p>
-                        <p className="mt-0.5 text-[13px] text-muted">{supplier.country}</p>
-                      </div>
-                      <div className="flex items-center gap-5 text-[13px]">
-                        <span className="text-ink-soft">
-                          <span className="font-semibold tabular-nums">{supplier.openCount}</span>{" "}
-                          <span className="text-muted">pendências</span>
-                        </span>
-                        {supplier.overdueCount > 0 ? (
-                          <span className="font-medium text-risk tabular-nums">
-                            {supplier.overdueCount} atrasadas
-                          </span>
-                        ) : null}
-                        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </Panel>
-        </section>
-      ) : null}
     </>
   );
 }

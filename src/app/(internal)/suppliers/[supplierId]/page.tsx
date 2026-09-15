@@ -7,16 +7,6 @@ import { Field, Panel, PanelHeader } from "@/components/ui/card";
 import { SolidBadge, StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { UserAvatar } from "@/components/ui/avatar";
-import {
-  CellStack,
-  Table,
-  TableScroll,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-} from "@/components/ui/table";
 import { AddSupplierUserDialog } from "@/features/suppliers/add-supplier-user-dialog";
 import { EditSupplierDialog } from "@/features/suppliers/edit-supplier-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -131,51 +121,51 @@ export default async function SupplierProfilePage({
           </div>
         </Panel>
 
+        {/*
+          A summary, not the portfolio table again. `/projects` is the canonical
+          list and already filters by supplier, so this shows the first few and
+          hands the rest over with the filter applied.
+        */}
         <Panel>
-          <PanelHeader title="Projetos" description={`${projects.length} projeto(s) com este fornecedor.`} />
+          <PanelHeader
+            title="Projetos"
+            description={`${projects.length} projeto(s) com este fornecedor.`}
+            action={
+              projects.length > 0 ? (
+                <Link
+                  href={`/projects?supplier=${supplier.id}`}
+                  className="text-[13px] font-medium text-brand-strong hover:underline"
+                >
+                  Ver em Projetos
+                </Link>
+              ) : null
+            }
+          />
           {projects.length === 0 ? (
             <EmptyState title="Nenhum projeto vinculado." compact />
           ) : (
-            <TableScroll>
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>Projeto</TH>
-                    <TH>Etapa</TH>
-                    <TH>Responsável</TH>
-                    <TH>Lançamento</TH>
-                    <TH>Status</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {projects.map((project) => {
-                    const projectStatus = meta.project(project.status, dict);
-                    return (
-                      <TR key={project.id} interactive>
-                        <TD>
-                          <Link
-                            href={`/projects/${project.id}`}
-                            className="block after:absolute after:inset-0 after:content-['']"
-                          >
-                            <CellStack title={project.name} subtitle={project.projectCode} />
-                          </Link>
-                        </TD>
-                        <TD label="Etapa" className="text-[13px] text-ink-soft">
-                          {label.stageKey(project.currentStage, dict)}
-                        </TD>
-                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.owner.name}</TD>
-                        <TD label="Lançamento" className="text-[13px] whitespace-nowrap text-ink-soft">
+            <ul className="divide-y divide-line-soft">
+              {projects.slice(0, 5).map((project) => {
+                const projectStatus = meta.project(project.status, dict);
+                return (
+                  <li key={project.id}>
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-subtle"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">{project.name}</p>
+                        <p className="mt-0.5 text-[13px] text-muted">
+                          {project.projectCode} · {label.stageKey(project.currentStage, dict)} ·{" "}
                           {formatDate(project.targetLaunchDate, locale)}
-                        </TD>
-                        <TD label="Status">
-                          <StatusBadge tone={projectStatus.tone}>{projectStatus.label}</StatusBadge>
-                        </TD>
-                      </TR>
-                    );
-                  })}
-                </TBody>
-              </Table>
-            </TableScroll>
+                        </p>
+                      </div>
+                      <StatusBadge tone={projectStatus.tone}>{projectStatus.label}</StatusBadge>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </Panel>
 

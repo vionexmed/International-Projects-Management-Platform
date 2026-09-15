@@ -5,9 +5,14 @@ import { projectProgress, type StageSnapshot, type TaskSnapshot } from "@/server
 import type { SessionUser } from "@/types/auth";
 
 /**
- * The dashboard answers five questions (§46): what needs attention, what is
- * late, who must act, which supplier is holding things up, and what is next.
- * Each block below maps to one of those and nothing more.
+ * What is left of the dashboard's own data layer.
+ *
+ * It used to hold five queries, three of which existed to render lists that
+ * `/projects`, `/tasks` and `/suppliers` already own — the dashboard was
+ * answering "what is in the portfolio" a second time. Those are gone; the
+ * exceptions now come from `attention.ts` and the distributions from
+ * `analytics.ts`, and what remains here is the portfolio count and the
+ * deadline strip.
  */
 
 export async function getPortfolioSummary(user: SessionUser) {
@@ -27,40 +32,6 @@ export async function getPortfolioSummary(user: SessionUser) {
     if (group.status === "COMPLETED") summary.completed = group._count._all;
   }
   return summary;
-}
-
-/**
- * Projects that are at risk or blocked, each with the single most urgent open
- * task as its "next step" — the column that tells someone what to actually do.
- */
-export async function listProjectsRequiringAttention(user: SessionUser, take = 6) {
-  const projects = await db.project.findMany({
-    where: { AND: [projectScope(user), { status: { in: ["AT_RISK", "BLOCKED"] } }] },
-    include: {
-      supplier: { select: { id: true, name: true } },
-      owner: { select: { id: true, name: true } },
-      tasks: {
-        where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
-        orderBy: [{ dueDate: "asc" }, { priority: "desc" }],
-        take: 1,
-        select: { id: true, title: true, dueDate: true, supplierId: true },
-      },
-    },
-    orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-    take,
-  });
-
-  return projects.map((project) => ({
-    id: project.id,
-    name: project.name,
-    projectCode: project.projectCode,
-    status: project.status,
-    currentStage: project.currentStage,
-    blockerNote: project.blockerNote,
-    supplier: project.supplier,
-    owner: project.owner,
-    nextStep: project.tasks[0] ?? null,
-  }));
 }
 
 /** Upcoming and already-late deadlines, nearest first. */
@@ -95,78 +66,6 @@ export async function listUpcomingDeadlines(user: SessionUser, take = 6) {
     priority: task.priority,
     status: task.status,
   }));
-}
-
-/** Work assigned to the signed-in user — "what do I have to do?". */
-export async function listMyOpenTasks(user: SessionUser, take = 5) {
-  return db.task.findMany({
-    where: {
-      AND: [
-        taskScope(user),
-        { assignedToId: user.id, status: { notIn: ["COMPLETED", "CANCELLED"] } },
-      ],
-    },
-    include: { project: { select: { id: true, name: true } } },
-    orderBy: [{ dueDate: "asc" }],
-    take,
-  });
-}
-
-/** Suppliers with outstanding requests, worst first. */
-export async function listSupplierBottlenecks(user: SessionUser, take = 4) {
-  const now = new Date();
-  const grouped = await db.task.groupBy({
-    by: ["supplierId"],
-    where: {
-      AND: [
-        taskScope(user),
-        { supplierId: { not: null }, status: { notIn: ["COMPLETED", "CANCELLED"] } },
-      ],
-    },
-    _count: { _all: true },
-  });
-
-  if (grouped.length === 0) return [];
-
-  const supplierIds = grouped
-    .map((group) => group.supplierId)
-    .filter((id): id is string => Boolean(id));
-
-  const [suppliers, overdueGroups] = await Promise.all([
-    db.supplier.findMany({
-      where: { id: { in: supplierIds } },
-      select: { id: true, name: true, country: true, status: true },
-    }),
-    db.task.groupBy({
-      by: ["supplierId"],
-      where: {
-        supplierId: { in: supplierIds },
-        status: { notIn: ["COMPLETED", "CANCELLED"] },
-        dueDate: { lt: now },
-      },
-      _count: { _all: true },
-    }),
-  ]);
-
-  const overdue = new Map(
-    overdueGroups
-      .filter((group) => group.supplierId)
-      .map((group) => [group.supplierId as string, group._count._all]),
-  );
-  const open = new Map(
-    grouped
-      .filter((group) => group.supplierId)
-      .map((group) => [group.supplierId as string, group._count._all]),
-  );
-
-  return suppliers
-    .map((supplier) => ({
-      ...supplier,
-      openCount: open.get(supplier.id) ?? 0,
-      overdueCount: overdue.get(supplier.id) ?? 0,
-    }))
-    .sort((a, b) => b.overdueCount - a.overdueCount || b.openCount - a.openCount)
-    .slice(0, take);
 }
 
 /** Portfolio-wide average progress, used by the Reports page. */

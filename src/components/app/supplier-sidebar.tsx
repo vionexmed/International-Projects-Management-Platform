@@ -4,9 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
   ChevronDown,
-  ListChecks,
   FileText,
   Folder,
   Globe,
@@ -68,7 +66,6 @@ export function SupplierSidebar({
       icon: SquareCheck,
       badge: actionRequiredCount,
     },
-    { href: "/supplier/tasks", label: dict.portal.tasks.title, icon: ListChecks },
     { href: "/supplier/documents", label: dict.nav.documents, icon: FileText },
     {
       href: "/supplier/messages",
@@ -76,7 +73,6 @@ export function SupplierSidebar({
       icon: MessageSquare,
       badge: messageCount,
     },
-    { href: "/supplier/notifications", label: dict.nav.notifications, icon: Bell },
   ];
 
   const isActive = (href: string, exact?: boolean) =>

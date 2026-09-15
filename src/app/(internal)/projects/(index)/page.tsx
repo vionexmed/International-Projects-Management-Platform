@@ -43,8 +43,15 @@ export const metadata: Metadata = { title: "Projetos" };
  * for the other half of the portfolio. Kept as a tab because that is where
  * somebody looks for a project they cannot find.
  */
-const TABS: { key: string; label: string; status?: ProjectStatus; archived?: boolean }[] = [
+const TABS: {
+  key: string;
+  label: string;
+  status?: ProjectStatus;
+  attention?: boolean;
+  archived?: boolean;
+}[] = [
   { key: "ALL", label: "Todos" },
+  { key: "ATTENTION", label: "Precisam de atenção", attention: true },
   { key: "ON_TRACK", label: "Em dia", status: "ON_TRACK" },
   { key: "AT_RISK", label: "Em risco", status: "AT_RISK" },
   { key: "BLOCKED", label: "Bloqueados", status: "BLOCKED" },
@@ -70,6 +77,7 @@ export default async function ProjectsPage({
     listProjects(user, {
       query: params.q,
       status: activeTab.status,
+      attention: activeTab.attention,
       supplierId: params.supplier,
       ownerId: params.owner,
       stage: params.stage as StageKey | undefined,
@@ -113,7 +121,7 @@ export default async function ProjectsPage({
         items={TABS.map((tab) => ({
           href: buildTabHref(tab.key),
           label: tab.label,
-          count: tab.archived ? undefined : tab.status ? counts[tab.status] : counts.ALL,
+          count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
           active: tab.key === activeTab.key,
         }))}
       />

@@ -45,8 +45,19 @@ describe("session tokens", () => {
   it("rejects a tampered or malformed token", async () => {
     const { token } = await createSessionToken(identity, false);
 
-    // Flip the last character of the signature.
-    const tampered = token.slice(0, -1) + (token.at(-1) === "A" ? "B" : "A");
+    /**
+     * Flip a character in the middle of the signature, not the last one.
+     *
+     * A 32-byte HMAC is 43 base64url characters, which carry 258 bits — the
+     * final character's last two bits are padding and decode to the same
+     * signature either way. Tampering there produced a token that verified,
+     * and the test passed or failed depending on which key was generated.
+     */
+    const [header, payload, signature] = token.split(".");
+    const at = Math.floor(signature.length / 2);
+    const flipped =
+      signature.slice(0, at) + (signature[at] === "A" ? "B" : "A") + signature.slice(at + 1);
+    const tampered = `${header}.${payload}.${flipped}`;
 
     await expect(verifySessionToken(tampered)).resolves.toBeNull();
     await expect(verifySessionToken("not-a-token")).resolves.toBeNull();

@@ -3,8 +3,7 @@ import Link from "next/link";
 import { can, requireSupplierUser } from "@/server/auth/current-user";
 import { countUnread } from "@/server/services/notifications";
 import { countUnreadMessages } from "@/server/services/messages";
-import { db } from "@/server/db";
-import { documentRequestScope } from "@/server/authz/scopes";
+import { countSupplierQueue } from "@/server/services/supplier-queue";
 import { SupplierSidebar } from "@/components/app/supplier-sidebar";
 import { SupplierMobileNav } from "@/components/app/supplier-mobile-nav";
 import { CommandPalette } from "@/components/app/command-palette";
@@ -22,13 +21,17 @@ export default async function SupplierLayout({ children }: { children: React.Rea
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [actionRequired, unreadMessages, notifications] = await Promise.all([
-    db.documentRequest.count({
-      where: { AND: [documentRequestScope(user), { status: { in: ["PENDING", "REJECTED"] } }] },
-    }),
+  /**
+   * The badge counts the same things Action Required lists — documents *and*
+   * tasks. It used to count only document requests, so a supplier with three
+   * open tasks and nothing else saw a portal that looked idle.
+   */
+  const [queue, unreadMessages, notifications] = await Promise.all([
+    countSupplierQueue(user),
     countUnreadMessages(user),
     countUnread(user.id),
   ]);
+  const actionRequired = queue.open;
 
   return (
     <>

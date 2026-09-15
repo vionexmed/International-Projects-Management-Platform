@@ -36,6 +36,15 @@ export type ProjectListFilters = {
   ownerId?: string;
   stage?: StageKey;
   country?: string;
+  /**
+   * Only the projects that are not going to plan — at risk, blocked, or
+   * carrying a delayed milestone.
+   *
+   * It exists so that a summary screen pointing at "projects needing
+   * attention" can hand the question to this list instead of answering it
+   * with a table of its own.
+   */
+  attention?: boolean;
   /** Lists the archive instead of the live portfolio. Internal only. */
   archived?: boolean;
   page?: number;
@@ -85,6 +94,14 @@ function buildWhere(user: SessionUser, filters: ProjectListFilters): Prisma.Proj
     });
   }
   if (filters.status) conditions.push({ status: filters.status });
+  if (filters.attention) {
+    conditions.push({
+      OR: [
+        { status: { in: ["AT_RISK", "BLOCKED"] } },
+        { milestones: { some: { status: "DELAYED" } } },
+      ],
+    });
+  }
   if (filters.supplierId) conditions.push({ supplierId: filters.supplierId });
   if (filters.ownerId) conditions.push({ ownerId: filters.ownerId });
   if (filters.stage) conditions.push({ currentStage: filters.stage });
