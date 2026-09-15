@@ -4,7 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bell,
   ChevronDown,
+  ListChecks,
   FileText,
   Folder,
   Globe,
@@ -13,6 +15,8 @@ import {
   LogOut,
   MessageSquare,
   SquareCheck,
+  UserRound,
+  Users,
 } from "lucide-react";
 import { VionexLogo } from "@/components/app/logo";
 import { UserAvatar } from "@/components/ui/avatar";
@@ -42,12 +46,15 @@ export function SupplierSidebar({
   locale,
   actionRequiredCount,
   messageCount,
+  manageUsers = false,
 }: {
   user: SessionUser;
   dict: Dictionary;
   locale: Locale;
   actionRequiredCount: number;
   messageCount: number;
+  /** Server-decided. The page refuses the request regardless of this flag. */
+  manageUsers?: boolean;
 }) {
   const pathname = usePathname();
   const [passwordOpen, setPasswordOpen] = React.useState(false);
@@ -61,6 +68,7 @@ export function SupplierSidebar({
       icon: SquareCheck,
       badge: actionRequiredCount,
     },
+    { href: "/supplier/tasks", label: dict.portal.tasks.title, icon: ListChecks },
     { href: "/supplier/documents", label: dict.nav.documents, icon: FileText },
     {
       href: "/supplier/messages",
@@ -68,6 +76,7 @@ export function SupplierSidebar({
       icon: MessageSquare,
       badge: messageCount,
     },
+    { href: "/supplier/notifications", label: dict.nav.notifications, icon: Bell },
   ];
 
   const isActive = (href: string, exact?: boolean) =>
@@ -146,6 +155,21 @@ export function SupplierSidebar({
               <KeyRound />
               {dict.account.changePassword}
             </DropdownItem>
+            <DropdownSeparator />
+            <DropdownItem asChild>
+              <Link href="/supplier/profile">
+                <UserRound />
+                {dict.portal.profile.title}
+              </Link>
+            </DropdownItem>
+            {manageUsers ? (
+              <DropdownItem asChild>
+                <Link href="/supplier/users">
+                  <Users />
+                  {dict.portal.team.title}
+                </Link>
+              </DropdownItem>
+            ) : null}
             <DropdownSeparator />
             <form action={signOut}>
               <DropdownItem asChild destructive>

@@ -35,6 +35,9 @@ export default async function ProjectMessagesPage({
           placeholder: "Escreva uma mensagem para o fornecedor…",
           send: "Enviar",
           sent: "Mensagem enviada.",
+          attach: "Anexar arquivo",
+          removeFile: "Remover arquivo",
+          attachments: "Anexos",
         }}
         emptyTitle="Nenhuma mensagem ainda."
         emptyDescription="Inicie a conversa com o fornecedor sobre este projeto."

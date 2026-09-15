@@ -18,6 +18,7 @@ import {
   TR,
 } from "@/components/ui/table";
 import { AddSupplierUserDialog } from "@/features/suppliers/add-supplier-user-dialog";
+import { EditSupplierDialog } from "@/features/suppliers/edit-supplier-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
@@ -69,6 +70,22 @@ export default async function SupplierProfilePage({
             {supplier.primaryContact ? ` · ${supplier.primaryContact}` : ""}
           </p>
         </div>
+
+        {can(user, "supplier:manage") ? (
+          <EditSupplierDialog
+            supplier={{
+              id: supplier.id,
+              name: supplier.name,
+              country: supplier.country,
+              website: supplier.website,
+              address: supplier.address,
+              primaryContact: supplier.primaryContact,
+              email: supplier.email,
+              phone: supplier.phone,
+              status: supplier.status,
+            }}
+          />
+        ) : null}
       </div>
 
       <div className="space-y-6">

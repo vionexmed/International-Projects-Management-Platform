@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertOctagon, Flag } from "lucide-react";
-import { requireInternalUser } from "@/server/auth/current-user";
+import { can, requireInternalUser } from "@/server/auth/current-user";
 import { getProjectWorkspace } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { orNotFound } from "@/server/authz/rsc";
@@ -8,6 +8,9 @@ import { Field, Panel, PanelHeader } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
+import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
+import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
@@ -65,11 +68,23 @@ export default async function ProjectOverviewPage({
                   <span className="text-[13px] font-medium text-ink">
                     {label.stageKey(stage.key, dict)}
                   </span>
-                  <span className="flex items-center gap-3">
+                  <span className="flex items-center gap-2">
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                     <span className="text-[13px] font-semibold text-ink tabular-nums">
                       {stage.computedProgress}%
                     </span>
+                    {can(user, STAGE_PERMISSION[stage.key]) ? (
+                      <EditStageDialog
+                        stage={{
+                          id: stage.id,
+                          projectId: project.id,
+                          name: label.stageKey(stage.key, dict),
+                          status: stage.status,
+                          progress: stage.progress,
+                          notes: stage.notes,
+                        }}
+                      />
+                    ) : null}
                   </span>
                 </div>
                 <ProgressBar value={stage.computedProgress} label={label.stageKey(stage.key, dict)} />
@@ -95,7 +110,12 @@ export default async function ProjectOverviewPage({
 
         {/* Milestones */}
         <Panel>
-          <PanelHeader title="Próximos marcos" />
+          <PanelHeader
+            title="Próximos marcos"
+            action={
+              can(user, "project:update") ? <NewMilestoneDialog projectId={project.id} /> : null
+            }
+          />
           {upcomingMilestones.length === 0 ? (
             <EmptyState icon={Flag} title="Nenhum marco pendente." compact />
           ) : (

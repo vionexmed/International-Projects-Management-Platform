@@ -3,9 +3,26 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, Folder, Home, Menu, MessageSquare, SquareCheck, X } from "lucide-react";
+import {
+  Bell,
+  FileText,
+  Folder,
+  Globe,
+  Home,
+  ListChecks,
+  LogOut,
+  Menu,
+  MessageSquare,
+  SquareCheck,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
 import { VionexLogo } from "@/components/app/logo";
 import { Button } from "@/components/ui/button";
+import { signOut } from "@/server/actions/auth";
+import { setLanguageAction } from "@/server/actions/preferences";
+import { LOCALE_LABELS, SELECTABLE_LOCALES, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { cn } from "@/lib/utils";
 
@@ -15,12 +32,17 @@ import { cn } from "@/lib/utils";
  */
 export function SupplierMobileNav({
   dict,
+  locale,
   actionRequiredCount,
   messageCount,
+  manageUsers = false,
 }: {
   dict: Dictionary;
+  locale: Locale;
   actionRequiredCount: number;
   messageCount: number;
+  /** Server-decided. The page refuses the request regardless of this flag. */
+  manageUsers?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
@@ -34,8 +56,14 @@ export function SupplierMobileNav({
       icon: SquareCheck,
       badge: actionRequiredCount,
     },
+    { href: "/supplier/tasks", label: dict.portal.tasks.title, icon: ListChecks },
     { href: "/supplier/documents", label: dict.nav.documents, icon: FileText },
     { href: "/supplier/messages", label: dict.nav.messages, icon: MessageSquare, badge: messageCount },
+    { href: "/supplier/notifications", label: dict.nav.notifications, icon: Bell },
+    { href: "/supplier/profile", label: dict.portal.profile.title, icon: UserRound },
+    ...(manageUsers
+      ? [{ href: "/supplier/users", label: dict.portal.team.title, icon: Users }]
+      : []),
   ];
 
   return (
@@ -99,6 +127,59 @@ export function SupplierMobileNav({
                 })}
               </ul>
             </nav>
+
+            {/*
+              Language and sign-out live here as well as in the sidebar. The
+              sidebar is `hidden md:flex`, so on a phone these were the two
+              things a supplier simply could not do: change the language of a
+              portal they may not read, or log out of a shared device.
+            */}
+            <div className="mt-auto space-y-3 border-t border-line px-3 py-4">
+              <div className="space-y-1.5">
+                <p className="px-1 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+                  {dict.nav.language}
+                </p>
+                <ul className="space-y-0.5">
+                  {SELECTABLE_LOCALES.map((option) => (
+                    <li key={option}>
+                      <form action={setLanguageAction}>
+                        <input type="hidden" name="locale" value={option} />
+                        <button
+                          type="submit"
+                          aria-current={option === locale ? "true" : undefined}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm transition-colors",
+                            option === locale
+                              ? "bg-brand-soft/60 font-medium text-brand-deep"
+                              : "text-ink-soft hover:bg-raised",
+                          )}
+                        >
+                          <Globe
+                            className={cn(
+                              "size-[18px]",
+                              option === locale ? "text-brand" : "text-muted",
+                            )}
+                          />
+                          <span className="flex-1 text-left">{LOCALE_LABELS[option]}</span>
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="h-px bg-line" />
+
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-ink-soft transition-colors hover:bg-raised hover:text-ink"
+                >
+                  <LogOut className="size-[18px] text-muted" />
+                  {dict.nav.logOut}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       ) : null}

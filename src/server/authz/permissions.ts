@@ -1,4 +1,4 @@
-import type { UserRole } from "@/generated/prisma";
+import type { StageKey, UserRole } from "@/generated/prisma";
 
 /**
  * Capability-based permissions. Roles are fixed in the schema; the mapping
@@ -96,6 +96,28 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
 export function roleHas(role: UserRole, permission: Permission) {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
+
+/**
+ * Which capability governs each stage.
+ *
+ * `STAGE_MANAGE` already declares that the four stages are separate
+ * responsibilities, and the stage *detail* actions — clinical study, regulatory
+ * items, shipments, GTM items — have always enforced it. The stage itself did
+ * not: editing its status, progress and notes asked only for `project:update`,
+ * which every contributor has. So a colleague from Import could mark the
+ * clinical stage complete and write in its notes, which is precisely what the
+ * declared matrix says should not happen.
+ *
+ * Mapping the stage to its owner closes that gap without inventing anything:
+ * the permissions already exist, and ADMIN and MANAGER hold all four, so
+ * nothing changes for them.
+ */
+export const STAGE_PERMISSION: Record<StageKey, Permission> = {
+  CLINICAL: "clinical:manage",
+  REGULATORY: "regulatory:manage",
+  IMPORT_LOGISTICS: "import:manage",
+  GO_TO_MARKET: "gtm:manage",
+};
 
 /** Human labels used by Settings → Roles. */
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {

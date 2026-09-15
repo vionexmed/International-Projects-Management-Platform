@@ -27,7 +27,7 @@ import { StageDocumentList } from "@/features/projects/stage-document-list";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
-import { formatDate, daysUntil } from "@/lib/format";
+import { formatDate, formatDateTime, daysUntil } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const REGULATORY_STATUS_OPTIONS = [
@@ -68,6 +68,26 @@ export default async function ProjectRegulatoryPage({
       orderBy: { updatedAt: "desc" },
     }),
   ]);
+
+  /**
+   * The rounds each request has already been through. One query for the page
+   * rather than one per row; the requests themselves were scoped above, so
+   * these ids are already the caller's to see.
+   */
+  const reviews = await db.documentRequestReview.findMany({
+    where: { requestId: { in: requests.map((request) => request.id) } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      requestId: true,
+      decision: true,
+      note: true,
+      createdAt: true,
+      reviewer: { select: { id: true, name: true } },
+      documentVersion: { select: { id: true, version: true, fileName: true } },
+    },
+  });
+  const reviewsByRequest = Map.groupBy(reviews, (review) => review.requestId);
 
   const canRequest = can(user, "document:request");
   const canManage = can(user, "regulatory:manage");
@@ -153,6 +173,30 @@ export default async function ProjectRegulatoryPage({
                             requestId={request.id}
                             projectId={projectId}
                             title={request.title}
+                            supplierName={request.supplier.name}
+                            status={meta.request(request.status, dict).label}
+                            submittedAt={
+                              request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
+                            }
+                            dueDate={request.dueDate ? formatDate(request.dueDate, locale) : null}
+                            rounds={(reviewsByRequest.get(request.id) ?? []).map((review) => ({
+                              ...review,
+                              when: formatDateTime(review.createdAt, locale),
+                            }))}
+                            submission={
+                              request.document?.currentVersion
+                                ? {
+                                    versionId: request.document.currentVersion.id,
+                                    fileName: request.document.currentVersion.fileName,
+                                    fileSize: request.document.currentVersion.fileSize,
+                                    version: request.document.currentVersion.version,
+                                    uploadedAt: formatDateTime(
+                                      request.document.currentVersion.createdAt,
+                                      locale,
+                                    ),
+                                  }
+                                : null
+                            }
                           />
                         ) : null}
                       </TD>

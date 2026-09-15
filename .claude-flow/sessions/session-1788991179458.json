@@ -1,0 +1,15 @@
+{
+  "id": "session-1788991179458",
+  "startedAt": "2026-09-09T21:59:39.458Z",
+  "cwd": "/Users/lucas/Desktop/Vionex/International Projects Management Platform",
+  "context": {},
+  "metrics": {
+    "edits": 0,
+    "commands": 0,
+    "tasks": 0,
+    "errors": 0
+  },
+  "restoredAt": "2026-09-10T03:18:53.816Z",
+  "endedAt": "2026-09-10T03:18:55.393Z",
+  "duration": 19155936
+}

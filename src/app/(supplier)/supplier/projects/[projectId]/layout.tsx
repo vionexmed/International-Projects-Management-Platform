@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
-import { requireProjectAccess } from "@/server/authz/access";
+import { requireSharedProjectAccess } from "@/server/authz/access";
 import { orNotFound } from "@/server/authz/rsc";
 import { SolidBadge } from "@/components/ui/badge";
 import { SupplierProjectTabs } from "@/features/supplier-portal/supplier-project-tabs";
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ projectId
   const { projectId } = await params;
   try {
     const user = await requireSupplierUser();
-    const project = await requireProjectAccess(user, projectId);
+    const project = await requireSharedProjectAccess(user, projectId);
     return { title: project.name };
   } catch {
     return { title: "Project" };
@@ -35,7 +35,7 @@ export default async function SupplierProjectLayout({
   const { projectId } = await params;
   const user = await requireSupplierUser();
 
-  const project = await orNotFound(requireProjectAccess(user, projectId));
+  const project = await orNotFound(requireSharedProjectAccess(user, projectId));
 
   const dict = getDictionary(localeFromLanguage(user.language));
   const status = meta.project(project.status, dict);

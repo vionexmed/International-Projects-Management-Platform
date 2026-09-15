@@ -111,6 +111,9 @@ export default async function SupplierMessagesPage({
                     placeholder: dict.portal.messages.placeholder,
                     send: dict.portal.messages.send,
                     sent: dict.portal.messages.sent,
+                    attach: dict.portal.messages.attach,
+                    removeFile: dict.portal.messages.removeFile,
+                    attachments: dict.portal.messages.attachments,
                   }}
                   emptyTitle={dict.portal.messages.empty}
                 />

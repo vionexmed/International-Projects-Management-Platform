@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { APP_ENVIRONMENTS, appEnv, isRealEnvironment } from "@/lib/app-env";
 
 /**
  * Stand-in signing key for a deployment with no AUTH_SECRET. Deliberately
@@ -62,6 +63,15 @@ export const envSchema = z.preprocess(
   z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+
+    /**
+     * Operational environment. See `src/lib/app-env.ts` — it answers a
+     * different question from NODE_ENV and the two are not interchangeable.
+     * Optional here because `appEnv()` derives a safe value from the platform
+     * when it is absent; declared so that a typo is reported as a named
+     * variable rather than as a mysterious refusal.
+     */
+    APP_ENV: z.enum(APP_ENVIRONMENTS).optional(),
 
     /**
      * PostgreSQL connection string. Optional: with none set the application
@@ -137,6 +147,27 @@ export const envSchema = z.preprocess(
         code: "custom",
         path: ["AUTH_SECRET"],
         message: "AUTH_SECRET is still a placeholder. Generate one with: openssl rand -base64 32",
+      });
+    }
+
+    /**
+     * The published fallback is what makes a zero-configuration demonstration
+     * possible, and it is also a key anybody can read in this repository: a
+     * session signed with it can be forged. It is fine where the data is
+     * invented and refused anywhere else.
+     *
+     * Checked against the declared environment rather than NODE_ENV, because
+     * every Vercel preview is NODE_ENV=production and previews are real.
+     * The build phase is exempt: `next build` runs without the deployment's
+     * variables, and failing there would break a correct project.
+     */
+    if (!isBuildPhase && isRealEnvironment() && value.AUTH_SECRET === DEMO_SIGNING_KEY) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_SECRET"],
+        message:
+          `AUTH_SECRET is required in "${appEnv()}" and must not be the published ` +
+          "demonstration key. Generate one with: openssl rand -base64 32",
       });
     }
 

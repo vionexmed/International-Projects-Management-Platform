@@ -1,6 +1,6 @@
 import { Bell, Building2 } from "lucide-react";
 import Link from "next/link";
-import { requireSupplierUser } from "@/server/auth/current-user";
+import { can, requireSupplierUser } from "@/server/auth/current-user";
 import { countUnread } from "@/server/services/notifications";
 import { countUnreadMessages } from "@/server/services/messages";
 import { db } from "@/server/db";
@@ -46,6 +46,8 @@ export default async function SupplierLayout({ children }: { children: React.Rea
         <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-line px-4 sm:gap-4 sm:px-5 lg:px-8">
           <SupplierMobileNav
             dict={dict}
+            locale={locale}
+            manageUsers={can(user, "portal:manage-users")}
             actionRequiredCount={actionRequired}
             messageCount={unreadMessages}
           />
@@ -66,7 +68,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
 
           <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
-              href="/supplier/action-required"
+              href="/supplier/notifications"
               aria-label={dict.nav.notifications}
               className="relative inline-flex size-9 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink"
             >

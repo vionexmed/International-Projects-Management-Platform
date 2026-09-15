@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useFormStatus } from "react-dom";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,16 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useFormAction } from "@/components/app/use-form-action";
 import type { ActionState } from "@/server/actions/utils";
-
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="primary" disabled={pending}>
-      {pending ? "Salvando…" : label}
-    </Button>
-  );
-}
 
 /**
  * Wraps a server action in a modal with consistent error, pending and success
@@ -61,43 +52,48 @@ export function FormDialog({
 }) {
   const router = useRouter();
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
-  const [state, setState] = React.useState<ActionState>({});
-  const formRef = React.useRef<HTMLFormElement>(null);
 
   // A dropdown item cannot host a trigger (the menu unmounts on select), so
   // the dialog can also be driven from the outside.
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
-  const setOpen = (next: boolean) => {
-    if (!isControlled) setUncontrolledOpen(next);
-    onOpenChange?.(next);
-  };
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      if (!isControlled) setUncontrolledOpen(next);
+      onOpenChange?.(next);
+    },
+    [isControlled, onOpenChange],
+  );
 
-  const handleAction = async (formData: FormData) => {
-    const result = await action(state, formData);
-    setState(result);
-
-    if (result.ok) {
+  /**
+   * Cleared here, on success, and nowhere else. Leaving the reset to React
+   * would also wipe the form when the action *failed* — see `useFormAction`.
+   */
+  const handleSuccess = React.useCallback(
+    (result: ActionState, form: HTMLFormElement) => {
       toast.success(successMessage);
       setOpen(false);
-      formRef.current?.reset();
+      form.reset();
       if (redirectTo && result.createdId) router.push(redirectTo(result.createdId));
       else router.refresh();
-    }
-  };
+    },
+    [successMessage, setOpen, redirectTo, router],
+  );
+
+  const { state, pending, onSubmit, reset } = useFormAction(action, handleSuccess);
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) setState({});
+        if (!next) reset();
       }}
     >
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent size={size}>
         <DialogHeader title={title} description={description} />
-        <form ref={formRef} action={handleAction} className="flex min-h-0 flex-1 flex-col">
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <DialogBody className="space-y-4">
             {state.error ? (
               <div
@@ -117,7 +113,9 @@ export function FormDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <SubmitButton label={submitLabel} />
+            <Button type="submit" variant="primary" disabled={pending}>
+              {pending ? "Salvando…" : submitLabel}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

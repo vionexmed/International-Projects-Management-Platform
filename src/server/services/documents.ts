@@ -12,6 +12,8 @@ import { validateUpload } from "@/lib/upload";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, supplierRecipients } from "@/server/services/notifications";
+import { recalculateProject } from "@/server/services/projects";
+import { NotFoundError } from "@/server/authz/errors";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
 
 export type DocumentListFilters = {
@@ -185,6 +187,12 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
     type: "DOCUMENT_UPLOADED",
     description: `${document.name} (v${document.version}) enviado.`,
     metadata: { documentId: document.id },
+    /**
+     * A document the supplier cannot open should not announce itself in their
+     * timeline either. `documentScope` already hides the row; without this the
+     * event still leaked the file name — often the most telling part of it.
+     */
+    internal: document.visibility === "INTERNAL_ONLY",
   });
 
   await recordAudit({
@@ -195,6 +203,37 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
     entityId: document.id,
     metadata: { projectId: project.id, version: document.version },
   });
+
+  /**
+   * An upload that nobody is told about is an upload nobody acts on.
+   *
+   * Two directions, and they are not symmetrical. A supplier sending a file on
+   * their own initiative — a renewed certificate, a corrected datasheet — had
+   * no signal at all and could sit unnoticed for weeks; the project owner is
+   * told. A Vionex file marked as shared is news for the supplier, and only
+   * then: an `INTERNAL_ONLY` document must not announce its own existence.
+   */
+  if (supplierUpload) {
+    const owner = await db.project.findUnique({
+      where: { id: project.id },
+      select: { ownerId: true },
+    });
+    await notify({
+      userIds: [owner?.ownerId].filter((id): id is string => Boolean(id)),
+      type: "DOCUMENT_RECEIVED",
+      title: document.name,
+      description: `${user.supplierName ?? "O fornecedor"} enviou um documento em ${project.name}.`,
+      href: `/projects/${project.id}/documents`,
+    });
+  } else if (document.visibility === "SHARED_WITH_SUPPLIER" && project.supplierId) {
+    await notify({
+      userIds: await supplierRecipients(project.supplierId),
+      type: "DOCUMENT_RECEIVED",
+      title: document.name,
+      description: `Vionex shared a document in ${project.name}.`,
+      href: `/supplier/projects/${project.id}/documents`,
+    });
+  }
 
   return document;
 }
@@ -298,8 +337,25 @@ export async function submitDocumentRequest(
       requestedBy: { select: { id: true } },
     },
   });
-  if (!request) throw new Error("Solicitação não encontrada.");
+  if (!request) throw new NotFoundError("Solicitação não encontrada.");
   if (request.status === "CANCELLED") throw new Error("Esta solicitação foi cancelada.");
+
+  /**
+   * Which states accept a submission.
+   *
+   * `PENDING` is the first answer and `REJECTED` is the corrected one — the
+   * whole point of a rejection is that the supplier comes back. What is refused
+   * is sending again *while Vionex is reading*: that used to be allowed, and it
+   * let a supplier replace the file underneath a reviewer mid-decision.
+   * `APPROVED` is closed; reopening it is Vionex's call, not the supplier's.
+   */
+  if (request.status === "SUBMITTED" || request.status === "IN_REVIEW") {
+    throw new Error("Esta solicitação está em análise. Aguarde o retorno da Vionex.");
+  }
+  if (request.status === "APPROVED") {
+    throw new Error("Esta solicitação já foi aprovada.");
+  }
+
   if (!input.file && !input.message?.trim()) {
     throw new Error("Anexe um arquivo ou escreva uma resposta.");
   }
@@ -326,6 +382,13 @@ export async function submitDocumentRequest(
         status: "SUBMITTED",
         submittedAt: new Date(),
         documentId,
+        /**
+         * The previous verdict stops being the current one. The reason itself
+         * is not lost: the review wrote it into the conversation, where the
+         * round survives the next one.
+         */
+        reviewNote: null,
+        reviewedAt: null,
       },
     });
 
@@ -338,7 +401,7 @@ export async function submitDocumentRequest(
     if (request.taskId) {
       await tx.task.update({
         where: { id: request.taskId },
-        data: { status: "IN_PROGRESS" },
+        data: { status: "IN_PROGRESS", completedAt: null },
       });
     }
   });
@@ -363,12 +426,30 @@ export async function submitDocumentRequest(
     userIds: [request.requestedById, request.project.ownerId],
     type: "SUPPLIER_REPLIED",
     title: request.title,
-    description: `${user.supplierName ?? "Fornecedor"} respondeu à solicitação.`,
+    description:
+      request.status === "REJECTED"
+        ? `${user.supplierName ?? "Fornecedor"} enviou uma nova versão.`
+        : `${user.supplierName ?? "Fornecedor"} respondeu à solicitação.`,
     href: `/projects/${request.projectId}/regulatory`,
   });
 }
 
 /** Vionex reviews a submission: approve, reject or send back for review. */
+/**
+ * How the mirror task follows the request it represents.
+ *
+ * The task exists so a document pending with a supplier shows up in the
+ * project's own work, and it only earns that if it tells the truth. Approving
+ * a document used to leave it open forever, which meant every project that had
+ * ever asked for a document reported a progress lower than reality — and the
+ * number nobody believes is the number nobody uses.
+ */
+const TASK_STATUS_FOR_REVIEW = {
+  IN_REVIEW: "IN_PROGRESS",
+  APPROVED: "COMPLETED",
+  REJECTED: "WAITING",
+} as const;
+
 export async function reviewDocumentRequest(
   user: SessionUser,
   requestId: string,
@@ -376,22 +457,86 @@ export async function reviewDocumentRequest(
 ) {
   const request = await db.documentRequest.findFirst({
     where: { AND: [documentRequestScope(user), { id: requestId }] },
-    select: { id: true, title: true, projectId: true, documentId: true, supplierId: true },
+    select: {
+      id: true,
+      title: true,
+      projectId: true,
+      documentId: true,
+      supplierId: true,
+      taskId: true,
+      // The exact file under judgement, recorded with the decision.
+      document: { select: { currentVersionId: true } },
+    },
   });
-  if (!request) throw new Error("Solicitação não encontrada.");
+  if (!request) throw new NotFoundError("Solicitação não encontrada.");
 
   const documentStatus: DocumentStatus =
     input.status === "APPROVED" ? "APPROVED" : input.status === "REJECTED" ? "REJECTED" : "IN_REVIEW";
+  const note = input.note?.trim() || null;
 
   await db.$transaction(async (tx) => {
     await tx.documentRequest.update({
       where: { id: request.id },
-      data: { status: input.status, reviewedAt: new Date(), reviewNote: input.note },
+      data: { status: input.status, reviewedAt: new Date(), reviewNote: note },
     });
+
     if (request.documentId) {
       await tx.document.update({
         where: { id: request.documentId },
         data: { status: documentStatus },
+      });
+    }
+
+    /**
+     * The note is also written to the request's conversation.
+     *
+     * `reviewNote` holds the *current* verdict and is overwritten by the next
+     * one, which is right for a field that answers "where does this stand".
+     * It is wrong as a record: in a reject → resubmit → reject sequence the
+     * first reason simply disappeared, from the supplier and from us. Keeping
+     * each note as a reply preserves the rounds in the place a person already
+     * reads them, and costs no schema.
+     *
+     * What this does *not* preserve is the verdict of each round as structured
+     * data — see SCHEMA BLOCKED in docs/product-completion.
+     */
+    if (note) {
+      await tx.documentRequestReply.create({
+        data: { requestId: request.id, authorId: user.id, body: note },
+      });
+    }
+
+    /**
+     * The round, recorded as data.
+     *
+     * Written here rather than after the transaction so the two can never
+     * disagree: a request cannot end up approved with no review, and a review
+     * cannot claim an outcome the request never reached. A partial failure
+     * rolls both back together.
+     *
+     * `IN_REVIEW` produces no row — it is somebody picking the request up, not
+     * a verdict, and a history of "looked at it" is noise in the record of what
+     * was decided.
+     */
+    if (input.status !== "IN_REVIEW") {
+      await tx.documentRequestReview.create({
+        data: {
+          requestId: request.id,
+          documentVersionId: request.document?.currentVersionId ?? null,
+          reviewerId: user.id,
+          decision: input.status === "APPROVED" ? "APPROVED" : "CHANGES_REQUESTED",
+          note,
+        },
+      });
+    }
+
+    if (request.taskId) {
+      await tx.task.update({
+        where: { id: request.taskId },
+        data: {
+          status: TASK_STATUS_FOR_REVIEW[input.status],
+          completedAt: input.status === "APPROVED" ? new Date() : null,
+        },
       });
     }
   });
@@ -413,12 +558,60 @@ export async function reviewDocumentRequest(
     metadata: { status: input.status },
   });
 
+  /**
+   * The notification carries the verdict. It used to say "Vionex reviewed your
+   * submission" for both outcomes, so a supplier had to open the request to
+   * learn whether they still had work to do — which is the one thing a
+   * notification exists to answer.
+   */
+  const outcome =
+    input.status === "APPROVED"
+      ? "Approved."
+      : input.status === "REJECTED"
+        ? "Changes requested — please send a new version."
+        : "Under review.";
+
   await notify({
     userIds: await supplierRecipients(request.supplierId),
     type: "DOCUMENT_REVIEWED",
     title: request.title,
-    description: `Vionex reviewed your submission.`,
+    description: outcome,
     href: `/supplier/action-required/${request.id}`,
+  });
+
+  // The mirror task moved, so the project's derived progress moved with it.
+  await recalculateProject(request.projectId, user.id);
+}
+
+/**
+ * The rounds a request has been through, newest last.
+ *
+ * Internal callers get the reviewer; the portal gets the decision, the note and
+ * the date. The note is written for the supplier and shared verbatim — there is
+ * no internal commentary in this table, by design, which is why the same rows
+ * serve both audiences with only the reviewer withheld.
+ */
+export async function listRequestReviews(user: SessionUser, requestId: string) {
+  // The request itself is scoped, so reaching its reviews requires reaching it.
+  const request = await db.documentRequest.findFirst({
+    where: { AND: [documentRequestScope(user), { id: requestId }] },
+    select: { id: true },
+  });
+  if (!request) throw new NotFoundError("Solicitação não encontrada.");
+
+  const internal = !isSupplierRole(user.role);
+
+  return db.documentRequestReview.findMany({
+    where: { requestId: request.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      decision: true,
+      note: true,
+      createdAt: true,
+      documentVersion: { select: { id: true, version: true, fileName: true } },
+      ...(internal ? { reviewer: { select: { id: true, name: true } } } : {}),
+    },
   });
 }
 
@@ -436,7 +629,27 @@ export async function listDocumentRequests(
       project: { select: { id: true, name: true, projectCode: true } },
       supplier: { select: { id: true, name: true } },
       requestedBy: { select: { id: true, name: true, jobTitle: true } },
-      document: { select: { id: true, name: true, status: true } },
+      /**
+       * The current version comes along so a reviewer can open the file from
+       * the screen where the decision is made. Just the pointer — one row, not
+       * the whole version history.
+       */
+      document: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          currentVersion: {
+            select: {
+              id: true,
+              fileName: true,
+              fileSize: true,
+              version: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
     },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }],
   });

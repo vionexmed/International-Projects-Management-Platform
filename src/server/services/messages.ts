@@ -5,6 +5,7 @@ import { requireThreadAccess } from "@/server/authz/access";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, supplierRecipients } from "@/server/services/notifications";
+import { uploadDocument } from "@/server/services/documents";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
 
 /**
@@ -58,6 +59,20 @@ export async function getThread(user: SessionUser, threadId: string) {
     include: {
       sender: { select: { id: true, name: true, jobTitle: true, supplierId: true } },
       reads: { where: { userId: user.id }, select: { id: true } },
+      /**
+       * The version id is all the client needs: the file itself is fetched
+       * through `/api/files/[versionId]`, which re-checks the caller's scope.
+       * A recipient who should not see this document gets a 404 there, so the
+       * link being present is never itself an authorisation.
+       */
+      attachments: {
+        select: {
+          id: true,
+          documentVersion: {
+            select: { id: true, fileName: true, fileSize: true, mimeType: true },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -78,14 +93,60 @@ export async function markThreadRead(user: SessionUser, threadId: string) {
   });
 }
 
-export async function sendMessage(user: SessionUser, threadId: string, body: string) {
+export async function sendMessage(
+  user: SessionUser,
+  threadId: string,
+  body: string,
+  file?: File | null,
+) {
   const thread = await requireThreadAccess(user, threadId);
   const trimmed = body.trim();
-  if (!trimmed) throw new Error("A mensagem não pode estar vazia.");
+  if (!trimmed && !file) {
+    throw new Error("Escreva uma mensagem ou anexe um arquivo.");
+  }
+
+  /**
+   * An attachment is a document, stored the way every other document is.
+   *
+   * Uploading first and only then creating the message is the same trade
+   * `uploadDocument` already makes: an orphaned object is harmless, a row
+   * pointing at a file that is not there is not. If the message fails, the
+   * document exists and is visible in the project's documents — which is
+   * where a supplier would look for a file they know they sent.
+   *
+   * Visibility follows the thread. A file on a thread shared with the supplier
+   * is `SHARED_WITH_SUPPLIER`, so `documentScope` lets them download it
+   * through the ordinary route; one on an internal thread stays internal, and
+   * that thread is already invisible to them.
+   */
+  let versionId: string | null = null;
+  if (file) {
+    const document = await uploadDocument(user, {
+      projectId: thread.projectId,
+      file,
+      name: file.name.replace(/\.[^.]+$/, ""),
+      type: "OTHER",
+      visibility: thread.withSupplier ? "SHARED_WITH_SUPPLIER" : "INTERNAL_ONLY",
+    });
+
+    const version = await db.documentVersion.findFirstOrThrow({
+      where: { documentId: document.id },
+      orderBy: { version: "desc" },
+      select: { id: true },
+    });
+    versionId = version.id;
+  }
 
   const message = await db.$transaction(async (tx) => {
     const created = await tx.message.create({
-      data: { threadId, senderId: user.id, body: trimmed },
+      data: {
+        threadId,
+        senderId: user.id,
+        body: trimmed || file!.name,
+        ...(versionId
+          ? { attachments: { create: { documentVersionId: versionId } } }
+          : {}),
+      },
     });
     await tx.messageThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
     return created;

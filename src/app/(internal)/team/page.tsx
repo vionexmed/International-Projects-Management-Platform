@@ -18,6 +18,7 @@ import {
   THead,
   TR,
 } from "@/components/ui/table";
+import { EditMemberDialog } from "@/features/team/edit-member-dialog";
 import { InviteMemberDialog } from "@/features/team/invite-member-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
@@ -31,13 +32,14 @@ export default async function TeamPage() {
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
   const members = await listTeam(user);
+  const manageable = can(user, "user:manage");
 
   return (
     <>
       <PageHeader
         title="Equipe"
         description="Membros da equipe Vionex e sua carga de trabalho atual."
-        actions={can(user, "user:manage") ? <InviteMemberDialog /> : null}
+        actions={manageable ? <InviteMemberDialog /> : null}
       />
 
       <TableShell>
@@ -56,6 +58,7 @@ export default async function TeamPage() {
                     <TH>Tarefas abertas</TH>
                     <TH>Último acesso</TH>
                     <TH>Status</TH>
+                    <TH className="w-10" />
                   </TR>
                 </THead>
                 <TBody>
@@ -78,6 +81,20 @@ export default async function TeamPage() {
                         <StatusBadge tone={member.status === "ACTIVE" ? "ok" : "neutral"}>
                           {dict.enums.userStatus[member.status]}
                         </StatusBadge>
+                      </TD>
+                      <TD className="text-right">
+                        {manageable ? (
+                          <EditMemberDialog
+                            member={{
+                              id: member.id,
+                              name: member.name,
+                              role: member.role,
+                              jobTitle: member.jobTitle ?? null,
+                              department: member.department ?? null,
+                              status: member.status,
+                            }}
+                          />
+                        ) : null}
                       </TD>
                     </TR>
                   ))}

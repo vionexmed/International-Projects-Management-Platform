@@ -9,6 +9,14 @@ import { formatFileSize } from "@/lib/format";
 /**
  * Drag-and-drop file field. Client-side checks are a convenience only — the
  * server re-validates type, extension and size on every upload.
+ *
+ * The chosen file lives in React state *and* in the native input, because the
+ * form has to submit it and the zone has to draw it. `form.reset()` only
+ * clears the second of those, which is how the zone used to go on showing a
+ * file that was no longer attached — and a second submit sent nothing.
+ *
+ * To clear it from the outside, change the component's `key`. Remounting is
+ * the one reset that cannot leave the two copies disagreeing.
  */
 export function FileDropzone({
   name = "file",
@@ -18,6 +26,7 @@ export function FileDropzone({
   labels,
   required,
   className,
+  disabled,
 }: {
   name?: string;
   accept: string;
@@ -26,6 +35,8 @@ export function FileDropzone({
   labels: { title: string; dropHint: string; choose: string };
   required?: boolean;
   className?: string;
+  /** Blocks picking a different file while the current one is being sent. */
+  disabled?: boolean;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = React.useState<File | null>(null);
@@ -85,15 +96,21 @@ export function FileDropzone({
     <div className={className}>
       <div
         onDragOver={(event) => {
+          if (disabled) return;
           event.preventDefault();
           setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
+        onDrop={(event) => {
+          if (disabled) return;
+          handleDrop(event);
+        }}
+        aria-busy={disabled || undefined}
         className={cn(
           "rounded-md border border-dashed px-5 py-7 text-center transition-colors",
           dragging ? "border-brand bg-brand-soft" : "border-line-strong bg-subtle",
           error && "border-risk/40 bg-risk-soft",
+          disabled && "opacity-60",
         )}
       >
         {file ? (
@@ -105,6 +122,7 @@ export function FileDropzone({
             </div>
             <button
               type="button"
+              disabled={disabled}
               onClick={clear}
               className="rounded-sm p-1 text-muted transition-colors hover:bg-raised hover:text-ink"
               aria-label="Remover arquivo"
@@ -121,6 +139,7 @@ export function FileDropzone({
               variant="secondary"
               size="sm"
               className="mt-3"
+              disabled={disabled}
               onClick={() => inputRef.current?.click()}
             >
               <Paperclip />
@@ -135,6 +154,7 @@ export function FileDropzone({
           name={name}
           accept={accept}
           required={required}
+          disabled={disabled}
           className="sr-only"
           onChange={(event) => assign(event.target.files?.[0] ?? null)}
         />

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requirePermission } from "@/server/auth/current-user";
+import { can, requirePermission, requireUser } from "@/server/auth/current-user";
+import { ForbiddenError } from "@/server/authz/errors";
 import { createUser, updateUser } from "@/server/services/users";
 import {
   optionalText,
@@ -72,12 +73,54 @@ export async function addSupplierUserAction(
   }
 }
 
+/**
+ * Editing a user.
+ *
+ * Two capabilities reach here and they mean different things: `user:manage` is
+ * the Vionex administrator, `portal:manage-users` is a supplier administrator
+ * acting inside their own company. Accepting either keeps one code path — and
+ * the service, not this function, is what holds the boundary, so the rule
+ * cannot be bypassed by calling the service from somewhere else.
+ */
+/**
+ * Adding a user from inside the Supplier Portal.
+ *
+ * Separate from `addSupplierUserAction`, which a Vionex administrator uses and
+ * which therefore has to name a company. Here the company is the caller's own
+ * and the form never mentions it — `createUser` takes it from the session.
+ */
+export async function addPortalUserAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const actor = await requirePermission("portal:manage-users");
+    const input = parseForm(
+      baseSchema.omit({ supplierId: true }).extend({
+        role: z.enum(["SUPPLIER_ADMIN", "SUPPLIER_USER"]),
+        language: z.enum(LANGUAGES).default("EN"),
+      }),
+      formData,
+    );
+
+    const user = await createUser(actor, { ...input, supplierId: actor.supplierId });
+
+    revalidatePath("/supplier/users");
+    return { ok: true, createdId: user.id };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
 export async function updateUserAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    const actor = await requirePermission("user:manage");
+    const actor = await requireUser();
+    if (!can(actor, "user:manage") && !can(actor, "portal:manage-users")) {
+      throw new ForbiddenError();
+    }
     const { userId, ...input } = parseForm(
       z.object({
         userId: z.string().min(1),
@@ -95,6 +138,8 @@ export async function updateUserAction(
 
     revalidatePath("/team");
     revalidatePath("/settings");
+    revalidatePath("/suppliers");
+    revalidatePath("/supplier/users");
     return { ok: true };
   } catch (error) {
     return toActionError(error);

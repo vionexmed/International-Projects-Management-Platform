@@ -1,27 +1,45 @@
-import { env } from "@/lib/env";
+import { allowsDemo, appEnv, isRealEnvironment } from "@/lib/app-env";
 
 /**
- * The account chooser at `/demo` is always available.
+ * Whether the passwordless account chooser at `/demo` exists.
  *
- * This deployment exists to be evaluated, and requiring credentials would
- * defeat that: the reviewer needs to move between the internal environment and
- * the Supplier Portal without being handed passwords.
+ * It is a real convenience and it is also a real open door: anyone who reaches
+ * the URL signs in as any seeded account, administrator included. That is fine
+ * while the data is invented and unacceptable the moment it is not, so the
+ * decision is tied to the declared environment instead of to a constant.
  *
- * The consequence is deliberate and worth stating plainly: anyone who can
- * reach the URL can sign in as any seeded user. That is acceptable only while
- * the data is fictitious. Before this platform holds real supplier data, this
- * function must return `false` outside development — at which point `/` goes
- * back to the login form and `/demo` becomes a 404. Nothing else needs to
- * change; the login flow is intact and still reachable at `/login`.
+ * `development`, `test` and `demo` keep it. `preview`, `staging` and
+ * `production` do not — there `/demo` and `/demo/enter` are 404, and `/` goes
+ * to the login form.
+ *
+ * To bring a demonstration deployment back, set `APP_ENV=demo` on it. That is
+ * the whole mechanism: a deployment is a demonstration because somebody said
+ * so, never because a variable happened to be missing.
  */
 export function isDemoEnabled(): boolean {
-  return true;
+  return allowsDemo();
 }
 
 /**
  * Whether to label the deployment on screen. A reachable URL that asks for no
- * password should say so, so nobody mistakes it for the live system.
+ * password should say so, so nobody mistakes it for the live system — but
+ * there is no reason to clutter a developer's own machine with the banner.
  */
 export function isPublicDemo(): boolean {
-  return env.NODE_ENV === "production";
+  return isDemoEnabled() && appEnv() === "demo";
 }
+
+/**
+ * Guard for code paths that must never run outside a demonstration. Throws
+ * rather than returning a boolean so a caller cannot forget to check.
+ */
+export function assertDemoAllowed(what: string): void {
+  if (!isDemoEnabled()) {
+    throw new Error(
+      `${what} is only available in a demonstration environment. ` +
+        `APP_ENV is "${appEnv()}".`,
+    );
+  }
+}
+
+export { isRealEnvironment };

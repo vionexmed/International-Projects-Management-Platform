@@ -1,5 +1,5 @@
 import { requireSupplierUser } from "@/server/auth/current-user";
-import { requireProjectAccess } from "@/server/authz/access";
+import { requireSharedProjectAccess } from "@/server/authz/access";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { orNotFound } from "@/server/authz/rsc";
 import { Panel, PanelHeader } from "@/components/ui/card";
@@ -14,7 +14,7 @@ export default async function SupplierProjectTimelinePage({
 }) {
   const { projectId } = await params;
   const user = await requireSupplierUser();
-  await orNotFound(requireProjectAccess(user, projectId));
+  await orNotFound(requireSharedProjectAccess(user, projectId));
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);

@@ -26,6 +26,54 @@ const schema = z
   });
 
 /**
+ * Editing one's own profile.
+ *
+ * Deliberately narrow: name and job title, and nothing else. Everything that
+ * decides *what a person can reach* — organisation, supplier, role, status —
+ * is absent from the schema, so no request can carry it and no mistake here
+ * can widen anybody's access. A person may correct how they are named; who
+ * they are is not theirs to edit.
+ */
+export async function updateOwnProfileAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    const input = parseForm(
+      z.object({
+        name: z.string().trim().min(2, "Informe o nome.").max(120),
+        jobTitle: z
+          .string()
+          .trim()
+          .max(120)
+          .optional()
+          .transform((value) => (value && value.length > 0 ? value : null)),
+      }),
+      formData,
+    );
+
+    await db.user.update({
+      where: { id: user.id },
+      data: { name: input.name, jobTitle: input.jobTitle },
+    });
+
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "user.update",
+      entity: "User",
+      entityId: user.id,
+      metadata: { fields: ["name", "jobTitle"], self: true },
+    });
+
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
  * Lets any user rotate their own password. The current password is always
  * re-verified, so a borrowed session cannot lock the real owner out.
  */

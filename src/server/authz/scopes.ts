@@ -20,7 +20,16 @@ function supplierIdOf(user: SessionUser): string {
   return user.supplierId;
 }
 
-export function projectScope(user: SessionUser): Prisma.ProjectWhereInput {
+/**
+ * `archived: "only"` flips the list to the archive. It is deliberately ignored
+ * for a supplier session: an archived project is closed business, and no
+ * argument a caller passes should be able to reopen it on the portal side. The
+ * default is unchanged — live projects, exactly as before.
+ */
+export function projectScope(
+  user: SessionUser,
+  options: { archived?: "only" } = {},
+): Prisma.ProjectWhereInput {
   if (isSupplierRole(user.role)) {
     return {
       organizationId: user.organizationId,
@@ -28,7 +37,10 @@ export function projectScope(user: SessionUser): Prisma.ProjectWhereInput {
       archivedAt: null,
     };
   }
-  return { organizationId: user.organizationId, archivedAt: null };
+  return {
+    organizationId: user.organizationId,
+    archivedAt: options.archived === "only" ? { not: null } : null,
+  };
 }
 
 export function taskScope(user: SessionUser): Prisma.TaskWhereInput {

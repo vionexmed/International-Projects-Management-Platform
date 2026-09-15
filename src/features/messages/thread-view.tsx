@@ -1,8 +1,8 @@
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Paperclip } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { UserAvatar } from "@/components/ui/avatar";
 import { MessageComposer } from "@/features/messages/message-composer";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatFileSize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,10 @@ export type ThreadMessage = {
   body: string;
   createdAt: Date;
   sender: { id: string; name: string; jobTitle: string | null; supplierId: string | null };
+  attachments?: {
+    id: string;
+    documentVersion: { id: string; fileName: string; fileSize: number };
+  }[];
 };
 
 /**
@@ -31,7 +35,14 @@ export function ThreadView({
   currentUserId: string;
   threadId: string;
   locale: Locale;
-  labels: { placeholder: string; send: string; sent: string };
+  labels: {
+    placeholder: string;
+    send: string;
+    sent: string;
+    attach: string;
+    removeFile: string;
+    attachments: string;
+  };
   returnPath: string;
   emptyTitle: string;
   emptyDescription?: string;
@@ -72,6 +83,33 @@ export function ThreadView({
                     >
                       {message.body}
                     </div>
+
+                    {message.attachments?.length ? (
+                      <ul className="mt-1.5 space-y-1.5" aria-label={labels.attachments}>
+                        {message.attachments.map((attachment) => (
+                          <li key={attachment.id}>
+                            {/*
+                              The same authenticated route every other download
+                              uses: the session is checked again on the server,
+                              so a link copied out of here is worth nothing to
+                              anyone else.
+                            */}
+                            <a
+                              href={`/api/files/${attachment.documentVersion.id}`}
+                              className="flex items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-left text-[12px] transition-colors hover:border-brand"
+                            >
+                              <Paperclip className="size-3.5 shrink-0 text-muted" />
+                              <span className="min-w-0 flex-1 truncate text-ink">
+                                {attachment.documentVersion.fileName}
+                              </span>
+                              <span className="shrink-0 text-muted">
+                                {formatFileSize(attachment.documentVersion.fileSize)}
+                              </span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 </li>
               );
@@ -81,7 +119,17 @@ export function ThreadView({
       </div>
 
       <div className="border-t border-line bg-subtle p-4">
-        <MessageComposer threadId={threadId} labels={labels} returnPath={returnPath} />
+        <MessageComposer
+          threadId={threadId}
+          labels={{
+            placeholder: labels.placeholder,
+            send: labels.send,
+            sent: labels.sent,
+            attach: labels.attach,
+            remove: labels.removeFile,
+          }}
+          returnPath={returnPath}
+        />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import {
   requireDocumentAccess,
   requireDocumentRequestAccess,
-  requireProjectAccess,
+  requireSharedProjectAccess,
   requireSupplierAccess,
   requireTaskAccess,
   requireThreadAccess,
@@ -118,9 +118,14 @@ describe("supplier isolation", () => {
   });
 
   it("refuses direct access to another supplier's project", async () => {
-    await expect(requireProjectAccess(supplierA, projectB.id)).rejects.toBeInstanceOf(NotFoundError);
+    // `requireSharedProjectAccess` is the accessor a portal page uses; the
+    // internal-only one refuses supplier sessions outright (see
+    // supplier-payload.test.ts).
+    await expect(requireSharedProjectAccess(supplierA, projectB.id)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
     // …while the owning supplier can reach it.
-    await expect(requireProjectAccess(supplierB, projectB.id)).resolves.toMatchObject({
+    await expect(requireSharedProjectAccess(supplierB, projectB.id)).resolves.toMatchObject({
       id: projectB.id,
     });
   });

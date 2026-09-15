@@ -1,6 +1,6 @@
 import { Flag } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
-import { getProjectWorkspace } from "@/server/services/projects";
+import { getSupplierProjectWorkspace } from "@/server/services/projects";
 import { orNotFound } from "@/server/authz/rsc";
 import { Field, Panel, PanelHeader } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
@@ -21,14 +21,17 @@ export default async function SupplierProjectOverviewPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const { project, stages, milestones, progress } = await orNotFound(getProjectWorkspace(user, projectId));
+  const { project, stages, milestones, progress } = await orNotFound(getSupplierProjectWorkspace(user, projectId));
   const upcoming = milestones.filter((milestone) => milestone.status !== "COMPLETED");
 
   return (
     <div className="space-y-6">
       <Panel>
-        {/* Confidential internal fields (owner, blockers, internal notes) are
-            deliberately absent from the supplier view. */}
+        {/* Internal fields — owner, blockers, stage notes, project description —
+            are absent from the *query*, not merely from this markup: a server
+            component ships every field it receives in the RSC payload, so
+            leaving one out of the JSX would still send it to the browser.
+            The column allowlist lives in `src/server/authz/projections.ts`. */}
         <dl className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-4">
           <Field label={dict.common.stage}>{label.stageKey(project.currentStage, dict)}</Field>
           <Field label={dict.common.progress}>{progress}%</Field>

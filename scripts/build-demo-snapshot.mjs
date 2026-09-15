@@ -21,6 +21,20 @@ const { seedDemoData } = await import("../src/server/demo/seed-data.ts");
 
 const PORT = 55470;
 
+/**
+ * The snapshot embeds accounts whose password is written in this file. It is a
+ * demonstration artefact and refuses to be built as anything else, so it can
+ * never end up inside a bundle that serves real users.
+ */
+const { allowsDemo, appEnv } = await import("../src/lib/app-env.ts");
+if (!allowsDemo()) {
+  console.error(
+    `✗ APP_ENV is "${appEnv()}". The demo snapshot carries seeded accounts with ` +
+      "a published password and is only built for development, test or demo.",
+  );
+  process.exit(1);
+}
+
 console.log("→ Criando banco de demonstração…");
 const database = await PGlite.create();
 

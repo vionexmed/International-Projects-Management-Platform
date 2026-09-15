@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requirePermission } from "@/server/auth/current-user";
+import { can, requirePermission, requireUser } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
+import { STAGE_PERMISSION } from "@/server/authz/permissions";
+import { ForbiddenError } from "@/server/authz/errors";
 import { db } from "@/server/db";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
@@ -54,6 +56,9 @@ export async function saveClinicalStudyAction(
       actorId: user.id,
       type: "STAGE_UPDATED",
       description: "Estudo clínico atualizado.",
+      // The clinical study is Vionex's own work; the supplier follows the
+      // documents it produces, not the study record itself.
+      internal: true,
     });
     await recordAudit({
       organizationId: user.organizationId,
@@ -102,6 +107,8 @@ export async function createRegulatoryItemAction(
       actorId: user.id,
       type: "STAGE_UPDATED",
       description: `Item regulatório "${item.title}" adicionado.`,
+      // Vionex's submission tracking with the health authority.
+      internal: true,
     });
 
     revalidatePath(`/projects/${input.projectId}/regulatory`);
@@ -192,6 +199,7 @@ export async function saveShipmentAction(
       actorId: user.id,
       type: "STAGE_UPDATED",
       description: `Embarque atualizado: ${input.stage.replace(/_/g, " ").toLowerCase()}.`,
+      internal: true,
     });
 
     revalidatePath(`/projects/${projectId}/import`);
@@ -270,7 +278,7 @@ export async function createMilestoneAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    const user = await requirePermission("project:update");
+    const user = await requireUser();
     const input = parseForm(
       z.object({
         projectId: z.string().min(1),
@@ -280,6 +288,12 @@ export async function createMilestoneAction(
       }),
       formData,
     );
+
+    // A milestone belonging to a stage is governed by that stage's owner; one
+    // that spans the project falls back to the general project capability.
+    const needed = input.stage ? STAGE_PERMISSION[input.stage] : "project:update";
+    if (!can(user, needed)) throw new ForbiddenError();
+
     await requireProjectAccess(user, input.projectId);
 
     const count = await db.milestone.count({ where: { projectId: input.projectId } });

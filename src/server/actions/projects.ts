@@ -2,9 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requirePermission } from "@/server/auth/current-user";
+import { can, requirePermission, requireUser } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
-import { createProject, recalculateProject } from "@/server/services/projects";
+import { STAGE_PERMISSION } from "@/server/authz/permissions";
+import { ForbiddenError } from "@/server/authz/errors";
+import {
+  createProject,
+  recalculateProject,
+  setProjectArchived,
+} from "@/server/services/projects";
 import { db } from "@/server/db";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
@@ -129,20 +135,60 @@ const stageSchema = z.object({
   notes: optionalText,
 });
 
+/**
+ * Archive or reopen. One action for both directions so the pair can never
+ * drift apart — an archive with no way back is a delete in disguise.
+ */
+export async function setProjectArchivedAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("project:archive");
+    const input = parseForm(
+      z.object({
+        projectId: z.string().min(1),
+        archived: z
+          .string()
+          .optional()
+          .transform((value) => value === "true" || value === "on"),
+      }),
+      formData,
+    );
+
+    await setProjectArchived(user, input.projectId, input.archived);
+
+    revalidatePath("/projects");
+    revalidatePath(`/projects/${input.projectId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { ok: true, createdId: input.projectId };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
 export async function updateStageAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    const user = await requirePermission("project:update");
+    const user = await requireUser();
     const input = parseForm(stageSchema, formData);
     await requireProjectAccess(user, input.projectId);
 
     const stage = await db.projectStage.findFirst({
       where: { id: input.stageId, projectId: input.projectId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, key: true },
     });
     if (!stage) throw new Error("Etapa não encontrada.");
+
+    /**
+     * The stage decides who may edit it. Checked after the lookup because the
+     * permission depends on which stage this is — and before any write, so an
+     * unauthorised caller changes nothing.
+     */
+    if (!can(user, STAGE_PERMISSION[stage.key])) throw new ForbiddenError();
 
     await db.projectStage.update({
       where: { id: stage.id },
@@ -154,6 +200,8 @@ export async function updateStageAction(
       actorId: user.id,
       type: "STAGE_UPDATED",
       description: `Etapa ${stage.name} atualizada.`,
+      // Stage status, progress and notes are how Vionex tracks its own work.
+      internal: true,
     });
 
     await recalculateProject(input.projectId, user.id);

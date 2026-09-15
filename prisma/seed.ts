@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { allowsDemo } from "../src/lib/app-env";
 import { randomBytes } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma";
@@ -40,8 +41,15 @@ function isRemoteDatabase(): boolean {
 
 const REMOTE = isRemoteDatabase();
 
+/**
+ * The convenient password exists only where a demonstration is allowed. Being
+ * on localhost is not enough on its own: a local run against a staging URL, or
+ * with APP_ENV set to something real, gets a generated one that is printed
+ * once and never written down.
+ */
 const DEMO_PASSWORD =
-  process.env.SEED_PASSWORD ?? (REMOTE ? randomBytes(12).toString("base64url") : "vionex123");
+  process.env.SEED_PASSWORD ??
+  (REMOTE || !allowsDemo() ? randomBytes(12).toString("base64url") : "vionex123");
 
 function storage(): StorageDriver {
   if (process.env.STORAGE_DRIVER === "s3") {

@@ -46,6 +46,18 @@ export default async function ProjectImportPage({
 
   return (
     <div className="space-y-6">
+      {/*
+        A project with parcelled production has more than one shipment. The
+        button to add one used to live only in the empty state, so the first
+        shipment was also the last: once a project had one, the control that
+        created it disappeared.
+      */}
+      {shipments.length > 0 && editable ? (
+        <div className="flex justify-end">
+          <ShipmentDialog projectId={projectId} />
+        </div>
+      ) : null}
+
       {shipments.length === 0 ? (
         <Panel>
           <PanelHeader

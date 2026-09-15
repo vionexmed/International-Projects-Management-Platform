@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { AlertCircle, ArrowLeft, CircleCheck, Clock, Download, FileText } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { requireDocumentRequestAccess } from "@/server/authz/access";
+import { listRequestReviews } from "@/server/services/documents";
 import { orNotFound } from "@/server/authz/rsc";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { SolidBadge } from "@/components/ui/badge";
 import { SubmitRequestForm } from "@/features/supplier-portal/submit-request-form";
+import { ReviewHistory } from "@/features/documents/review-history";
 import { getDictionary, interpolate, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
@@ -33,13 +35,25 @@ export default async function SupplierRequestPage({
   const user = await requireSupplierUser();
 
   const request = await orNotFound(requireDocumentRequestAccess(user, requestId));
+  // Withheld from this list: who at Vionex decided. The service never selects
+  // the reviewer for a portal session.
+  const reviews = await listRequestReviews(user, request.id);
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
   const status = meta.request(request.status, dict);
   const remaining = daysUntil(request.dueDate);
   const overdue = remaining !== null && remaining < 0 && request.status === "PENDING";
-  const canSubmit = ["PENDING", "REJECTED", "SUBMITTED", "IN_REVIEW"].includes(request.status);
+  /**
+   * Mirrors the rule the service enforces. Submitting while Vionex is reading
+   * used to be allowed, which let a supplier replace the file underneath a
+   * reviewer mid-decision; what the rejection *is for* is coming back, so that
+   * state stays open.
+   */
+  const canSubmit = request.status === "PENDING" || request.status === "REJECTED";
+  const needsCorrection = request.status === "REJECTED";
+  const underReview = request.status === "SUBMITTED" || request.status === "IN_REVIEW";
+
 
   return (
     <div className="mx-auto max-w-[820px]">
@@ -120,14 +134,54 @@ export default async function SupplierRequestPage({
         ) : null}
 
         {request.reviewNote ? (
-          <div className="border-t border-line bg-subtle px-5 py-4">
-            <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-              Vionex
+          <div
+            className={
+              needsCorrection
+                ? "border-t border-warn/25 bg-warn-soft px-5 py-4"
+                : "border-t border-line bg-subtle px-5 py-4"
+            }
+          >
+            <p
+              className={
+                needsCorrection
+                  ? "text-[11px] font-semibold tracking-[0.06em] text-warn uppercase"
+                  : "text-[11px] font-semibold tracking-[0.06em] text-muted uppercase"
+              }
+            >
+              {needsCorrection ? dict.portal.requests.changesRequested : "Vionex"}
             </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink">{request.reviewNote}</p>
+            <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-ink">
+              {request.reviewNote}
+            </p>
           </div>
         ) : null}
       </Panel>
+
+      {/*
+        The state, said plainly. A supplier arriving at this page should know in
+        one line whether the ball is theirs — "REJECTED" on a badge does not
+        answer that, and it also sounds final when the process is not.
+      */}
+      {needsCorrection || underReview || request.status === "APPROVED" ? (
+        <Panel className="mb-6">
+          <div className="flex items-start gap-3 px-5 py-4">
+            {needsCorrection ? (
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-warn" />
+            ) : underReview ? (
+              <Clock className="mt-0.5 size-4 shrink-0 text-info" />
+            ) : (
+              <CircleCheck className="mt-0.5 size-4 shrink-0 text-ok" />
+            )}
+            <p className="text-[13px] leading-relaxed text-ink-soft">
+              {needsCorrection
+                ? dict.portal.requests.changesRequestedHint
+                : underReview
+                  ? dict.portal.requests.underReviewHint
+                  : dict.portal.requests.approvedHint}
+            </p>
+          </div>
+        </Panel>
+      ) : null}
 
       {/* Files already submitted for this request */}
       {request.document && request.document.versions.length > 0 ? (
@@ -159,6 +213,25 @@ export default async function SupplierRequestPage({
         </Panel>
       ) : null}
 
+      {reviews.length > 0 ? (
+        <Panel className="mb-6">
+          <div className="p-5">
+            <ReviewHistory
+              rounds={reviews.map((review) => ({
+                ...review,
+                when: formatDateTime(review.createdAt, locale),
+              }))}
+              title={dict.portal.requests.reviewHistory}
+              labels={{
+                approved: dict.portal.requests.approvedLabel,
+                changesRequested: dict.portal.requests.changesRequested,
+                version: "v",
+              }}
+            />
+          </div>
+        </Panel>
+      ) : null}
+
       {/* Conversation on this request */}
       {request.replies.length > 0 ? (
         <Panel className="mb-6">
@@ -168,6 +241,10 @@ export default async function SupplierRequestPage({
               <li key={reply.id} className="px-5 py-3.5">
                 <p className="text-sm leading-relaxed whitespace-pre-wrap text-ink">{reply.body}</p>
                 <p className="mt-1 text-[12px] text-muted">
+                  {reply.author.supplierId
+                    ? dict.portal.requests.fromYou
+                    : dict.portal.requests.fromVionex}
+                  {" · "}
                   {formatDateTime(reply.createdAt, locale)}
                 </p>
               </li>
@@ -178,7 +255,13 @@ export default async function SupplierRequestPage({
 
       {canSubmit ? (
         <Panel>
-          <PanelHeader title={dict.portal.requests.uploadTitle} />
+          <PanelHeader
+            title={
+              needsCorrection
+                ? dict.portal.requests.resubmit
+                : dict.portal.requests.uploadTitle
+            }
+          />
           <div className="p-5">
             <SubmitRequestForm
               requestId={request.id}

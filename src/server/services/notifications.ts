@@ -30,6 +30,47 @@ export async function notify(input: {
   });
 }
 
+/**
+ * Notifies, unless the same thing was already said recently.
+ *
+ * Deadline warnings and assignment notices are emitted from paths that can run
+ * more than once for the same underlying fact: a form resubmitted, an action
+ * retried, a task edited twice in a row. Without a guard, the bell fills with
+ * the same line repeated — and a notification list nobody trusts is a
+ * notification list nobody reads.
+ *
+ * The window is deliberately a query rather than a new column: `href` already
+ * identifies the subject, `type` the reason, and `Notification` is indexed by
+ * user. That is enough to answer "have we already told this person this?"
+ * without changing the schema.
+ */
+export async function notifyOnce(input: {
+  userIds: string[];
+  type: NotificationType;
+  title: string;
+  description?: string;
+  href: string;
+  /** How far back an identical notice still counts. Default: one day. */
+  withinMs?: number;
+}) {
+  const recipients = [...new Set(input.userIds.filter(Boolean))];
+  if (recipients.length === 0) return;
+
+  const since = new Date(Date.now() - (input.withinMs ?? 24 * 60 * 60 * 1000));
+  const alreadyTold = await db.notification.findMany({
+    where: {
+      userId: { in: recipients },
+      type: input.type,
+      href: input.href,
+      createdAt: { gte: since },
+    },
+    select: { userId: true },
+  });
+
+  const told = new Set(alreadyTold.map((row) => row.userId));
+  await notify({ ...input, userIds: recipients.filter((id) => !told.has(id)) });
+}
+
 /** Every active user of a supplier — used when a request targets a company. */
 export async function supplierRecipients(supplierId: string, client: Prisma.TransactionClient | typeof db = db) {
   const users = await client.user.findMany({

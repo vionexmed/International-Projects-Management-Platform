@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { taskScope } from "@/server/authz/scopes";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
-import { notify } from "@/server/services/notifications";
+import { notify, notifyOnce, supplierRecipients } from "@/server/services/notifications";
 import { recalculateProject } from "@/server/services/projects";
 import { deriveTaskStatus, type DerivedTaskStatus } from "@/lib/status";
 import type { SessionUser } from "@/types/auth";
@@ -18,6 +18,15 @@ export type TaskListFilters = {
   supplierId?: string;
   category?: TaskCategory;
   priority?: TaskPriority;
+  /**
+   * Hides tasks that exist only to mirror a document request.
+   *
+   * The portal shows those in Action Required, where the supplier can actually
+   * answer them. Listing them again under Tasks would be the same pendency in
+   * two places with two different affordances — one that resolves it and one
+   * that does not.
+   */
+  excludeDocumentRequests?: boolean;
   page?: number;
   perPage?: number;
 };
@@ -47,6 +56,7 @@ function buildWhere(user: SessionUser, filters: TaskListFilters): Prisma.TaskWhe
   } else if (filters.status) {
     conditions.push({ status: filters.status });
   }
+  if (filters.excludeDocumentRequests) conditions.push({ requests: { none: {} } });
   if (filters.projectId) conditions.push({ projectId: filters.projectId });
   if (filters.assignedToId) conditions.push({ assignedToId: filters.assignedToId });
   if (filters.supplierId) conditions.push({ supplierId: filters.supplierId });
@@ -123,6 +133,48 @@ export type CreateTaskInput = {
   dueDate?: Date | null;
 };
 
+/**
+ * Warns about a deadline the moment it becomes true, at the moment the task is
+ * written.
+ *
+ * This is the honest half of "deadline notifications". Assigning somebody work
+ * that is already late, or due the day after tomorrow, is an event — and events
+ * are what this codebase notifies on. A task that *becomes* due tomorrow simply
+ * because a day passed is not an event at all; catching that needs something
+ * that wakes up on its own, and pretending otherwise would put a notification
+ * in the product that fires for some tasks and silently not for others.
+ *
+ * So: what can be derived is derived here, and the periodic sweep is written
+ * down as a dependency instead of being faked. See
+ * `docs/product-completion/06_INTEGRATION_GAPS.md`.
+ */
+const DUE_SOON_MS = 3 * 24 * 60 * 60 * 1000;
+
+async function notifyAboutDeadline(task: {
+  id: string;
+  title: string;
+  dueDate: Date | null;
+  assignedToId: string | null;
+  supplierId: string | null;
+}) {
+  if (!task.dueDate) return;
+
+  const remaining = task.dueDate.getTime() - Date.now();
+  if (remaining > DUE_SOON_MS) return;
+
+  const overdue = remaining < 0;
+  const internalRecipients = task.assignedToId ? [task.assignedToId] : [];
+  const supplierUsers = task.supplierId ? await supplierRecipients(task.supplierId) : [];
+
+  await notifyOnce({
+    userIds: [...internalRecipients, ...supplierUsers],
+    type: overdue ? "TASK_OVERDUE" : "TASK_DUE_SOON",
+    title: task.title,
+    description: overdue ? "O prazo desta tarefa já passou." : "O prazo desta tarefa está próximo.",
+    href: `/tasks/${task.id}`,
+  });
+}
+
 export async function createTask(user: SessionUser, input: CreateTaskInput) {
   const project = await db.project.findFirst({
     where: { id: input.projectId, organizationId: user.organizationId },
@@ -152,6 +204,12 @@ export async function createTask(user: SessionUser, input: CreateTaskInput) {
     actorId: user.id,
     type: "TASK_CREATED",
     description: `Tarefa "${task.title}" criada.`,
+    /**
+     * A task with no supplier is Vionex's own work, and its title routinely
+     * says something the supplier is not meant to read. Only work that is
+     * explicitly waiting on them belongs in their timeline.
+     */
+    internal: !task.supplierId,
   });
 
   await recordAudit({
@@ -172,6 +230,23 @@ export async function createTask(user: SessionUser, input: CreateTaskInput) {
       href: `/tasks/${task.id}`,
     });
   }
+
+  /**
+   * Work that waits on the supplier has to reach the supplier. The task row
+   * was already visible to them through `taskScope`; nobody was ever told it
+   * existed.
+   */
+  if (task.supplierId) {
+    await notify({
+      userIds: await supplierRecipients(task.supplierId),
+      type: "TASK_ASSIGNED",
+      title: task.title,
+      description: `Vionex is waiting on you in ${project.name}.`,
+      href: `/supplier/projects/${project.id}`,
+    });
+  }
+
+  await notifyAboutDeadline(task);
 
   await recalculateProject(project.id, user.id);
   return task;
@@ -228,6 +303,7 @@ export async function updateTask(user: SessionUser, taskId: string, input: Updat
           ? `Tarefa "${task.title}" concluída.`
           : `Tarefa "${task.title}" atualizada.`,
       metadata: { from: existing.status, to: task.status },
+      internal: !task.supplierId,
     });
   }
 
@@ -248,6 +324,12 @@ export async function updateTask(user: SessionUser, taskId: string, input: Updat
       description: `Tarefa atribuída a você em ${existing.project.name}.`,
       href: `/tasks/${task.id}`,
     });
+  }
+
+  // Only when the deadline itself moved — editing a title should not ring a
+  // bell about a date nobody touched. `notifyOnce` absorbs the rest.
+  if (input.dueDate !== undefined && task.status !== "COMPLETED" && task.status !== "CANCELLED") {
+    await notifyAboutDeadline(task);
   }
 
   await recalculateProject(existing.projectId, user.id);
@@ -293,10 +375,26 @@ export async function addTaskComment(
     entityId: task.id,
   });
 
+  /**
+   * An internal comment must not reach the supplier through the back door.
+   * The comment row is already hidden from them, but the notification was
+   * being sent unconditionally — so if the task happened to be assigned to a
+   * supplier user, the author and the task title arrived anyway.
+   */
+  const commentRecipients = await db.user.findMany({
+    where: {
+      id: {
+        in: [task.assignedToId, task.createdById].filter(
+          (id): id is string => Boolean(id) && id !== user.id,
+        ),
+      },
+      ...(internal ? { supplierId: null } : {}),
+    },
+    select: { id: true },
+  });
+
   await notify({
-    userIds: [task.assignedToId, task.createdById].filter(
-      (id): id is string => Boolean(id) && id !== user.id,
-    ),
+    userIds: commentRecipients.map((recipient) => recipient.id),
     type: "COMMENT_ADDED",
     title: task.title,
     description: `${user.name} comentou na tarefa.`,

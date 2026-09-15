@@ -90,7 +90,7 @@ export default async function ProjectLayout({
               owners={owners}
               suppliers={suppliers}
             />
-            <ProjectActionsMenu projectId={project.id} />
+            <ProjectActionsMenu projectId={project.id} canArchive={can(user, "project:archive")} />
           </div>
         ) : null}
       </div>

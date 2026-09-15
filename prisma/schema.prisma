@@ -127,6 +127,25 @@ enum RequestStatus {
   CANCELLED
 }
 
+/**
+ * What a reviewer decided, as opposed to where the request currently stands.
+ *
+ * Deliberately not `RequestStatus`. That enum answers "where is this now" and
+ * carries PENDING, SUBMITTED, IN_REVIEW and CANCELLED — none of which is a
+ * verdict, and all of which would be representable as one if the two shared a
+ * type. A review row saying `decision: PENDING` is nonsense the database would
+ * happily store.
+ *
+ * `CHANGES_REQUESTED` rather than `REJECTED` because that is what the act is:
+ * the supplier is expected to come back. `DocumentRequest.status` keeps
+ * `REJECTED` — changing a legacy enum value to rename a concept would rewrite
+ * history for no gain.
+ */
+enum ReviewDecision {
+  APPROVED
+  CHANGES_REQUESTED
+}
+
 enum MilestoneStatus {
   PLANNED
   IN_PROGRESS
@@ -279,6 +298,8 @@ model User {
   uploadedDocuments Document[]        @relation("DocumentCreator")
   documentVersions  DocumentVersion[]
   requestedDocs     DocumentRequest[] @relation("RequestAuthor")
+  requestReplies    DocumentRequestReply[]  @relation("RequestReplyAuthor")
+  documentReviews   DocumentRequestReview[] @relation("RequestReviewer")
   timelineEvents    TimelineEvent[]
   notifications     Notification[]
   messages          Message[]
@@ -478,6 +499,9 @@ model DocumentVersion {
 
   currentOf Document? @relation("CurrentVersion")
 
+  reviews     DocumentRequestReview[]
+  attachments MessageAttachment[]
+
   @@unique([documentId, version])
   @@index([documentId])
 }
@@ -507,6 +531,7 @@ model DocumentRequest {
   task        Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   replies DocumentRequestReply[]
+  reviews DocumentRequestReview[]
 
   @@index([supplierId, status])
   @@index([projectId])
@@ -521,7 +546,57 @@ model DocumentRequestReply {
 
   request DocumentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
+  /**
+   * The relation this column always implied.
+   *
+   * `authorId` was written from the first day and never constrained, so the
+   * screen showed anonymous messages and nothing stopped a reply pointing at a
+   * user that had ceased to exist.
+   *
+   * `Restrict`, matching every other authorship link in this schema
+   * (`Task.createdById`, `Document.createdById`, `DocumentVersion.uploadedById`,
+   * `DocumentRequest.requestedById`). Accounts here are suspended, not deleted,
+   * precisely so a regulatory exchange stays attributable — a cascade would
+   * erase the supplier's answer along with the account of whoever typed it.
+   */
+  author User @relation("RequestReplyAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
   @@index([requestId])
+  @@index([authorId])
+}
+
+/**
+ * One round of review on a document request.
+ *
+ * `DocumentRequest.reviewNote` holds the *current* verdict and is overwritten
+ * by the next one, which is right for a field answering "where does this
+ * stand" and useless as a record: in a reject → resubmit → reject sequence the
+ * first reason was gone. The note has been preserved in the request's
+ * conversation since PC-2, which keeps it readable; this keeps it *queryable* —
+ * who decided what, on which file, and when.
+ *
+ * Written inside the same transaction as the decision, so a request cannot end
+ * up approved with no review, or reviewed while its status says otherwise.
+ */
+model DocumentRequestReview {
+  id                String         @id @default(cuid())
+  requestId         String
+  /// The exact file that was judged. Null when the supplier answered with only
+  /// a message, which is a legitimate round.
+  documentVersionId String?
+  reviewerId        String
+  decision          ReviewDecision
+  /// What the supplier is told. Shared verbatim — there is no internal note here.
+  note              String?
+  createdAt         DateTime       @default(now())
+
+  request         DocumentRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion? @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  reviewer        User             @relation("RequestReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([requestId, createdAt])
+  @@index([reviewerId])
+  @@index([documentVersionId])
 }
 
 // ---------------------------------------------------------------------------
@@ -633,9 +708,43 @@ model Message {
   thread MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   sender User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
-  reads MessageRead[]
+  reads       MessageRead[]
+  attachments MessageAttachment[]
 
   @@index([threadId, createdAt])
+}
+
+/**
+ * A file attached to a message.
+ *
+ * It points at a `DocumentVersion` rather than carrying a file of its own, and
+ * that is the whole design. The platform already has exactly one way a stored
+ * file reaches a browser — `/api/files/[versionId]`, which revalidates the
+ * session, re-applies the caller's scope and writes the download to the audit
+ * log. A second path would mean a second authorisation to keep correct, and
+ * two authorisations eventually disagree.
+ *
+ * The **version**, not the document: an attachment is the file as it was sent.
+ * A later version of the same document must not retroactively change what
+ * somebody received.
+ *
+ * Visibility follows the thread. A file attached to a thread shared with a
+ * supplier is created `SHARED_WITH_SUPPLIER`, so `documentScope` lets them
+ * download it; one attached to an internal thread stays `INTERNAL_ONLY`, and
+ * the thread itself is already invisible to them.
+ */
+model MessageAttachment {
+  id                String   @id @default(cuid())
+  messageId         String
+  documentVersionId String
+  createdAt         DateTime @default(now())
+
+  message         Message         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+
+  /// A double-submitted send cannot attach the same file twice.
+  @@unique([messageId, documentVersionId])
+  @@index([documentVersionId])
 }
 
 model MessageRead {

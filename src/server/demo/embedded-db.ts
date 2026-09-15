@@ -1,4 +1,5 @@
 import { Pool, type PoolClient, type QueryResult } from "pg";
+import { allowsDemo, appEnv } from "@/lib/app-env";
 
 /**
  * A Postgres that needs no Postgres.
@@ -85,8 +86,31 @@ class EmbeddedPool extends Pool {
 }
 
 /** True when no database was configured, so the embedded one should be used. */
+/**
+ * Whether to run on the embedded database.
+ *
+ * Two conditions, and the order matters. The environment has to *allow* a
+ * demonstration at all; only then does an absent `DATABASE_URL` mean "use the
+ * embedded one". Reversing that — which is what this used to do — makes a
+ * blank variable in a real deployment silently swap the database for one full
+ * of invented data whose passwords are published in this repository.
+ *
+ * A real environment that reaches this function with no database URL is
+ * misconfigured, and says so instead of improvising.
+ */
 export function shouldUseEmbeddedDatabase(): boolean {
-  return !process.env.DATABASE_URL || process.env.DATABASE_URL.trim() === "";
+  const absent = !process.env.DATABASE_URL || process.env.DATABASE_URL.trim() === "";
+  if (!absent) return false;
+
+  if (!allowsDemo()) {
+    throw new Error(
+      `DATABASE_URL is not set and APP_ENV is "${appEnv()}". The embedded ` +
+        "demonstration database carries seeded accounts with published " +
+        "passwords and is refused outside development, test and demo.",
+    );
+  }
+
+  return true;
 }
 
 export function createEmbeddedPool(): Pool {

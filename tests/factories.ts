@@ -21,6 +21,15 @@ export async function createTestOrg(label: string) {
  * projects have to go before the rows they point at.
  */
 export async function destroyOrg(organizationId: string) {
+  /**
+   * `MessageAttachment.documentVersion` is `Restrict` on purpose: a file that
+   * a message points at must not disappear underneath it. The product never
+   * deletes a project — it archives — so only fixtures ever hit this, and
+   * dropping the pointers first is the fixture's job, not the model's.
+   */
+  await db.messageAttachment.deleteMany({
+    where: { documentVersion: { document: { organizationId } } },
+  });
   await db.project.deleteMany({ where: { organizationId } });
   await db.auditLog.deleteMany({ where: { organizationId } });
   await db.user.deleteMany({ where: { organizationId } });

@@ -1,5 +1,5 @@
 import { requireSupplierUser } from "@/server/auth/current-user";
-import { requireProjectAccess } from "@/server/authz/access";
+import { requireSharedProjectAccess } from "@/server/authz/access";
 import { ensureProjectThread, getThread, markThreadRead } from "@/server/services/messages";
 import { orNotFound } from "@/server/authz/rsc";
 import { Panel, PanelHeader } from "@/components/ui/card";
@@ -14,7 +14,7 @@ export default async function SupplierProjectMessagesPage({
 }) {
   const { projectId } = await params;
   const user = await requireSupplierUser();
-  const project = await orNotFound(requireProjectAccess(user, projectId));
+  const project = await orNotFound(requireSharedProjectAccess(user, projectId));
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
@@ -36,6 +36,9 @@ export default async function SupplierProjectMessagesPage({
           placeholder: dict.portal.messages.placeholder,
           send: dict.portal.messages.send,
           sent: dict.portal.messages.sent,
+          attach: dict.portal.messages.attach,
+          removeFile: dict.portal.messages.removeFile,
+          attachments: dict.portal.messages.attachments,
         }}
         emptyTitle={dict.portal.messages.empty}
         emptyDescription={dict.portal.messages.emptyDescription}

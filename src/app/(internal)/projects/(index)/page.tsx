@@ -30,6 +30,7 @@ import {
   TR,
 } from "@/components/ui/table";
 import { NewProjectDialog } from "@/features/projects/new-project-dialog";
+import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta } from "@/lib/labels";
@@ -37,12 +38,18 @@ import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Projetos" };
 
-const TABS: { key: string; label: string; status?: ProjectStatus }[] = [
+/**
+ * `ARCHIVED` is a different list, not another status filter: it asks the scope
+ * for the other half of the portfolio. Kept as a tab because that is where
+ * somebody looks for a project they cannot find.
+ */
+const TABS: { key: string; label: string; status?: ProjectStatus; archived?: boolean }[] = [
   { key: "ALL", label: "Todos" },
   { key: "ON_TRACK", label: "Em dia", status: "ON_TRACK" },
   { key: "AT_RISK", label: "Em risco", status: "AT_RISK" },
   { key: "BLOCKED", label: "Bloqueados", status: "BLOCKED" },
   { key: "COMPLETED", label: "Concluídos", status: "COMPLETED" },
+  { key: "ARCHIVED", label: "Arquivados", archived: true },
 ];
 
 export default async function ProjectsPage({
@@ -56,6 +63,7 @@ export default async function ProjectsPage({
   const dict = getDictionary(locale);
 
   const activeTab = TABS.find((tab) => tab.key === params.tab) ?? TABS[0];
+  const canArchive = can(user, "project:archive");
   const page = Number(params.page ?? 1) || 1;
 
   const [result, counts, suppliers, owners, countries] = await Promise.all([
@@ -66,6 +74,7 @@ export default async function ProjectsPage({
       ownerId: params.owner,
       stage: params.stage as StageKey | undefined,
       country: params.country,
+      archived: activeTab.archived,
       page,
     }),
     countProjectsByStatus(user),
@@ -104,7 +113,7 @@ export default async function ProjectsPage({
         items={TABS.map((tab) => ({
           href: buildTabHref(tab.key),
           label: tab.label,
-          count: tab.status ? counts[tab.status] : counts.ALL,
+          count: tab.archived ? undefined : tab.status ? counts[tab.status] : counts.ALL,
           active: tab.key === activeTab.key,
         }))}
       />
@@ -203,7 +212,17 @@ export default async function ProjectsPage({
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
                         <TD className="text-right max-md:hidden">
-                          <ChevronRight className="inline size-4 text-faint" />
+                          {activeTab.archived && canArchive ? (
+                            <span className="relative z-10 inline-flex">
+                              <ProjectActionsMenu
+                                projectId={project.id}
+                                archived
+                                canArchive
+                              />
+                            </span>
+                          ) : (
+                            <ChevronRight className="inline size-4 text-faint" />
+                          )}
                         </TD>
                       </TR>
                     );

@@ -9,7 +9,8 @@ import {
   taskScope,
   threadScope,
 } from "@/server/authz/scopes";
-import type { SessionUser } from "@/types/auth";
+import { isSupplierRole, type SessionUser } from "@/types/auth";
+import { SUPPLIER_PROJECT_SELECT, type SupplierProject } from "@/server/authz/projections";
 
 /**
  * Guards for direct-identifier access (§40 "proteção contra acesso direto a IDs").
@@ -19,13 +20,52 @@ import type { SessionUser } from "@/types/auth";
  * caller learns nothing about records they may not see.
  */
 
+/**
+ * Full project row, for the Vionex environment.
+ *
+ * Refuses a supplier session outright. The scope would have kept a supplier to
+ * their own project, so this is not about which row — it is about the columns
+ * on it: `description`, `blockerNote` and the internal owner have no business
+ * crossing into the portal, and the RSC payload carries every field a server
+ * component receives whether or not it renders one.
+ *
+ * Supplier code paths call `requireSharedProjectAccess` instead. Throwing here
+ * rather than quietly narrowing means a new portal page cannot leak by
+ * forgetting which function to use — it fails on the first request.
+ */
 export async function requireProjectAccess(user: SessionUser, projectId: string) {
+  if (isSupplierRole(user.role)) {
+    throw new Error(
+      "requireProjectAccess returns internal-only fields and cannot serve a supplier session. " +
+        "Use requireSharedProjectAccess.",
+    );
+  }
+
   const project = await db.project.findFirst({
     where: { AND: [projectScope(user), { id: projectId }] },
     include: {
       supplier: { select: { id: true, name: true, country: true, status: true } },
       owner: { select: { id: true, name: true, jobTitle: true } },
     },
+  });
+  if (!project) throw new NotFoundError("Projeto não encontrado.");
+  return project;
+}
+
+/**
+ * Project row reduced to what both audiences may see.
+ *
+ * Safe for the Supplier Portal, and equally correct for internal pages that
+ * only need the heading — the narrower shape is never wrong, just smaller.
+ * The column allowlist lives in `projections.ts`.
+ */
+export async function requireSharedProjectAccess(
+  user: SessionUser,
+  projectId: string,
+): Promise<SupplierProject> {
+  const project = await db.project.findFirst({
+    where: { AND: [projectScope(user), { id: projectId }] },
+    select: SUPPLIER_PROJECT_SELECT,
   });
   if (!project) throw new NotFoundError("Projeto não encontrado.");
   return project;
@@ -86,7 +126,19 @@ export async function requireDocumentRequestAccess(user: SessionUser, requestId:
           versions: { orderBy: { version: "desc" } },
         },
       },
-      replies: { orderBy: { createdAt: "asc" } },
+      /**
+       * The author comes with the reply now that the relation exists. The
+       * screen used to show anonymous messages because `authorId` had no
+       * foreign key and Prisma could not join it.
+       *
+       * Name and supplier link only — a supplier reading a thread needs to
+       * know whether Vionex or a colleague wrote a line, and nothing else
+       * about an internal account belongs in that answer.
+       */
+      replies: {
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { id: true, name: true, supplierId: true } } },
+      },
     },
   });
   if (!request) throw new NotFoundError("Solicitação não encontrada.");
