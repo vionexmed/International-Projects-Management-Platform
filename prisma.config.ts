@@ -18,11 +18,26 @@ import { defineConfig } from "prisma/config";
  */
 const migrationUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
 
+/**
+ * Only used by `prisma migrate diff --from-migrations`, which replays the
+ * whole history into a scratch database to compare it with `schema.prisma`.
+ * Set by `scripts/migration-proof.mjs`; absent everywhere else, because a
+ * shadow database is a tool for verifying migrations, never for running them.
+ */
+const shadowUrl = process.env.SHADOW_DATABASE_URL;
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
     seed: "tsx prisma/seed.ts",
   },
-  ...(migrationUrl ? { datasource: { url: migrationUrl } } : {}),
+  ...(migrationUrl
+    ? {
+        datasource: {
+          url: migrationUrl,
+          ...(shadowUrl ? { shadowDatabaseUrl: shadowUrl } : {}),
+        },
+      }
+    : {}),
 });

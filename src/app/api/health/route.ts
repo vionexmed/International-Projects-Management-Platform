@@ -48,7 +48,15 @@ export async function GET() {
      * here — otherwise uploaded documents would quietly disappear when the
      * instance recycles and nothing would ever say why.
      */
-    const ephemeralStorage = env.NODE_ENV === "production" && env.STORAGE_DRIVER === "local";
+    /**
+     * Judged by the declared environment, not by NODE_ENV. Under `next start`
+     * NODE_ENV is always "production", so a developer running a local
+     * production build was told their documents were about to be lost —
+     * NODE_ENV answers a build question and cannot answer this one.
+     */
+    const { appEnv } = await import("@/lib/app-env");
+    const ephemeralStorage =
+      ["preview", "staging", "production"].includes(appEnv()) && env.STORAGE_DRIVER === "local";
     const embeddedDatabase = !env.DATABASE_URL;
     const publishedKey = env.AUTH_SECRET === DEMO_SIGNING_KEY;
 

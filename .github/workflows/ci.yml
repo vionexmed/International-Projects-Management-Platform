@@ -1,0 +1,107 @@
+name: CI
+
+# Every push and every pull request. There is no "skip CI" path: the gate that
+# can be waived is not a gate, and the invariant it protects — one supplier
+# never seeing another's data — is not the kind you find out about later.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The suite runs against a real PostgreSQL, not a mock: the isolation rules
+  # this product depends on live in SQL `WHERE` clauses, and a fake database
+  # would happily agree with a wrong one.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vionex_ci
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vionex_ci
+  # Not a secret: this value exists so the environment contract is satisfied in
+  # a throwaway container. Production secrets are never in this file.
+  AUTH_SECRET: ci-only-signing-key-not-used-anywhere-real-000
+  APP_ENV: test
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vionex_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      # Proves that an empty database becomes this schema using only the
+      # migration history — the thing nobody discovers until a new environment
+      # is created, which is the worst moment to discover it.
+      - name: Migration proof (empty database → current schema)
+        run: npm run db:proof
+        env:
+          PROOF_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      # Named separately from the suite above so a failure here is unmissable
+      # in the run summary. Same tests, run again, deliberately.
+      - name: Tenant isolation gate
+        run: |
+          npx vitest run --config vitest.integration.config.mts \
+            tests/integration/supplier-isolation.test.ts \
+            tests/integration/supplier-payload.test.ts \
+            tests/integration/supplier-portal-scope.test.ts \
+            tests/integration/tenant-gate.test.ts
+
+      # `--no-tests-skipped` is not a vitest flag, so the count is asserted
+      # instead: a test that quietly becomes a skip is a test that stopped
+      # protecting anything while still looking green.
+      - name: No silent skips
+        run: |
+          npx vitest run --config vitest.integration.config.mts --reporter=json \
+            --outputFile=/tmp/integration.json > /dev/null
+          node -e '
+            const report = require("/tmp/integration.json");
+            const skipped = report.numPendingTests + report.numTodoTests;
+            if (skipped > 0) {
+              console.error(`✗ ${skipped} integration test(s) skipped.`);
+              process.exit(1);
+            }
+            console.log(`✓ ${report.numPassedTests} integration tests, none skipped.`);
+          '
+
+      - name: Build
+        run: npm run build
