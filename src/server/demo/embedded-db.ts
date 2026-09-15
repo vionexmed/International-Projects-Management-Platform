@@ -35,6 +35,15 @@ async function start(): Promise<Ready> {
    * instances constantly.
    */
   const { DEMO_SNAPSHOT_BASE64 } = await import("@/server/demo/snapshot/data");
+  if (!DEMO_SNAPSHOT_BASE64) {
+    // The module is written empty by builds outside development, test and
+    // demo. Reaching here means a demonstration was asked of a bundle that
+    // deliberately does not carry one.
+    throw new Error(
+      `This build carries no demonstration data (APP_ENV was "${appEnv()}" at ` +
+        "build time). Set DATABASE_URL, or build with APP_ENV=demo.",
+    );
+  }
   const snapshot = new Blob([Buffer.from(DEMO_SNAPSHOT_BASE64, "base64")]);
 
   const database = await PGlite.create({ loadDataDir: snapshot });
