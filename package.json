@@ -23,6 +23,7 @@
     "create-admin": "tsx scripts/create-admin.ts",
     "schema:sql": "node scripts/generate-schema-sql.mjs",
     "demo:snapshot": "tsx scripts/build-demo-snapshot.mjs",
+    "user:create": "tsx scripts/create-internal-user.mjs",
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mts"
   },
