@@ -1,7 +1,9 @@
 import "server-only";
+import { startOfTodayUtc } from "@/lib/format";
 import type { Prisma, TaskCategory, TaskPriority, TaskStatus } from "@/generated/prisma";
 import { db } from "@/server/db";
 import { taskScope } from "@/server/authz/scopes";
+import { assertRoleCan } from "@/server/authz/permissions";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, notifyOnce, supplierRecipients } from "@/server/services/notifications";
@@ -51,7 +53,7 @@ function buildWhere(user: SessionUser, filters: TaskListFilters): Prisma.TaskWhe
   if (filters.status === "OVERDUE") {
     conditions.push({
       status: { notIn: ["COMPLETED", "CANCELLED"] },
-      dueDate: { lt: new Date() },
+      dueDate: { lt: startOfTodayUtc() },
     });
   } else if (filters.status) {
     conditions.push({ status: filters.status });
@@ -176,6 +178,8 @@ async function notifyAboutDeadline(task: {
 }
 
 export async function createTask(user: SessionUser, input: CreateTaskInput) {
+  assertRoleCan(user.role, "task:create");
+
   const project = await db.project.findFirst({
     where: { id: input.projectId, organizationId: user.organizationId },
     select: { id: true, name: true, supplierId: true },
@@ -264,6 +268,8 @@ export type UpdateTaskInput = {
 };
 
 export async function updateTask(user: SessionUser, taskId: string, input: UpdateTaskInput) {
+  assertRoleCan(user.role, "task:update");
+
   const existing = await db.task.findFirst({
     where: { AND: [taskScope(user), { id: taskId }] },
     include: { project: { select: { id: true, name: true, supplierId: true } } },
@@ -342,6 +348,9 @@ export async function addTaskComment(
   body: string,
   internal = true,
 ) {
+  // Commenting changes the task's record, so it is a write like any other.
+  assertRoleCan(user.role, "task:update");
+
   const task = await db.task.findFirst({
     where: { AND: [taskScope(user), { id: taskId }] },
     select: {

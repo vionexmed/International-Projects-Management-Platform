@@ -1,4 +1,5 @@
 import "server-only";
+import { startOfTodayUtc } from "@/lib/format";
 import type { Prisma, SupplierStatus } from "@/generated/prisma";
 import { db } from "@/server/db";
 import { supplierScope } from "@/server/authz/scopes";
@@ -36,7 +37,7 @@ export async function listSuppliers(
   const supplierIds = suppliers.map((supplier) => supplier.id);
   if (supplierIds.length === 0) return [];
 
-  const now = new Date();
+  const now = startOfTodayUtc();
   const [projectGroups, openGroups, overdueGroups] = await Promise.all([
     db.project.groupBy({
       by: ["supplierId"],
@@ -98,7 +99,7 @@ export async function getSupplierProfile(user: SessionUser, supplierId: string) 
   });
   if (!supplier) return null;
 
-  const now = new Date();
+  const now = startOfTodayUtc();
   const [projects, openTasks, overdueTasks, documents] = await Promise.all([
     db.project.findMany({
       where: { supplierId, archivedAt: null },

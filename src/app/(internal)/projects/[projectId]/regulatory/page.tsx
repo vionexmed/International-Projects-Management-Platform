@@ -21,6 +21,7 @@ import { ReviewRequestDialog } from "@/features/documents/review-request-dialog"
 import { RegulatoryItemDialog } from "@/features/projects/regulatory-item-dialog";
 import { InlineStatusSelect } from "@/features/projects/inline-status-select";
 import { updateRegulatoryItemAction } from "@/server/actions/stages";
+import { canReviewDocumentType } from "@/server/authz/permissions";
 import { orNotFound } from "@/server/authz/rsc";
 import { StageTaskList } from "@/features/projects/stage-task-list";
 import { StageDocumentList } from "@/features/projects/stage-document-list";
@@ -167,7 +168,7 @@ export default async function ProjectRegulatoryPage({
                         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                       </TD>
                       <TD className="whitespace-nowrap text-right max-md:mt-3">
-                        {can(user, "document:review") &&
+                        {canReviewDocumentType(user.role, request.type) &&
                         ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
                           <ReviewRequestDialog
                             requestId={request.id}

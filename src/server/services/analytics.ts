@@ -1,4 +1,5 @@
 import "server-only";
+import { startOfTodayUtc } from "@/lib/format";
 import { db } from "@/server/db";
 import { documentRequestScope, projectScope, taskScope } from "@/server/authz/scopes";
 import type { Prisma, ProjectStatus, RequestStatus, StageKey } from "@/generated/prisma";
@@ -60,7 +61,7 @@ export async function getPortfolioBreakdown(user: SessionUser) {
  * the open work carrying no date at all — which is its own kind of problem.
  */
 export async function getDeadlineBreakdown(user: SessionUser) {
-  const now = new Date();
+  const now = startOfTodayUtc();
   const week = new Date(now);
   week.setDate(week.getDate() + 7);
   const month = new Date(now);
@@ -172,7 +173,7 @@ export async function getSupplierPerformance(user: SessionUser) {
  * say so rather than implying the number covers all time.
  */
 export async function getRegulatoryPerformance(user: SessionUser) {
-  const now = new Date();
+  const now = startOfTodayUtc();
   const scope = documentRequestScope(user);
 
   const [grouped, overdue, oldestReview, reviewRounds, approvals, changes] = await Promise.all([

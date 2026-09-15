@@ -2,17 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { requireInternalUser } from "@/server/auth/current-user";
-import { listDocumentRequests } from "@/server/services/documents";
+import {
+  countDocumentRequestsByQueue,
+  isRequestQueueFilter,
+  pageDocumentRequests,
+  type RequestQueueFilter,
+} from "@/server/services/documents";
 import { db } from "@/server/db";
 import { projectScope } from "@/server/authz/scopes";
 import { PageHeader, SectionHeader } from "@/components/app/page-header";
 import { TabsNav } from "@/components/app/tabs-nav";
+import { Pagination } from "@/components/app/pagination";
 import { Panel } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   CellStack,
   Table,
+  TableFooter,
   TableScroll,
   TableShell,
   TBody,
@@ -36,41 +43,18 @@ export const metadata: Metadata = { title: "Regulatório" };
 /**
  * The filters exist so that a number elsewhere can bring somebody here with
  * the question already narrowed — "12 atrasadas" lands on the twelve, not on
- * everything. Anything that shows a regulatory count links through these keys.
+ * everything. Anything that shows a regulatory count links through these keys,
+ * and the filtering happens in SQL, so the tab count, the rows and the pager
+ * all describe the same set.
  */
-const FILTERS: {
-  key: string;
-  label: string;
-  matches: (request: RequestRow, now: Date) => boolean;
-}[] = [
-  {
-    key: "open",
-    label: "Em aberto",
-    matches: (request) =>
-      ["PENDING", "SUBMITTED", "IN_REVIEW", "REJECTED"].includes(request.status),
-  },
-  {
-    key: "supplier",
-    label: "Aguardando fornecedor",
-    matches: (request) => ["PENDING", "REJECTED"].includes(request.status),
-  },
-  {
-    key: "review",
-    label: "Aguardando análise",
-    matches: (request) => ["SUBMITTED", "IN_REVIEW"].includes(request.status),
-  },
-  {
-    key: "overdue",
-    label: "Atrasadas",
-    matches: (request, now) =>
-      ["PENDING", "REJECTED"].includes(request.status) &&
-      request.dueDate !== null &&
-      request.dueDate < now,
-  },
-  { key: "all", label: "Todas", matches: () => true },
+const FILTERS: { key: RequestQueueFilter; label: string }[] = [
+  { key: "open", label: "Em aberto" },
+  { key: "supplier", label: "Aguardando fornecedor" },
+  { key: "review", label: "Aguardando análise" },
+  { key: "overdue", label: "Atrasadas" },
+  { key: "approved", label: "Aprovadas" },
+  { key: "all", label: "Todas" },
 ];
-
-type RequestRow = Awaited<ReturnType<typeof listDocumentRequests>>[number];
 
 export default async function RegulatoryPage({
   searchParams,
@@ -82,8 +66,11 @@ export default async function RegulatoryPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [requests, items] = await Promise.all([
-    listDocumentRequests(user),
+  const queue: RequestQueueFilter = isRequestQueueFilter(params.status) ? params.status : "open";
+
+  const [requests, counts, items] = await Promise.all([
+    pageDocumentRequests(user, { queue, page: Number(params.page ?? 1) || 1, perPage: 25 }),
+    countDocumentRequestsByQueue(user),
     db.regulatoryItem.findMany({
       where: { project: projectScope(user) },
       include: { project: { select: { id: true, name: true, projectCode: true } } },
@@ -92,9 +79,7 @@ export default async function RegulatoryPage({
     }),
   ]);
 
-  const now = new Date();
-  const activeFilter = FILTERS.find((filter) => filter.key === params.status) ?? FILTERS[0];
-  const openRequests = requests.filter((request) => activeFilter.matches(request, now));
+  const openRequests = requests.items;
 
   return (
     <>
@@ -114,8 +99,8 @@ export default async function RegulatoryPage({
           items={FILTERS.map((filter) => ({
             href: filter.key === "open" ? "/regulatory" : `/regulatory?status=${filter.key}`,
             label: filter.label,
-            count: requests.filter((request) => filter.matches(request, now)).length,
-            active: filter.key === activeFilter.key,
+            count: counts[filter.key],
+            active: filter.key === queue,
           }))}
         />
         <TableShell>
@@ -177,6 +162,19 @@ export default async function RegulatoryPage({
               </Table>
             </TableScroll>
           )}
+
+          {openRequests.length > 0 ? (
+            <TableFooter>
+              <Pagination
+                page={requests.page}
+                pageCount={requests.pageCount}
+                total={requests.total}
+                perPage={requests.perPage}
+                searchParams={params}
+                label="solicitações"
+              />
+            </TableFooter>
+          ) : null}
         </TableShell>
       </section>
 

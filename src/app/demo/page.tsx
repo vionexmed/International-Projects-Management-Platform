@@ -36,7 +36,8 @@ const INTERNAL = [
 
 const SUPPLIERS = [
   { key: "emily", name: "Emily Carter", role: "Manufacturer C · Estados Unidos", note: "Só enxerga os projetos da C" },
-  { key: "supplier", name: "John Smith", role: "Manufacturer A", note: "Tem solicitações pendentes" },
+  { key: "supplier", name: "John Smith", role: "Manufacturer A · Administrador", note: "Tem solicitações pendentes e gere os usuários da empresa" },
+  { key: "supplier-user", name: "Wei Zhang", role: "Manufacturer A · Usuário", note: "Mesmos projetos, sem gerir usuários" },
   { key: "klaus", name: "Klaus Weber", role: "Manufacturer B · Alemanha", note: "Só enxerga os projetos da B" },
 ];
 

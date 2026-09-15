@@ -14,7 +14,7 @@ import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { label, meta } from "@/lib/labels";
+import { OPTIONS, label, meta } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 
 /**
@@ -125,7 +125,16 @@ export default async function ProjectOverviewPage({
           <PanelHeader
             title="Próximos marcos"
             action={
-              can(user, "project:update") ? <NewMilestoneDialog projectId={project.id} /> : null
+              /*
+                A stage owner adds milestones to their own stage; the general
+                project capability covers the ones that span the project. The
+                action re-checks both — this only decides whether offering it
+                makes sense.
+              */
+              can(user, "project:update") ||
+              OPTIONS.stageKey.some((key) => can(user, STAGE_PERMISSION[key])) ? (
+                <NewMilestoneDialog projectId={project.id} />
+              ) : null
             }
           />
           {upcomingMilestones.length === 0 ? (

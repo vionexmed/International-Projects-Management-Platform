@@ -5,7 +5,8 @@ import { listDocuments } from "@/server/services/documents";
 import { listProjects } from "@/server/services/projects";
 import { PageHeader } from "@/components/app/page-header";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
-import { TableShell } from "@/components/ui/table";
+import { TableFooter, TableShell } from "@/components/ui/table";
+import { Pagination } from "@/components/app/pagination";
 import { SupplierDocumentsTable } from "@/features/supplier-portal/supplier-documents-table";
 import { SupplierUploadDialog } from "@/features/supplier-portal/upload-document-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -30,7 +31,11 @@ export default async function SupplierDocumentsPage({
       query: params.q,
       projectId: params.project,
       type: params.type as DocumentType | undefined,
-      perPage: 100,
+      // Paged rather than capped: a cap with no pager silently hides the rest,
+      // and a supplier who cannot find a file they sent has no way to tell
+      // whether it is missing or merely beyond an invisible limit.
+      page: Number(params.page ?? 1) || 1,
+      perPage: 25,
     }),
     listProjects(user, { perPage: 100 }),
   ]);
@@ -80,6 +85,19 @@ export default async function SupplierDocumentsPage({
             params.q || activeFilters > 0 ? dict.common.noResults : dict.portal.documents.empty
           }
         />
+
+        {result.items.length > 0 ? (
+          <TableFooter>
+            <Pagination
+              page={result.page}
+              pageCount={result.pageCount}
+              total={result.total}
+              perPage={result.perPage}
+              searchParams={params}
+              label={dict.portal.documents.title.toLowerCase()}
+            />
+          </TableFooter>
+        ) : null}
       </TableShell>
     </>
   );

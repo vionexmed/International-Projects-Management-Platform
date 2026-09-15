@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/server/db";
 import { threadScope } from "@/server/authz/scopes";
 import { requireThreadAccess } from "@/server/authz/access";
+import { assertRoleCan } from "@/server/authz/permissions";
 import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, supplierRecipients } from "@/server/services/notifications";
@@ -99,6 +100,8 @@ export async function sendMessage(
   body: string,
   file?: File | null,
 ) {
+  assertRoleCan(user.role, "message:send");
+
   const thread = await requireThreadAccess(user, threadId);
   const trimmed = body.trim();
   if (!trimmed && !file) {

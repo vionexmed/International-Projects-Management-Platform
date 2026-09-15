@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Download } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireInternalUser, can } from "@/server/auth/current-user";
+import { countDocumentRequestsByQueue } from "@/server/services/documents";
 import {
   getDeadlineBreakdown,
   getPortfolioBreakdown,
@@ -58,11 +59,18 @@ export default async function ReportsPage() {
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [portfolio, deadlines, suppliers, regulatory] = await Promise.all([
+  /**
+   * `queue` comes from the same function `/regulatory` uses for its tabs, so a
+   * number here and the list it links to cannot disagree: "12 atrasadas" opens
+   * exactly those twelve. Deriving them separately is how a report starts
+   * lying by one.
+   */
+  const [portfolio, deadlines, suppliers, regulatory, queue] = await Promise.all([
     getPortfolioBreakdown(user),
     getDeadlineBreakdown(user),
     getSupplierPerformance(user),
     getRegulatoryPerformance(user),
+    countDocumentRequestsByQueue(user),
   ]);
 
   return (
@@ -123,9 +131,14 @@ export default async function ReportsPage() {
               tone="risk"
               href="/tasks?tab=OVERDUE"
             />
-            <MetricLink label="Próximos 7 dias" value={deadlines.thisWeek} href="/tasks" />
-            <MetricLink label="Próximos 30 dias" value={deadlines.thisMonth} href="/tasks" />
-            <MetricLink label="Sem prazo" value={deadlines.undated} href="/tasks" />
+            {/*
+              No link on these three: `/tasks` has no filter that reproduces
+              them, and a link that lands on a different set is worse than no
+              link — it quietly contradicts the number it came from.
+            */}
+            <MetricLink label="Próximos 7 dias" value={deadlines.thisWeek} />
+            <MetricLink label="Próximos 30 dias" value={deadlines.thisMonth} />
+            <MetricLink label="Sem prazo" value={deadlines.undated} />
           </div>
         </Panel>
       </section>
@@ -137,36 +150,26 @@ export default async function ReportsPage() {
           description={`${regulatory.total} solicitação(ões) registradas.`}
         />
         <Panel>
-          <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-3 lg:grid-cols-6 sm:divide-x">
+          <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
             <MetricLink
               label="Aguardando fornecedor"
-              value={regulatory.pending}
+              value={queue.supplier}
               href="/regulatory?status=supplier"
             />
             <MetricLink
-              label="Enviadas"
-              value={regulatory.submitted}
+              label="Aguardando análise"
+              value={queue.review}
               href="/regulatory?status=review"
-            />
-            <MetricLink
-              label="Em análise"
-              value={regulatory.inReview}
-              href="/regulatory?status=review"
-            />
-            <MetricLink
-              label="Correção pedida"
-              value={regulatory.rejected}
-              href="/regulatory?status=supplier"
             />
             <MetricLink
               label="Aprovadas"
-              value={regulatory.approved}
+              value={queue.approved}
               tone="ok"
-              href="/regulatory?status=all"
+              href="/regulatory?status=approved"
             />
             <MetricLink
               label="Atrasadas"
-              value={regulatory.overdue}
+              value={queue.overdue}
               tone="risk"
               href="/regulatory?status=overdue"
             />
@@ -363,10 +366,11 @@ function MetricLink({
   label: string;
   value: number;
   tone?: "ok" | "risk";
-  href: string;
+  /** Absent when no canonical list reproduces exactly this number. */
+  href?: string;
 }) {
-  return (
-    <Link href={href} className="px-5 py-4 transition-colors hover:bg-subtle">
+  const body = (
+    <>
       <div className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
         {metricLabel}
       </div>
@@ -381,6 +385,14 @@ function MetricLink({
       >
         {value}
       </div>
+    </>
+  );
+
+  if (!href) return <div className="px-5 py-4">{body}</div>;
+
+  return (
+    <Link href={href} className="block px-5 py-4 transition-colors hover:bg-subtle">
+      {body}
     </Link>
   );
 }

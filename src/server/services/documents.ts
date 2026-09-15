@@ -1,4 +1,5 @@
 import "server-only";
+import { startOfTodayUtc } from "@/lib/format";
 import type {
   DocumentStatus,
   DocumentType,
@@ -13,7 +14,8 @@ import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, supplierRecipients } from "@/server/services/notifications";
 import { recalculateProject } from "@/server/services/projects";
-import { NotFoundError } from "@/server/authz/errors";
+import { ForbiddenError, NotFoundError } from "@/server/authz/errors";
+import { assertRoleCan, canReviewDocumentType } from "@/server/authz/permissions";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
 
 export type DocumentListFilters = {
@@ -97,6 +99,8 @@ export type UploadDocumentInput = {
  * a database row pointing at a missing object is not.
  */
 export async function uploadDocument(user: SessionUser, input: UploadDocumentInput) {
+  assertRoleCan(user.role, "document:upload");
+
   const invalid = validateUpload(input.file);
   if (invalid) throw new Error(invalid.message);
 
@@ -254,6 +258,8 @@ export type CreateDocumentRequestInput = {
  * of that supplier is notified.
  */
 export async function createDocumentRequest(user: SessionUser, input: CreateDocumentRequestInput) {
+  assertRoleCan(user.role, "document:request");
+
   const project = await db.project.findFirst({
     where: { id: input.projectId, organizationId: user.organizationId },
     select: { id: true, name: true, supplierId: true },
@@ -460,6 +466,7 @@ export async function reviewDocumentRequest(
     select: {
       id: true,
       title: true,
+      type: true,
       projectId: true,
       documentId: true,
       supplierId: true,
@@ -469,6 +476,18 @@ export async function reviewDocumentRequest(
     },
   });
   if (!request) throw new NotFoundError("Solicitação não encontrada.");
+
+  /**
+   * The domain gate (PERM-2), checked here rather than only in the action.
+   *
+   * The type of the request is not known until it has been read, so the
+   * action cannot make this decision — and a check that lives only in one
+   * caller is not a rule, it is a habit. An unclassifiable type reaches only
+   * the administrative roles; see `DOCUMENT_REVIEW_DOMAIN`.
+   */
+  if (!canReviewDocumentType(user.role, request.type)) {
+    throw new ForbiddenError("Este documento é revisado por outra área.");
+  }
 
   const documentStatus: DocumentStatus =
     input.status === "APPROVED" ? "APPROVED" : input.status === "REJECTED" ? "REJECTED" : "IN_REVIEW";
@@ -615,13 +634,63 @@ export async function listRequestReviews(user: SessionUser, requestId: string) {
   });
 }
 
+/**
+ * The regulatory queue, filtered by where each request is waiting.
+ *
+ * The filter is applied in SQL rather than by the page, so the count in the
+ * tab, the rows on screen and the pagination all describe the same set. The
+ * portfolio-wide screen reads a page at a time; a project screen asks for that
+ * project and gets all of it.
+ */
+export type RequestQueueFilter = "open" | "supplier" | "review" | "overdue" | "approved" | "all";
+
+const REQUEST_QUEUE_WHERE: Record<RequestQueueFilter, () => Prisma.DocumentRequestWhereInput> = {
+  open: () => ({ status: { in: ["PENDING", "SUBMITTED", "IN_REVIEW", "REJECTED"] } }),
+  supplier: () => ({ status: { in: ["PENDING", "REJECTED"] } }),
+  review: () => ({ status: { in: ["SUBMITTED", "IN_REVIEW"] } }),
+  overdue: () => ({
+    status: { in: ["PENDING", "REJECTED"] },
+    dueDate: { lt: startOfTodayUtc() },
+  }),
+  approved: () => ({ status: "APPROVED" }),
+  all: () => ({}),
+};
+
+export function isRequestQueueFilter(value: unknown): value is RequestQueueFilter {
+  return typeof value === "string" && value in REQUEST_QUEUE_WHERE;
+}
+
+/** How many requests sit in each filter — the numbers on the tabs. */
+export async function countDocumentRequestsByQueue(user: SessionUser) {
+  const scope = documentRequestScope(user);
+  const keys = Object.keys(REQUEST_QUEUE_WHERE) as RequestQueueFilter[];
+
+  const counts = await Promise.all(
+    keys.map((key) =>
+      db.documentRequest.count({ where: { AND: [scope, REQUEST_QUEUE_WHERE[key]()] } }),
+    ),
+  );
+
+  return Object.fromEntries(keys.map((key, index) => [key, counts[index]])) as Record<
+    RequestQueueFilter,
+    number
+  >;
+}
+
 export async function listDocumentRequests(
   user: SessionUser,
-  filters: { projectId?: string; status?: "OPEN" | "ALL" } = {},
+  filters: {
+    projectId?: string;
+    status?: "OPEN" | "ALL";
+    queue?: RequestQueueFilter;
+    page?: number;
+    perPage?: number;
+  } = {},
 ) {
   const conditions: Prisma.DocumentRequestWhereInput[] = [documentRequestScope(user)];
   if (filters.projectId) conditions.push({ projectId: filters.projectId });
   if (filters.status === "OPEN") conditions.push({ status: { in: ["PENDING", "REJECTED"] } });
+  if (filters.queue) conditions.push(REQUEST_QUEUE_WHERE[filters.queue]());
 
   return db.documentRequest.findMany({
     where: { AND: conditions },
@@ -652,5 +721,34 @@ export async function listDocumentRequests(
       },
     },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+    ...(filters.page || filters.perPage
+      ? {
+          skip: ((Math.max(1, filters.page ?? 1)) - 1) * Math.min(100, filters.perPage ?? 25),
+          take: Math.min(100, filters.perPage ?? 25),
+        }
+      : {}),
   });
+}
+
+/** The same query as a page, with the total, for a paginated screen. */
+export async function pageDocumentRequests(
+  user: SessionUser,
+  filters: { queue?: RequestQueueFilter; page?: number; perPage?: number } = {},
+) {
+  const page = Math.max(1, filters.page ?? 1);
+  const perPage = Math.min(100, Math.max(5, filters.perPage ?? 25));
+
+  const [items, total] = await Promise.all([
+    listDocumentRequests(user, { ...filters, page, perPage }),
+    db.documentRequest.count({
+      where: {
+        AND: [
+          documentRequestScope(user),
+          filters.queue ? REQUEST_QUEUE_WHERE[filters.queue]() : {},
+        ],
+      },
+    }),
+  ]);
+
+  return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };
 }

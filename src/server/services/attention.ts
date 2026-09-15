@@ -1,4 +1,5 @@
 import "server-only";
+import { startOfTodayUtc } from "@/lib/format";
 import { db } from "@/server/db";
 import {
   documentRequestScope,
@@ -57,7 +58,9 @@ function rank(item: AttentionItem) {
  * as though it did — a guard that depends on its caller is not a guard.
  */
 export async function listAttentionItems(user: SessionUser, take = 6) {
-  const now = new Date();
+  // Overdue means "before today", on the same UTC day boundary the screen
+  // renders — otherwise a deadline is late in the query and on time on screen.
+  const now = startOfTodayUtc();
   const internal = !isSupplierRole(user.role);
 
   const [overdueTasks, overdueRequests, waitingReviews, delayedMilestones, blockedProjects] =
@@ -224,7 +227,7 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
  * what a triage screen is for.
  */
 export async function countAttentionItems(user: SessionUser) {
-  const now = new Date();
+  const now = startOfTodayUtc();
   const internal = !isSupplierRole(user.role);
 
   const [tasks, requests, reviews, milestones, projects] = await Promise.all([

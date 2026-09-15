@@ -21,6 +21,7 @@ const DEMO_ACCOUNTS: Record<string, string> = {
   marketing: "marketing@vionex.com",
   viewer: "viewer@vionex.com",
   supplier: "supplier@example.com",
+  "supplier-user": "supplier.user@example.com",
   klaus: "klaus@example.com",
   emily: "emily@example.com",
 };

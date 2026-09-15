@@ -129,6 +129,21 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
         jobTitle: "Regulatory Contact", language: "EN",
       },
     }),
+    /**
+     * A plain portal user, alongside the administrators.
+     *
+     * Every seeded supplier account was a SUPPLIER_ADMIN, so the difference
+     * between the two portal roles — who may manage the company's users —
+     * could not be seen without editing the database by hand.
+     */
+    db.user.create({
+      data: {
+        id: "usr-supplier-user",
+        organizationId: org.id, supplierId: manufacturerA.id, name: "Wei Zhang",
+        email: "supplier.user@example.com", passwordHash, role: "SUPPLIER_USER",
+        jobTitle: "Documentation Analyst", language: "EN",
+      },
+    }),
     db.user.create({
       data: {
         id: "usr-klaus",

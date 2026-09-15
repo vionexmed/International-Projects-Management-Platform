@@ -44,3 +44,10 @@ yarn-error.log*
 
 # Generated demo database snapshot (built by `npm run demo:snapshot`)
 /src/server/demo/snapshot
+
+# Local state of the claude-flow tooling: session logs (which embed absolute
+# paths from whichever machine ran them), neural caches, policy state. Nothing
+# in the product reads it and it grows every session, so it is not part of the
+# checkpoint. Kept on disk, just not versioned — if real configuration ever
+# lands here, un-ignore that file explicitly.
+/.claude-flow/

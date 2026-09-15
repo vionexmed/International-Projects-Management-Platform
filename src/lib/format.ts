@@ -79,14 +79,34 @@ export function formatRelative(value: Date | string | null | undefined, locale: 
 }
 
 /** Whole days from today until the given date; negative when overdue. */
+/**
+ * Midnight today, in UTC.
+ *
+ * Deadlines in this product are dates, not instants: a due date is "the 20th",
+ * not "the 20th at 00:00 in some particular city". They are stored as UTC
+ * midnight and rendered with `timeZone: "UTC"` so the day shown is the day
+ * that was typed — and everything that decides whether a deadline has passed
+ * has to use the same reference, or the screen and the database disagree.
+ */
+export function startOfTodayUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/**
+ * Whole days between today and a deadline; negative when it has passed.
+ *
+ * This used to compare local midnight against a date stored at UTC midnight,
+ * which in any negative offset — São Paulo included — put the deadline in
+ * yesterday. A task due today was shown as "1 dia atrasado" to every Brazilian
+ * user, all day, every day.
+ */
 export function daysUntil(value: Date | string | null | undefined): number | null {
   const date = toDate(value);
   if (!date) return null;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+
+  const target = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  return Math.round((target - startOfTodayUtc().getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export function formatFileSize(bytes: number) {

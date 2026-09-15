@@ -143,6 +143,23 @@ export default async function SettingsPage() {
             </Table>
           </TableScroll>
 
+          {/*
+            The matrix above answers "may this role review at all". Which
+            documents they may review is narrower, and saying so here keeps the
+            screen from overstating the capability it just showed a tick for.
+          */}
+          <div className="border-t border-line px-5 py-4">
+            <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+              Revisão por domínio
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+              Quem revisa um documento é a área a que ele pertence. Regulatório decide certificados,
+              IFUs e documentos clínicos e regulatórios; Importação decide documentos de importação;
+              Marketing decide materiais comerciais e apresentações. Contratos, NDAs e documentos do
+              tipo “Outro” não identificam uma área e ficam restritos a Administrador e Gerente.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 border-t border-line p-5 sm:grid-cols-2">
             {OPTIONS.supplierRoles.map((role) => (
               <div key={role}>
