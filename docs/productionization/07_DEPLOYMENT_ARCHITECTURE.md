@@ -51,6 +51,19 @@ Rollback: promover o deploy anterior. **Atenção:** rollback de código não
 desfaz migration. Como todas são aditivas até aqui, um deploy anterior
 convive com um schema mais novo — mantenha essa propriedade.
 
+## Região das funções
+
+`vercel.json` fixa `regions: ["pdx1"]` (Portland).
+
+Não é preferência: é a consequência direta de o banco estar em `us-west-2`. Um
+deploy em `gru1` (São Paulo) — que foi o padrão que a Vercel escolheu sozinha —
+coloca cada consulta atravessando o continente, ~200 ms, e uma tela faz cinco.
+Com aplicação e banco na mesma costa, a consulta volta a ~1 ms e o usuário paga
+uma única viagem.
+
+Fica no repositório em vez de no painel porque assim acompanha o código: quem
+clonar e implantar não precisa saber desta conversa para acertar.
+
 ## Probes
 
 | Endpoint | Pergunta | Uso |
