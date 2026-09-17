@@ -27,6 +27,22 @@ import type { SessionUser } from "@/types/auth";
  * End-to-end behaviour of the flows the MVP is judged on (§67):
  * requesting a document, the supplier answering it, and Vionex seeing it.
  */
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Deadlines in these tests are relative to today, never literal dates.
+ *
+ * `new Date("2026-09-20")` was far in the future when this file was written
+ * and three days away by the time it ran again — which is exactly the
+ * "deadline approaching" window, so a second notification fired and an
+ * assertion of "exactly one" started failing. The test had a shelf life and
+ * nobody had noticed; CI would have gone red on a day when nothing changed.
+ *
+ * Far enough to be outside every window the product reacts to.
+ */
+const FAR_FUTURE = () => new Date(Date.now() + 60 * DAY);
+const LONG_PAST = () => new Date(Date.now() - 180 * DAY);
+
 describe("core workflows", () => {
   let organizationId: string;
   let internal: SessionUser;
@@ -100,7 +116,7 @@ describe("core workflows", () => {
       priority: "HIGH",
       assignedToId: assignee.id,
       waitingOnSupplier: true,
-      dueDate: new Date("2026-09-20T12:00:00Z"),
+      dueDate: FAR_FUTURE(),
     });
 
     // The supplier comes from the project, never from the caller.
@@ -135,7 +151,7 @@ describe("core workflows", () => {
       title: "Certificate of Analysis",
       description: "Please provide the latest COA.",
       type: "CERTIFICATE",
-      dueDate: new Date("2026-09-20T12:00:00Z"),
+      dueDate: FAR_FUTURE(),
       createTask: true,
     });
     expect(request.status).toBe("PENDING");
@@ -278,7 +294,7 @@ describe("core workflows", () => {
         category: "REGULATORY",
         priority: "URGENT",
         status: "WAITING",
-        dueDate: new Date("2026-01-01T12:00:00Z"),
+        dueDate: LONG_PAST(),
       },
     });
 

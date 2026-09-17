@@ -24,6 +24,39 @@ export async function setup() {
     );
   }
 
+  /**
+   * And refuses to run against a database that is not obviously disposable.
+   *
+   * These tests write: every file creates an organisation, projects,
+   * documents and users, and deletes them afterwards. That is exactly right
+   * against a local Postgres and exactly wrong against the managed database
+   * that now sits behind the same variable name — one `npm run test:integration`
+   * with a staging URL in `.env` writes test fixtures into a real environment.
+   *
+   * Localhost is allowed without ceremony. Anything else has to be declared,
+   * which makes the dangerous case a decision instead of an accident. CI
+   * connects to a service container on localhost and is unaffected.
+   */
+  const host = (() => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return "";
+    }
+  })();
+  const local = ["localhost", "127.0.0.1", "::1", ""].includes(host);
+
+  if (!local && process.env.ALLOW_REMOTE_TEST_DATABASE !== "yes") {
+    throw new Error(
+      `The integration suite writes to the database it is pointed at, and ` +
+        `DATABASE_URL points at "${host}", which is not local.\n\n` +
+        `  If that is a throwaway database, re-run with ` +
+        `ALLOW_REMOTE_TEST_DATABASE=yes.\n` +
+        `  If it is staging or production, point DATABASE_URL at the local ` +
+        `Postgres instead (npm run db:start).`,
+    );
+  }
+
   const client = new Client({ connectionString: url, connectionTimeoutMillis: TIMEOUT_MS });
 
   try {

@@ -23,12 +23,30 @@ externo criado.
 
 ## Sequência
 
-### P2 — Fundação Supabase *(bloqueada: precisa de você)*
+### P2 — Fundação Supabase *(banco no ar; falta o primeiro administrador)*
 
-1. Você cria o projeto Supabase e me passa as connection strings.
-2. `prisma migrate deploy` contra o banco novo.
-3. Conferir `_prisma_migrations` e `/api/ready`.
-4. `npm run create-admin` — o primeiro administrador real.
+| Passo | Estado |
+|---|---|
+| Projeto Supabase criado | ✅ `nxearovwvfotbernsrji`, região **us-west-2 (Oregon)** |
+| Conexões configuradas | ✅ pooler 6543 (aplicação) e 5432 (migrations) |
+| `prisma migrate deploy` | ✅ as 3 migrations aplicadas |
+| Estrutura conferida | ✅ 26 tabelas · 48 foreign keys · 74 índices |
+| `/api/ready` contra o Supabase | ✅ `ready`, `migrations: 3 applied` |
+| Primeiro administrador real | ⬜ **pendente** — `npm run create-admin` |
+
+**Latência medida** da máquina de desenvolvimento (Brasil) para Oregon:
+**213 ms por consulta**, 1,3 s para abrir conexão. Consequências:
+
+1. **Desenvolvimento continua no Postgres local.** Cinco consultas por tela
+   contra Oregon são ~1 s só de rede. A URL local ficou guardada e comentada
+   no `.env`.
+2. **A aplicação tem de ser hospedada perto do banco** — região `pdx1` ou
+   `sfo1` na Vercel. Com aplicação e banco juntos, a consulta volta a ~1 ms e
+   o usuário brasileiro paga uma única viagem de ~170 ms por navegação, que é
+   perfeitamente utilizável.
+3. **Os dados ficam nos Estados Unidos.** Permitido pela LGPD com
+   salvaguardas, mas é uma decisão consciente a registrar — e reversível
+   enquanto o banco estiver vazio.
 
 ### P3 — Storage
 
