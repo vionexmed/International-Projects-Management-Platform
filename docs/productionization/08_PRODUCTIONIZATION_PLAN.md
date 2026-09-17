@@ -45,8 +45,25 @@ externo criado.
    o usuário brasileiro paga uma única viagem de ~170 ms por navegação, que é
    perfeitamente utilizável.
 3. **Os dados ficam nos Estados Unidos.** Permitido pela LGPD com
-   salvaguardas, mas é uma decisão consciente a registrar — e reversível
-   enquanto o banco estiver vazio.
+   salvaguardas.
+
+**Decisão tomada em 17/09/2026: o projeto permanece em us-west-2 (Oregon).**
+
+Registrada com o que se sabia: a equipe interna, que usa a plataforma todo dia,
+paga ~180 ms por navegação; os fornecedores na China pagam ~150–180 ms em vez
+dos ~300–380 ms que pagariam contra São Paulo — tráfego China→Brasil costuma
+transitar pela América do Norte de qualquer forma, então Oregon é parar no meio
+do caminho que eles já fariam. Alemanha e Itália ficam ligeiramente melhores
+também. O custo é da equipe brasileira, e foi aceito.
+
+Duas consequências que passam a ser regra:
+
+- **A aplicação tem de ser hospedada em `pdx1` ou `sfo1`.** Aplicação em São
+  Paulo com banco em Oregon somaria ~200 ms *por consulta*, e uma tela faz
+  cinco.
+- **Os dados residem nos EUA.** Se a Vionex vier a tratar dado pessoal de
+  residentes na UE, ou se o jurídico quiser residência nacional, isso é
+  revisitável — mas a partir daí com migração planejada, não com um clique.
 
 ### P3 — Storage
 
