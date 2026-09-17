@@ -22,7 +22,28 @@ const securityHeaders = [
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
 ];
 
+/**
+ * O teto de upload do produto, lido da mesma variável que a validação usa.
+ *
+ * As server actions do Next aceitam 1 MB por padrão, e o formulário de upload
+ * é uma server action. Enquanto isso ficou implícito, o produto anunciava 25
+ * MB, validava 25 MB e o framework recusava qualquer arquivo acima de 1 MB
+ * antes de o nosso código ver o arquivo — então o erro chegava ao usuário como
+ * "algo deu errado", sem dizer o que estava errado.
+ *
+ * Uma folga é somada ao teto porque o corpo carrega também os campos do
+ * formulário e a codificação multipart, que somam alguns bytes sobre o arquivo.
+ */
+const uploadLimitMb = Number(process.env.UPLOAD_MAX_SIZE_MB ?? 25);
+const actionBodyLimit = `${Math.max(2, Math.ceil(uploadLimitMb * 1.1))}mb` as const satisfies `${number}mb`;
+
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: actionBodyLimit,
+    },
+  },
+
   /**
    * PGlite ships a WebAssembly build of Postgres. Bundling it breaks the
    * module's own WASM instantiation, so it is loaded from node_modules at
