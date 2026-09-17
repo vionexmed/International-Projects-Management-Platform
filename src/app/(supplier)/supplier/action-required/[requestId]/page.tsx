@@ -265,6 +265,7 @@ export default async function SupplierRequestPage({
           <div className="p-5">
             <SubmitRequestForm
               requestId={request.id}
+              projectId={request.project.id}
               dict={dict}
               accept={ACCEPT_ATTRIBUTE}
               maxSizeMb={maxUploadMb()}

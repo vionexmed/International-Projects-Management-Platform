@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { StorageDriver, StoredObject } from "@/lib/storage/types";
+import type { StorageDriver, StoredMetadata, StoredObject } from "@/lib/storage/types";
 
 /**
  * Development driver. Files live under STORAGE_LOCAL_DIR, outside `public/`,
@@ -49,6 +49,35 @@ export function createLocalDriver(rootDir: string): StorageDriver {
       const target = resolveKey(key);
       await fs.rm(target, { force: true });
       await fs.rm(`${target}.meta`, { force: true });
+    },
+
+    /**
+     * A local directory has no URL a browser can PUT to, so this driver
+     * declines and the caller falls back to sending the file through the
+     * server. That path works fine here — the size limit that makes direct
+     * upload necessary belongs to the deployment platform, not to a laptop.
+     */
+    async presignPut() {
+      return null;
+    },
+
+    async head(key): Promise<StoredMetadata | null> {
+      try {
+        const target = resolveKey(key);
+        const stat = await fs.stat(target);
+        let contentType = "application/octet-stream";
+        try {
+          const meta = JSON.parse(await fs.readFile(`${target}.meta`, "utf8")) as {
+            contentType?: string;
+          };
+          if (meta.contentType) contentType = meta.contentType;
+        } catch {
+          // Best-effort, as in `get`.
+        }
+        return { size: stat.size, contentType };
+      } catch {
+        return null;
+      }
     },
   };
 }

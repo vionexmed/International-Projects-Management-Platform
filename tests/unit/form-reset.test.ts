@@ -43,7 +43,16 @@ describe("forms keep what the user typed when an action fails", () => {
     const code = source(relative);
 
     expect(code).toContain("useFormAction");
-    expect(code).toContain("onSubmit={onSubmit}");
+
+    /**
+     * The rule is that the submission is driven from `onSubmit`, not that the
+     * handler is literally named `onSubmit`. Two of these forms now intercept
+     * the event first — the file goes to storage before the action runs, for
+     * uploads too large to travel through the server — and still call the
+     * hook's `onSubmit` from inside. Pinning the exact string would have
+     * declared that a regression, which it is not.
+     */
+    expect(code).toMatch(/<form[^>]*\sonSubmit=\{/);
   });
 
   it.each(FORMS_THAT_MUST_SURVIVE_FAILURE)("%s never passes a form action", (relative) => {

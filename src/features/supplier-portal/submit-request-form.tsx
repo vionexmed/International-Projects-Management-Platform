@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/app/file-dropzone";
 import { useFormAction } from "@/components/app/use-form-action";
+import { useDirectUpload } from "@/components/app/use-direct-upload";
 import { submitDocumentRequestAction } from "@/server/actions/documents";
 import type { ActionState } from "@/server/actions/utils";
 import type { Dictionary } from "@/lib/i18n/dictionary";
@@ -26,17 +27,22 @@ import { interpolate } from "@/lib/i18n/dictionary";
  */
 export function SubmitRequestForm({
   requestId,
+  projectId,
   dict,
   accept,
   maxSizeMb,
 }: {
   requestId: string;
+  /** Needed to authorise the upload before the file leaves the browser. */
+  projectId: string;
   dict: Dictionary;
   accept: string;
   maxSizeMb: number;
 }) {
   const router = useRouter();
   const [clearedAt, setClearedAt] = React.useState(0);
+  const { prepare, progress } = useDirectUpload();
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const handleSuccess = React.useCallback(
     (_result: ActionState, form: HTMLFormElement) => {
@@ -55,9 +61,74 @@ export function SubmitRequestForm({
     handleSuccess,
   );
 
+  /**
+   * The file goes to storage first when it is large, and the form then carries
+   * a receipt instead of the bytes.
+   *
+   * Without this, a 5 MB document was rejected by the platform before the
+   * application saw the request — the manufacturer got an error page with
+   * nothing in it, on the one screen where being unable to deliver a document
+   * is the whole problem.
+   */
+  const handleSubmit = React.useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      const form = event.currentTarget;
+      const input = form.elements.namedItem("file") as HTMLInputElement | null;
+      const file = input?.files?.[0];
+
+      if (!file) return onSubmit(event);
+
+      event.preventDefault();
+      setUploadError(null);
+
+      const prepared = await prepare(file, projectId);
+      if (!prepared.ok) {
+        setUploadError(prepared.error);
+        return;
+      }
+
+      if (prepared.token) {
+        // Uploaded already: send the receipt and drop the file from the form.
+        const token = form.elements.namedItem("uploadToken") as HTMLInputElement;
+        token.value = prepared.token;
+        input!.value = "";
+      }
+
+      onSubmit({
+        ...event,
+        currentTarget: form,
+        preventDefault: () => {},
+      } as unknown as React.FormEvent<HTMLFormElement>);
+    },
+    [onSubmit, prepare, projectId],
+  );
+
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <input type="hidden" name="requestId" value={requestId} />
+      <input type="hidden" name="uploadToken" defaultValue="" />
+
+      {uploadError ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-[13px] text-risk"
+        >
+          <AlertCircle className="mt-px size-4 shrink-0" />
+          <span>{uploadError}</span>
+        </div>
+      ) : null}
+
+      {progress !== null ? (
+        <div>
+          <p className="mb-1.5 text-[13px] text-muted">{progress}%</p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-raised">
+            <div
+              className="h-full rounded-full bg-brand transition-[width]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {state.error ? (
         <div

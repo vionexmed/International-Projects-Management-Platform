@@ -78,9 +78,24 @@ export async function listDocuments(user: SessionUser, filters: DocumentListFilt
   return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };
 }
 
+/**
+ * The file, either in hand or already in storage.
+ *
+ * A small upload still travels through the server, which keeps local
+ * development working with no bucket at all. A large one cannot — the platform
+ * refuses the request before our code runs — so it goes straight to storage
+ * first and arrives here as a key that has already been verified. See
+ * `upload-tickets.ts`.
+ */
+export type UploadSource =
+  | { file: File }
+  | { storageKey: string; fileName: string; contentType: string; size: number };
+
 export type UploadDocumentInput = {
   projectId: string;
-  file: File;
+  /** Present for the in-band path; `uploaded` replaces it for the direct one. */
+  file?: File;
+  uploaded?: { storageKey: string; fileName: string; contentType: string; size: number };
   /** Omit to create a new document; provide to add a version to an existing one. */
   documentId?: string;
   name?: string;
@@ -101,8 +116,13 @@ export type UploadDocumentInput = {
 export async function uploadDocument(user: SessionUser, input: UploadDocumentInput) {
   assertRoleCan(user.role, "document:upload");
 
-  const invalid = validateUpload(input.file);
-  if (invalid) throw new Error(invalid.message);
+  if (!input.file && !input.uploaded) {
+    throw new Error("Nenhum arquivo enviado.");
+  }
+  if (input.file) {
+    const invalid = validateUpload(input.file);
+    if (invalid) throw new Error(invalid.message);
+  }
 
   const project = await db.project.findFirst({
     where: {
@@ -124,14 +144,34 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
     if (!existing) throw new Error("Documento não encontrado.");
   }
 
-  const fileName = input.file.name;
-  const storageKey = buildStorageKey({
-    organizationId: user.organizationId,
-    projectId: project.id,
-    fileName,
-  });
-  const buffer = Buffer.from(await input.file.arrayBuffer());
-  await storage().put(storageKey, buffer, input.file.type);
+  /**
+   * One of two roads to the same place: either the bytes came with the request
+   * and are written here, or they are already in storage and were checked by
+   * `redeemUploadTicket` before this was called.
+   */
+  let fileName: string;
+  let storageKey: string;
+  let fileSize: number;
+  let mimeType: string;
+
+  if (input.file) {
+    fileName = input.file.name;
+    mimeType = input.file.type;
+    storageKey = buildStorageKey({
+      organizationId: user.organizationId,
+      projectId: project.id,
+      fileName,
+    });
+    const buffer = Buffer.from(await input.file.arrayBuffer());
+    fileSize = buffer.byteLength;
+    await storage().put(storageKey, buffer, mimeType);
+  } else {
+    const uploaded = input.uploaded!;
+    fileName = uploaded.fileName;
+    mimeType = uploaded.contentType;
+    storageKey = uploaded.storageKey;
+    fileSize = uploaded.size;
+  }
 
   const supplierUpload = isSupplierRole(user.role);
 
@@ -172,8 +212,8 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
         version: (last?.version ?? 0) + 1,
         storageKey,
         fileName,
-        fileSize: buffer.byteLength,
-        mimeType: input.file.type,
+        fileSize,
+        mimeType,
       },
     });
 
@@ -334,7 +374,12 @@ export async function createDocumentRequest(user: SessionUser, input: CreateDocu
 export async function submitDocumentRequest(
   user: SessionUser,
   requestId: string,
-  input: { file?: File | null; message?: string | null },
+  input: {
+    file?: File | null;
+    /** A file already in storage, verified by `redeemUploadTicket`. */
+    uploaded?: { storageKey: string; fileName: string; contentType: string; size: number } | null;
+    message?: string | null;
+  },
 ) {
   const request = await db.documentRequest.findFirst({
     where: { AND: [documentRequestScope(user), { id: requestId }] },
@@ -368,10 +413,11 @@ export async function submitDocumentRequest(
 
   let documentId = request.documentId;
 
-  if (input.file) {
+  if (input.file || input.uploaded) {
     const document = await uploadDocument(user, {
       projectId: request.projectId,
-      file: input.file,
+      file: input.file ?? undefined,
+      uploaded: input.uploaded ?? undefined,
       documentId: request.documentId ?? undefined,
       name: request.title,
       type: request.type,

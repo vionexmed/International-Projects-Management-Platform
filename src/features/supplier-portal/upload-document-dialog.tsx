@@ -1,10 +1,13 @@
 "use client";
 
+import * as React from "react";
+
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Field, FieldGrid, FormDialog } from "@/components/app/form-dialog";
 import { FileDropzone } from "@/components/app/file-dropzone";
+import { useDirectUpload } from "@/components/app/use-direct-upload";
 import { uploadDocumentAction } from "@/server/actions/documents";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionary";
 import { OPTIONS, label } from "@/lib/labels";
@@ -28,6 +31,39 @@ export function SupplierUploadDialog({
   accept: string;
   maxSizeMb: number;
 }) {
+  const { prepare } = useDirectUpload();
+
+  /**
+   * Large files go straight to storage before the form is sent.
+   *
+   * The request carrying a 5 MB document is rejected by the platform at the
+   * edge, before the application runs — so there is no error message to show,
+   * only a blank failure. This moves the bytes off that path entirely.
+   */
+  const beforeSubmit = React.useCallback(
+    async (form: HTMLFormElement) => {
+      const input = form.elements.namedItem("file") as HTMLInputElement | null;
+      const file = input?.files?.[0];
+      if (!file) return null;
+
+      const target =
+        projectId ??
+        (form.elements.namedItem("projectId") as HTMLSelectElement | null)?.value;
+      if (!target) return "Selecione um projeto.";
+
+      const prepared = await prepare(file, target);
+      if (!prepared.ok) return prepared.error;
+
+      if (prepared.token) {
+        const token = form.elements.namedItem("uploadToken") as HTMLInputElement;
+        token.value = prepared.token;
+        input!.value = "";
+      }
+      return null;
+    },
+    [prepare, projectId],
+  );
+
   return (
     <FormDialog
       trigger={
@@ -39,11 +75,13 @@ export function SupplierUploadDialog({
       title={dict.portal.documents.uploadButton}
       description={dict.portal.documents.subtitle}
       action={uploadDocumentAction}
+      beforeSubmit={beforeSubmit}
       submitLabel={dict.common.submit}
       successMessage={dict.portal.requests.submitSuccess}
     >
       {(state) => (
         <>
+          <input type="hidden" name="uploadToken" defaultValue="" />
           {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
           {/* Supplier uploads are always visible to the supplier that sent them. */}
           <input type="hidden" name="shareWithSupplier" value="on" />

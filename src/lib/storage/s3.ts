@@ -1,10 +1,12 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import type { StorageDriver, StoredObject } from "@/lib/storage/types";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { StorageDriver, StoredMetadata, StoredObject } from "@/lib/storage/types";
 
 export function createS3Driver(config: {
   endpoint?: string;
@@ -52,6 +54,34 @@ export function createS3Driver(config: {
 
     async delete(key) {
       await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
+    },
+
+    async presignPut(key, contentType, expiresInSeconds) {
+      /**
+       * The content type is part of what is signed, so the browser cannot
+       * upload a different kind of file than the one the server approved.
+       */
+      return getSignedUrl(
+        client,
+        new PutObjectCommand({ Bucket: config.bucket, Key: key, ContentType: contentType }),
+        { expiresIn: expiresInSeconds },
+      );
+    },
+
+    async head(key): Promise<StoredMetadata | null> {
+      try {
+        const result = await client.send(
+          new HeadObjectCommand({ Bucket: config.bucket, Key: key }),
+        );
+        return {
+          size: result.ContentLength ?? 0,
+          contentType: result.ContentType ?? "application/octet-stream",
+        };
+      } catch {
+        // Missing, or not readable with these credentials — the caller treats
+        // both as "the upload did not land".
+        return null;
+      }
     },
   };
 }

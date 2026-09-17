@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +9,7 @@ import { Input, Select } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Field, FieldGrid, FormDialog } from "@/components/app/form-dialog";
 import { FileDropzone } from "@/components/app/file-dropzone";
+import { useDirectUpload } from "@/components/app/use-direct-upload";
 import { uploadDocumentAction } from "@/server/actions/documents";
 
 const TYPES = [
@@ -37,6 +40,39 @@ export function UploadDocumentDialog({
   maxSizeMb: number;
   variant?: "primary" | "secondary";
 }) {
+  const { prepare } = useDirectUpload();
+
+  /**
+   * Large files go straight to storage before the form is sent.
+   *
+   * The request carrying a 5 MB document is rejected by the platform at the
+   * edge, before the application runs — so there is no error message to show,
+   * only a blank failure. This moves the bytes off that path entirely.
+   */
+  const beforeSubmit = React.useCallback(
+    async (form: HTMLFormElement) => {
+      const input = form.elements.namedItem("file") as HTMLInputElement | null;
+      const file = input?.files?.[0];
+      if (!file) return null;
+
+      const target =
+        projectId ??
+        (form.elements.namedItem("projectId") as HTMLSelectElement | null)?.value;
+      if (!target) return "Selecione um projeto.";
+
+      const prepared = await prepare(file, target);
+      if (!prepared.ok) return prepared.error;
+
+      if (prepared.token) {
+        const token = form.elements.namedItem("uploadToken") as HTMLInputElement;
+        token.value = prepared.token;
+        input!.value = "";
+      }
+      return null;
+    },
+    [prepare, projectId],
+  );
+
   return (
     <FormDialog
       trigger={
@@ -48,11 +84,13 @@ export function UploadDocumentDialog({
       title="Enviar documento"
       description="Documentos internos não são visíveis para o fornecedor até serem compartilhados."
       action={uploadDocumentAction}
+      beforeSubmit={beforeSubmit}
       submitLabel="Enviar"
       successMessage="Documento enviado."
     >
       {(state) => (
         <>
+          <input type="hidden" name="uploadToken" defaultValue="" />
           {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
 
           {!projectId && projects ? (

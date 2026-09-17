@@ -33,6 +33,7 @@ export function FormDialog({
   submitLabel,
   successMessage,
   redirectTo,
+  beforeSubmit,
   size = "md",
   children,
 }: {
@@ -47,6 +48,15 @@ export function FormDialog({
   successMessage: string;
   /** Builds a destination from the created record's id. */
   redirectTo?: (createdId: string) => string;
+  /**
+   * Runs before the action, with the form in hand. Returning a string cancels
+   * the submission and shows it as the error.
+   *
+   * It exists for large uploads: the file is sent straight to storage first,
+   * because the request that carries it would be rejected by the platform
+   * before the application ever sees it.
+   */
+  beforeSubmit?: (form: HTMLFormElement) => Promise<string | null>;
   size?: "md" | "lg";
   children: React.ReactNode | ((state: ActionState) => React.ReactNode);
 }) {
@@ -81,6 +91,35 @@ export function FormDialog({
   );
 
   const { state, pending, onSubmit, reset } = useFormAction(action, handleSuccess);
+  const [blocked, setBlocked] = React.useState<string | null>(null);
+  const [preparing, setPreparing] = React.useState(false);
+
+  const handleSubmit = React.useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      if (!beforeSubmit) return onSubmit(event);
+
+      const form = event.currentTarget;
+      event.preventDefault();
+      setBlocked(null);
+      setPreparing(true);
+
+      try {
+        const problem = await beforeSubmit(form);
+        if (problem) {
+          setBlocked(problem);
+          return;
+        }
+        onSubmit({
+          ...event,
+          currentTarget: form,
+          preventDefault: () => {},
+        } as unknown as React.FormEvent<HTMLFormElement>);
+      } finally {
+        setPreparing(false);
+      }
+    },
+    [beforeSubmit, onSubmit],
+  );
 
   return (
     <Dialog
@@ -93,8 +132,18 @@ export function FormDialog({
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent size={size}>
         <DialogHeader title={title} description={description} />
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <DialogBody className="space-y-4">
+            {blocked ? (
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-[13px] text-risk"
+              >
+                <AlertCircle className="mt-px size-4 shrink-0" />
+                <span>{blocked}</span>
+              </div>
+            ) : null}
+
             {state.error ? (
               <div
                 role="alert"
@@ -113,8 +162,8 @@ export function FormDialog({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" variant="primary" disabled={pending}>
-              {pending ? "Salvando…" : submitLabel}
+            <Button type="submit" variant="primary" disabled={pending || preparing}>
+              {preparing ? "Enviando arquivo…" : pending ? "Salvando…" : submitLabel}
             </Button>
           </DialogFooter>
         </form>
