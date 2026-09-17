@@ -1,10 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DEMO_SIGNING_KEY, envSchema, environmentIssues } from "@/lib/env-schema";
 
 /**
  * These guards are the difference between a deployment that quietly loses
  * uploaded documents and one that refuses to start, so they are pinned here.
+ *
+ * `APP_ENV` is cleared before each test on purpose. Several rules ask
+ * `isRealEnvironment()`, which reads the *process* environment rather than the
+ * object being parsed — so whatever sits in the developer's `.env` used to
+ * decide the outcome. The suite went red the day `.env` gained
+ * `APP_ENV=staging`, on a machine where nothing about the code had changed.
+ * A test that depends on ambient state is not pinning anything.
  */
+const ORIGINAL_APP_ENV = process.env.APP_ENV;
+
+beforeEach(() => {
+  delete process.env.APP_ENV;
+});
+
+afterEach(() => {
+  if (ORIGINAL_APP_ENV === undefined) delete process.env.APP_ENV;
+  else process.env.APP_ENV = ORIGINAL_APP_ENV;
+});
 const base = {
   DATABASE_URL: "postgresql://user:pass@host:5432/db",
   AUTH_SECRET: "a-genuinely-random-secret-of-enough-length",
@@ -73,9 +90,16 @@ describe("environment validation", () => {
     expect(result.success).toBe(true);
   });
 
-  it("boots a production deployment with no configuration at all", () => {
-    // Nothing set: the app falls back to the embedded demo database and a
-    // published signing key, so it can be opened and reviewed immediately.
+  it("boots with no configuration at all where a demonstration is allowed", () => {
+    /**
+     * Nothing set: the app falls back to the embedded demo database and a
+     * published signing key, so it can be opened and reviewed immediately.
+     *
+     * `NODE_ENV=production` here describes the *build*, not the deployment —
+     * which is precisely why `APP_ENV` exists. A declared environment of
+     * `staging` or `production` refuses this same input, and
+     * `environment-contract.test.ts` pins that side.
+     */
     const result = envSchema.safeParse({ NODE_ENV: "production" });
 
     expect(result.success).toBe(true);
