@@ -65,6 +65,33 @@ transmitido pela rota autenticada em vez de por link direto. É mais lento e
 consome mais banda do que uma URL assinada. É o preço da invariante, e a
 invariante é o produto.
 
+## Aplicado em 17/09/2026
+
+| Item | Estado |
+|---|---|
+| Bucket `documents` | ✅ **privado**, limite 25 MB (igual ao do produto) |
+| S3 protocol connection | ✅ ligado |
+| Endpoint | `https://nxearovwvfotbernsrji.storage.supabase.co/storage/v1/s3` |
+| Região | `us-west-2` |
+| Chaves de acesso | ✅ criadas no painel (`vionex-projects-app`) |
+| Código alterado | **nenhuma linha** |
+
+Verificado com o driver do próprio produto:
+
+```
+upload pelo driver ........................ ✓
+download, bytes idênticos ................. ✓ (content-type preservado)
+acesso direto público → HTTP 400 .......... ✓ recusado
+acesso direto sem token → HTTP 400 ........ ✓ recusado
+delete .................................... ✓
+```
+
+As duas linhas do meio são as que importam: o objeto **não** é alcançável por
+fora da rota autenticada. O bucket privado e `/api/files/[versionId]` continuam
+sendo a única porta.
+
+`/api/ready` responde `storage: s3`.
+
 ## Não migrado nesta fase
 
 A troca só acontece quando o bucket existir. Quando acontecer:
@@ -77,5 +104,5 @@ A troca só acontece quando o bucket existir. Quando acontecer:
 5. Testar: upload → download autenticado → tentativa pelo fornecedor errado
    (tem de falhar) → tentativa de acesso direto ao objeto (tem de falhar).
 
-Hoje não há arquivo real a copiar: o storage local só contém uploads da
-demonstração.
+Não houve arquivo real a copiar: o storage local só continha uploads da
+demonstração, e o banco Supabase nasceu vazio.
