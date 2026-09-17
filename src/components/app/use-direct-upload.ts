@@ -55,10 +55,18 @@ export function useDirectUpload() {
 
         await putWithProgress(ticket.url, file, ticket.contentType, setProgress);
         return { ok: true, token: ticket.token };
-      } catch {
+      } catch (error) {
+        /**
+         * The real reason, not a paraphrase of it.
+         *
+         * This used to say "check your connection" for every failure, which
+         * made a perfectly diagnosable 403 or 413 indistinguishable from a
+         * dropped wifi — and left the person with nothing to report and us
+         * with nothing to debug.
+         */
         return {
           ok: false,
-          error: "Não foi possível enviar o arquivo. Verifique a conexão e tente novamente.",
+          error: error instanceof Error ? error.message : "Falha desconhecida no envio.",
         };
       } finally {
         setProgress(null);
@@ -93,11 +101,21 @@ function putWithProgress(
     });
 
     request.addEventListener("load", () => {
-      if (request.status >= 200 && request.status < 300) resolve();
-      else reject(new Error(`Upload failed with status ${request.status}`));
+      if (request.status >= 200 && request.status < 300) return resolve();
+
+      // The body of a storage error is XML and says exactly what went wrong;
+      // the first line of it is worth more than any wording we could invent.
+      const detail = (request.responseText || "").replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+      reject(
+        new Error(
+          `O armazenamento recusou o arquivo (HTTP ${request.status})${detail ? `: ${detail}` : "."}`,
+        ),
+      );
     });
-    request.addEventListener("error", () => reject(new Error("Upload failed")));
-    request.addEventListener("abort", () => reject(new Error("Upload aborted")));
+    request.addEventListener("error", () =>
+      reject(new Error("A conexão com o armazenamento falhou antes de o envio terminar.")),
+    );
+    request.addEventListener("abort", () => reject(new Error("Envio cancelado.")));
 
     request.send(file);
   });

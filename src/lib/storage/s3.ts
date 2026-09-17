@@ -56,6 +56,17 @@ export function createS3Driver(config: {
       await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
     },
 
+    async getStream(key) {
+      const result = await client.send(
+        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+      );
+      if (!result.Body) throw new Error("Empty object body.");
+      return {
+        body: result.Body.transformToWebStream() as ReadableStream<Uint8Array>,
+        contentType: result.ContentType ?? "application/octet-stream",
+      };
+    },
+
     async presignPut(key, contentType, expiresInSeconds) {
       /**
        * The content type is part of what is signed, so the browser cannot

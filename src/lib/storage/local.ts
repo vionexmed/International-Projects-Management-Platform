@@ -57,6 +57,27 @@ export function createLocalDriver(rootDir: string): StorageDriver {
      * server. That path works fine here — the size limit that makes direct
      * upload necessary belongs to the deployment platform, not to a laptop.
      */
+    async getStream(key) {
+      const { createReadStream } = await import("node:fs");
+      const { Readable } = await import("node:stream");
+      const target = resolveKey(key);
+
+      let contentType = "application/octet-stream";
+      try {
+        const meta = JSON.parse(await fs.readFile(`${target}.meta`, "utf8")) as {
+          contentType?: string;
+        };
+        if (meta.contentType) contentType = meta.contentType;
+      } catch {
+        // Best-effort, as in `get`.
+      }
+
+      return {
+        body: Readable.toWeb(createReadStream(target)) as ReadableStream<Uint8Array>,
+        contentType,
+      };
+    },
+
     async presignPut() {
       return null;
     },

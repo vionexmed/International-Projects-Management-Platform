@@ -26,7 +26,17 @@ export async function GET(
 
   try {
     const version = await requireDocumentVersionAccess(user, versionId);
-    const object = await storage().get(version.storageKey);
+    /**
+     * Streamed, not buffered.
+     *
+     * `get` loads the whole object into the function's memory before a single
+     * byte reaches the browser. That was tolerable at 25 MB and stops being so
+     * as the ceiling rises: the person waits for the last byte to arrive at
+     * the server before the first one arrives at them, and the function pays
+     * for holding the file. The length comes from the database, which already
+     * knows it.
+     */
+    const object = await storage().getStream(version.storageKey);
 
     await recordAudit({
       organizationId: user.organizationId,
@@ -41,10 +51,10 @@ export async function GET(
     const disposition = inline ? "inline" : "attachment";
     const encodedName = encodeURIComponent(version.fileName);
 
-    return new NextResponse(new Uint8Array(object.body), {
+    return new NextResponse(object.body, {
       headers: {
         "Content-Type": object.contentType || version.mimeType,
-        "Content-Length": String(object.body.byteLength),
+        "Content-Length": String(version.fileSize),
         "Content-Disposition": `${disposition}; filename*=UTF-8''${encodedName}`,
         // Private: the response is user-specific and must never be shared cache.
         "Cache-Control": "private, no-store",

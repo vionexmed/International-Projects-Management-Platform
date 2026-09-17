@@ -39,4 +39,15 @@ export interface StorageDriver {
 
   /** Size and type of a stored object, or `null` when it is not there. */
   head(key: string): Promise<StoredMetadata | null>;
+
+  /**
+   * The object as a stream, for sending to a browser without holding it in
+   * memory first.
+   *
+   * `get` buffers, which is right for the few places that need the bytes
+   * themselves and wrong for a download: a 50 MB document would be allocated
+   * whole inside the function, and the person waits for the last byte to
+   * arrive at the server before the first one reaches them.
+   */
+  getStream(key: string): Promise<{ body: ReadableStream<Uint8Array>; contentType: string }>;
 }
