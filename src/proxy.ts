@@ -21,9 +21,35 @@ import { NextResponse, type NextRequest } from "next/server";
  * convention. It only sets headers — authentication and authorization are
  * enforced in layouts, services and server actions, never here.
  */
+/**
+ * The storage endpoint's origin, when uploads go straight from the browser.
+ *
+ * Large files bypass the server entirely — the browser PUTs directly to
+ * object storage with a short-lived signed URL, because Vercel rejects any
+ * request to a function above ~4.5 MB before our code ever runs. `connect-src
+ * 'self'` blocked exactly that connection: the browser refuses it at the CSP
+ * layer before CORS is even negotiated, which is why it never showed up as a
+ * CORS error and looked like a bare network failure instead.
+ *
+ * Derived from the same `STORAGE_ENDPOINT` the server signs against, so this
+ * never drifts from the actual provider and needs no change to switch one.
+ * Downloads are unaffected — those still go through `/api/files/[versionId]`,
+ * same-origin, with the session revalidated on every request.
+ */
+export function storageConnectSrc(): string {
+  const endpoint = process.env.STORAGE_ENDPOINT;
+  if (!endpoint) return "";
+  try {
+    return new URL(endpoint).origin;
+  } catch {
+    return "";
+  }
+}
+
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDevelopment = process.env.NODE_ENV === "development";
+  const storageOrigin = storageConnectSrc();
 
   const csp = [
     "default-src 'self'",
@@ -33,7 +59,7 @@ export function proxy(request: NextRequest) {
     // Documents and images are served by our own authenticated /api/files route.
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    `connect-src 'self'${storageOrigin ? ` ${storageOrigin}` : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
