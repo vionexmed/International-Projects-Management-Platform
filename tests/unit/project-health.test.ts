@@ -3,8 +3,10 @@ import {
   deriveCurrentStage,
   deriveProjectStatus,
   isOverdue,
+  isShipmentLate,
   projectProgress,
   stageProgress,
+  stageWorkAsTasks,
   type StageSnapshot,
   type TaskSnapshot,
 } from "@/server/services/project-health";
@@ -213,5 +215,129 @@ describe("current stage", () => {
         stage("REGULATORY", { status: "COMPLETED" }),
       ]),
     ).toBe("REGULATORY");
+  });
+});
+
+/**
+ * Fase 1 of the architecture plan: RegulatoryItem and GtmItem carry a title,
+ * a status and a due date and previously counted for nothing — a project
+ * could carry twenty overdue regulatory items and still read "on track".
+ * `stageWorkAsTasks` is the seam that lets the existing, already-tested health
+ * rules see that work without learning two more status vocabularies.
+ */
+describe("stage work projected as tasks", () => {
+  it("maps a regulatory item's lifecycle onto the task one", () => {
+    const [pending, requested, received, review, approved, rejected] = stageWorkAsTasks({
+      regulatoryItems: [
+        { status: "PENDING", dueDate: null },
+        { status: "REQUESTED", dueDate: null },
+        { status: "RECEIVED", dueDate: null },
+        { status: "IN_REVIEW", dueDate: null },
+        { status: "APPROVED", dueDate: null },
+        { status: "REJECTED", dueDate: null },
+      ],
+    });
+
+    expect(pending.status).toBe("OPEN");
+    expect(requested.status).toBe("OPEN");
+    expect(received.status).toBe("IN_PROGRESS");
+    expect(review.status).toBe("IN_PROGRESS");
+    expect(approved.status).toBe("COMPLETED");
+    // Rejected is not done — it is waiting on somebody to redo it, not idle.
+    expect(rejected.status).toBe("WAITING");
+    expect(pending.category).toBe("REGULATORY");
+  });
+
+  it("maps a GTM item's lifecycle onto the task one", () => {
+    const [notStarted, inProgress, completed, blocked] = stageWorkAsTasks({
+      gtmItems: [
+        { status: "NOT_STARTED", dueDate: null },
+        { status: "IN_PROGRESS", dueDate: null },
+        { status: "COMPLETED", dueDate: null },
+        { status: "BLOCKED", dueDate: null },
+      ],
+    });
+
+    expect(notStarted.status).toBe("OPEN");
+    expect(inProgress.status).toBe("IN_PROGRESS");
+    expect(completed.status).toBe("COMPLETED");
+    expect(blocked.status).toBe("WAITING");
+    expect(notStarted.category).toBe("GO_TO_MARKET");
+  });
+
+  it("carries the due date through untouched, for the overdue rules to see", () => {
+    const [item] = stageWorkAsTasks({
+      regulatoryItems: [{ status: "PENDING", dueDate: past }],
+    });
+    expect(isOverdue(item, NOW)).toBe(true);
+  });
+
+  it("never invents priority: everything is MEDIUM", () => {
+    // Neither model carries a priority column. Assigning HIGH would let one
+    // late regulatory item flip a project to at-risk on its own; MEDIUM keeps
+    // the existing "3 overdue tasks" threshold as the bar for both.
+    const items = stageWorkAsTasks({
+      regulatoryItems: [{ status: "PENDING", dueDate: past }],
+      gtmItems: [{ status: "NOT_STARTED", dueDate: past }],
+    });
+    expect(items.every((item) => item.priority === "MEDIUM")).toBe(true);
+  });
+
+  it("returns nothing for a stage with no items of either kind", () => {
+    expect(stageWorkAsTasks({})).toEqual([]);
+  });
+
+  it("feeds project-wide status derivation exactly like a task would", () => {
+    // The same three-overdue threshold that already governs tasks, now
+    // reachable through regulatory items alone.
+    const stages = [stage("CLINICAL", { status: "COMPLETED" }), stage("REGULATORY")];
+    const overdueItems = stageWorkAsTasks({
+      regulatoryItems: [
+        { status: "PENDING", dueDate: past },
+        { status: "PENDING", dueDate: past },
+        { status: "PENDING", dueDate: past },
+      ],
+    });
+
+    expect(
+      deriveProjectStatus({
+        currentStatus: "ON_TRACK",
+        hasExplicitBlocker: false,
+        stages,
+        tasks: overdueItems,
+        now: NOW,
+      }),
+    ).toBe("AT_RISK");
+  });
+});
+
+describe("a shipment stuck in transit", () => {
+  const shipment = (overrides: Partial<Parameters<typeof isShipmentLate>[0]> = {}) => ({
+    stage: "IN_TRANSIT" as const,
+    eta: past,
+    arrivedAt: null,
+    ...overrides,
+  });
+
+  it("is late once its ETA has passed and it has not arrived", () => {
+    expect(isShipmentLate(shipment({ eta: past }), NOW)).toBe(true);
+  });
+
+  it("is not late before its ETA", () => {
+    expect(isShipmentLate(shipment({ eta: future }), NOW)).toBe(false);
+  });
+
+  it("is never late once it has actually arrived, whatever the ETA says", () => {
+    expect(isShipmentLate(shipment({ eta: past, arrivedAt: past }), NOW)).toBe(false);
+  });
+
+  it("is never late once its stage reaches customs or delivery", () => {
+    for (const stageName of ["ARRIVED", "CUSTOMS", "DELIVERED"] as const) {
+      expect(isShipmentLate(shipment({ stage: stageName, eta: past }), NOW)).toBe(false);
+    }
+  });
+
+  it("has no ETA at all: not late — an unknown date is not a missed one", () => {
+    expect(isShipmentLate(shipment({ eta: null }), NOW)).toBe(false);
   });
 });

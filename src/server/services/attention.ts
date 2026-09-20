@@ -8,6 +8,7 @@ import {
 } from "@/server/authz/scopes";
 import { isSupplierRole } from "@/types/auth";
 import type { SessionUser } from "@/types/auth";
+import { SHIPMENT_ARRIVED } from "@/server/services/project-health";
 
 /**
  * Exceptions — the things that are *not* going according to plan.
@@ -28,7 +29,10 @@ export type AttentionKind =
   | "REQUEST_OVERDUE"
   | "REVIEW_WAITING"
   | "MILESTONE_DELAYED"
-  | "PROJECT_BLOCKED";
+  | "PROJECT_BLOCKED"
+  | "REGULATORY_ITEM_OVERDUE"
+  | "GTM_ITEM_OVERDUE"
+  | "SHIPMENT_LATE";
 
 export type AttentionItem = {
   id: string;
@@ -63,8 +67,16 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
   const now = startOfTodayUtc();
   const internal = !isSupplierRole(user.role);
 
-  const [overdueTasks, overdueRequests, waitingReviews, delayedMilestones, blockedProjects] =
-    await Promise.all([
+  const [
+    overdueTasks,
+    overdueRequests,
+    waitingReviews,
+    delayedMilestones,
+    blockedProjects,
+    overdueRegulatoryItems,
+    overdueGtmItems,
+    lateShipments,
+  ] = await Promise.all([
       db.task.findMany({
         where: {
           AND: [
@@ -153,6 +165,65 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
         orderBy: { updatedAt: "desc" },
         take,
       }),
+
+      // Regulatory, GTM and shipment work is a Vionex-internal domain — the
+      // supplier has no page for it, so these three never reach that side.
+      internal
+        ? db.regulatoryItem.findMany({
+            where: {
+              project: projectScope(user),
+              status: { not: "APPROVED" },
+              dueDate: { lt: now },
+            },
+            select: {
+              id: true,
+              title: true,
+              dueDate: true,
+              ownerName: true,
+              project: { select: { id: true, name: true } },
+            },
+            orderBy: { dueDate: "asc" },
+            take,
+          })
+        : Promise.resolve([]),
+
+      internal
+        ? db.gtmItem.findMany({
+            where: {
+              project: projectScope(user),
+              status: { not: "COMPLETED" },
+              dueDate: { lt: now },
+            },
+            select: {
+              id: true,
+              title: true,
+              dueDate: true,
+              owner: true,
+              project: { select: { id: true, name: true } },
+            },
+            orderBy: { dueDate: "asc" },
+            take,
+          })
+        : Promise.resolve([]),
+
+      internal
+        ? db.importShipment.findMany({
+            where: {
+              project: projectScope(user),
+              arrivedAt: null,
+              stage: { notIn: [...SHIPMENT_ARRIVED] },
+              eta: { lt: now },
+            },
+            select: {
+              id: true,
+              reference: true,
+              eta: true,
+              project: { select: { id: true, name: true } },
+            },
+            orderBy: { eta: "asc" },
+            take,
+          })
+        : Promise.resolve([]),
     ]);
 
   const projectHref = internal ? "/projects" : "/supplier/projects";
@@ -214,6 +285,39 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
       severity: "risk" as const,
       href: `${projectHref}/${project.id}`,
     })),
+
+    ...overdueRegulatoryItems.map((item) => ({
+      id: `regulatory:${item.id}`,
+      kind: "REGULATORY_ITEM_OVERDUE" as const,
+      description: item.title,
+      project: item.project,
+      responsible: item.ownerName,
+      dueDate: item.dueDate,
+      severity: "risk" as const,
+      href: `/projects/${item.project.id}/regulatory`,
+    })),
+
+    ...overdueGtmItems.map((item) => ({
+      id: `gtm:${item.id}`,
+      kind: "GTM_ITEM_OVERDUE" as const,
+      description: item.title,
+      project: item.project,
+      responsible: item.owner,
+      dueDate: item.dueDate,
+      severity: "risk" as const,
+      href: `/projects/${item.project.id}/go-to-market`,
+    })),
+
+    ...lateShipments.map((shipment) => ({
+      id: `shipment:${shipment.id}`,
+      kind: "SHIPMENT_LATE" as const,
+      description: shipment.reference ?? "Embarque sem referência",
+      project: shipment.project,
+      responsible: null,
+      dueDate: shipment.eta,
+      severity: "risk" as const,
+      href: `/projects/${shipment.project.id}/import`,
+    })),
   ];
 
   return items.sort((a, b) => rank(a) - rank(b)).slice(0, take);
@@ -230,37 +334,58 @@ export async function countAttentionItems(user: SessionUser) {
   const now = startOfTodayUtc();
   const internal = !isSupplierRole(user.role);
 
-  const [tasks, requests, reviews, milestones, projects] = await Promise.all([
-    db.task.count({
-      where: {
-        AND: [
-          taskScope(user),
-          {
-            status: { notIn: ["COMPLETED", "CANCELLED"] },
-            dueDate: { lt: now },
-            requests: { none: {} },
-          },
-        ],
-      },
-    }),
-    db.documentRequest.count({
-      where: {
-        AND: [
-          documentRequestScope(user),
-          { status: { in: ["PENDING", "REJECTED"] }, dueDate: { lt: now } },
-        ],
-      },
-    }),
-    internal
-      ? db.documentRequest.count({
-          where: {
-            AND: [documentRequestScope(user), { status: { in: ["SUBMITTED", "IN_REVIEW"] } }],
-          },
-        })
-      : Promise.resolve(0),
-    db.milestone.count({ where: { project: projectScope(user), status: "DELAYED" } }),
-    db.project.count({ where: { AND: [projectScope(user), { status: "BLOCKED" }] } }),
-  ]);
+  const [tasks, requests, reviews, milestones, projects, regulatoryItems, gtmItems, shipments] =
+    await Promise.all([
+      db.task.count({
+        where: {
+          AND: [
+            taskScope(user),
+            {
+              status: { notIn: ["COMPLETED", "CANCELLED"] },
+              dueDate: { lt: now },
+              requests: { none: {} },
+            },
+          ],
+        },
+      }),
+      db.documentRequest.count({
+        where: {
+          AND: [
+            documentRequestScope(user),
+            { status: { in: ["PENDING", "REJECTED"] }, dueDate: { lt: now } },
+          ],
+        },
+      }),
+      internal
+        ? db.documentRequest.count({
+            where: {
+              AND: [documentRequestScope(user), { status: { in: ["SUBMITTED", "IN_REVIEW"] } }],
+            },
+          })
+        : Promise.resolve(0),
+      db.milestone.count({ where: { project: projectScope(user), status: "DELAYED" } }),
+      db.project.count({ where: { AND: [projectScope(user), { status: "BLOCKED" }] } }),
+      internal
+        ? db.regulatoryItem.count({
+            where: { project: projectScope(user), status: { not: "APPROVED" }, dueDate: { lt: now } },
+          })
+        : Promise.resolve(0),
+      internal
+        ? db.gtmItem.count({
+            where: { project: projectScope(user), status: { not: "COMPLETED" }, dueDate: { lt: now } },
+          })
+        : Promise.resolve(0),
+      internal
+        ? db.importShipment.count({
+            where: {
+              project: projectScope(user),
+              arrivedAt: null,
+              stage: { notIn: [...SHIPMENT_ARRIVED] },
+              eta: { lt: now },
+            },
+          })
+        : Promise.resolve(0),
+    ]);
 
   return {
     tasks,
@@ -268,6 +393,9 @@ export async function countAttentionItems(user: SessionUser) {
     reviews,
     milestones,
     projects,
-    total: tasks + requests + reviews + milestones + projects,
+    regulatoryItems,
+    gtmItems,
+    shipments,
+    total: tasks + requests + reviews + milestones + projects + regulatoryItems + gtmItems + shipments,
   };
 }

@@ -111,6 +111,11 @@ export async function createRegulatoryItemAction(
       internal: true,
     });
 
+    // A new item can already be overdue (a back-dated deadline) or push the
+    // project past its "on track" threshold — the same rule task creation
+    // triggers, applied here for the first time.
+    await recalculateProject(input.projectId, user.id);
+
     revalidatePath(`/projects/${input.projectId}/regulatory`);
     return { ok: true, createdId: item.id };
   } catch (error) {
@@ -148,6 +153,23 @@ export async function updateRegulatoryItemAction(
       entityId: input.itemId,
       metadata: { status: input.status },
     });
+
+    /**
+     * The status change had no line in the project's history until now —
+     * only its *creation* did. An item moving to APPROVED or REJECTED is
+     * exactly the kind of change a project's story should not be silent
+     * about, and it is also what may just have cleared (or created) an
+     * overdue exception, which the recalculation below picks up.
+     */
+    await recordTimelineEvent({
+      projectId: input.projectId,
+      actorId: user.id,
+      type: "STAGE_UPDATED",
+      description: `Item regulatório atualizado: ${input.status.replace(/_/g, " ").toLowerCase()}.`,
+      internal: true,
+    });
+
+    await recalculateProject(input.projectId, user.id);
 
     revalidatePath(`/projects/${input.projectId}/regulatory`);
     return { ok: true };
@@ -202,6 +224,10 @@ export async function saveShipmentAction(
       internal: true,
     });
 
+    // A shipment sitting past its ETA is exactly the kind of exception the
+    // dashboard exists to surface — this is what lets it.
+    await recalculateProject(projectId, user.id);
+
     revalidatePath(`/projects/${projectId}/import`);
     return { ok: true };
   } catch (error) {
@@ -237,6 +263,22 @@ export async function createGtmItemAction(
 
     const item = await db.gtmItem.create({ data: input });
 
+    /**
+     * Regulatory items and shipments already wrote to the project's history
+     * on every change; GTM items wrote to none of it. A go-to-market item is
+     * exactly as much "what happened on this project" as the other two, and
+     * silence here was an omission, not a decision.
+     */
+    await recordTimelineEvent({
+      projectId: input.projectId,
+      actorId: user.id,
+      type: "STAGE_UPDATED",
+      description: `Item de Go-to-Market "${item.title}" adicionado.`,
+      internal: true,
+    });
+
+    await recalculateProject(input.projectId, user.id);
+
     revalidatePath(`/projects/${input.projectId}/go-to-market`);
     return { ok: true, createdId: item.id };
   } catch (error) {
@@ -265,6 +307,16 @@ export async function updateGtmItemAction(
       data: { status: input.status },
     });
     if (updated.count === 0) throw new Error("Item não encontrado.");
+
+    await recordTimelineEvent({
+      projectId: input.projectId,
+      actorId: user.id,
+      type: "STAGE_UPDATED",
+      description: `Item de Go-to-Market atualizado: ${input.status.replace(/_/g, " ").toLowerCase()}.`,
+      internal: true,
+    });
+
+    await recalculateProject(input.projectId, user.id);
 
     revalidatePath(`/projects/${input.projectId}/go-to-market`);
     return { ok: true };
