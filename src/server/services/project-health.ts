@@ -1,21 +1,7 @@
-import type {
-  DocumentCycleStatus,
-  HealthStatus,
-  ProgressStatus,
-  ShipmentStage,
-  StageKey,
-  TaskCategory,
-} from "@/generated/prisma";
+import type { HealthStatus, ShipmentStage, StageKey, TaskCategory } from "@/generated/prisma";
 
 /** The four values `Project.status` actually holds — never `INACTIVE`, which only `Supplier.status` uses. */
 type ProjectHealth = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "COMPLETED">;
-/** The six values `RegulatoryItem.status` actually holds. */
-type RegulatoryItemStatus = Extract<
-  DocumentCycleStatus,
-  "PENDING" | "REQUESTED" | "RECEIVED" | "IN_REVIEW" | "APPROVED" | "REJECTED"
->;
-/** The four values `GtmItem.status` actually holds. */
-type GtmItemStatus = Extract<ProgressStatus, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED">;
 import { toPercent } from "@/lib/utils";
 
 /**
@@ -73,71 +59,11 @@ export function stageProgress(stage: StageSnapshot, tasks: TaskSnapshot[]): numb
 }
 
 /**
- * Regulatory and GTM items, read as the work they are.
- *
- * Both models have the same shape as a task — a title, a status, a due date —
- * and until now neither counted for anything: not progress, not project
- * status, not the dashboard. A project could carry twenty overdue regulatory
- * items and still read "on track", which is the opposite of what this product
- * exists to tell you.
- *
- * Rather than teach the health rules two more vocabularies, each item is
- * projected onto the one lifecycle that already exists. The rules below stay
- * exactly as they were; they simply receive more of the work that is really
- * there.
- *
- * `MEDIUM` is deliberate. These models carry no priority, and inventing
- * `HIGH` would flip a project to at-risk on a single late item. Three late
- * items still flip it, the same threshold tasks have had all along — and one
- * late item shows up in triage regardless, which is where a person looks.
- */
-const REGULATORY_ITEM_LIFECYCLE: Record<RegulatoryItemStatus, TaskSnapshot["status"]> = {
-  PENDING: "OPEN",
-  REQUESTED: "OPEN",
-  RECEIVED: "IN_PROGRESS",
-  IN_REVIEW: "IN_PROGRESS",
-  APPROVED: "COMPLETED",
-  // Refused, so the work is not done — it is waiting on somebody to redo it.
-  REJECTED: "WAITING",
-};
-
-const GTM_ITEM_LIFECYCLE: Record<GtmItemStatus, TaskSnapshot["status"]> = {
-  NOT_STARTED: "OPEN",
-  IN_PROGRESS: "IN_PROGRESS",
-  COMPLETED: "COMPLETED",
-  BLOCKED: "WAITING",
-};
-
-export type StageWorkInput = {
-  regulatoryItems?: { status: RegulatoryItemStatus; dueDate: Date | null }[];
-  gtmItems?: { status: GtmItemStatus; dueDate: Date | null }[];
-};
-
-/** The stage items, as task snapshots the health rules already understand. */
-export function stageWorkAsTasks(input: StageWorkInput): TaskSnapshot[] {
-  const regulatory = (input.regulatoryItems ?? []).map((item) => ({
-    category: "REGULATORY" as TaskCategory,
-    status: REGULATORY_ITEM_LIFECYCLE[item.status],
-    priority: "MEDIUM" as const,
-    dueDate: item.dueDate,
-  }));
-
-  const gtm = (input.gtmItems ?? []).map((item) => ({
-    category: "GO_TO_MARKET" as TaskCategory,
-    status: GTM_ITEM_LIFECYCLE[item.status],
-    priority: "MEDIUM" as const,
-    dueDate: item.dueDate,
-  }));
-
-  return [...regulatory, ...gtm];
-}
-
-/**
  * A shipment that should have arrived and has not.
  *
- * Unlike the items above this is not countable work — it is one record moving
- * through a fixed route — so it never dilutes progress. It only answers the
- * question a person actually has: is anything stuck in transit?
+ * Unlike a task this is not countable work — it is one record moving through
+ * a fixed route — so it never dilutes progress. It only answers the question
+ * a person actually has: is anything stuck in transit?
  */
 export const SHIPMENT_ARRIVED: readonly ShipmentStage[] = ["ARRIVED", "CUSTOMS", "DELIVERED"];
 

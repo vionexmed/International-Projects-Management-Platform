@@ -6,7 +6,7 @@ import type { DocumentCycleStatus, HealthStatus, Prisma, StageKey } from "@/gene
 
 /** The four values `Project.status` actually holds. */
 type ProjectStatus = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "COMPLETED">;
-/** The six values `DocumentRequest.status` actually holds — never `RECEIVED`, which only `Document`/`RegulatoryItem` use. */
+/** The six values `DocumentRequest.status` actually holds — never `RECEIVED`, which only `Document` uses. */
 type RequestStatus = Extract<
   DocumentCycleStatus,
   "PENDING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "CANCELLED"

@@ -68,16 +68,6 @@ export default async function DashboardPage() {
     counts.milestones > 0
       ? { label: `${counts.milestones} marcos atrasados`, href: "/projects?tab=ATTENTION" }
       : null,
-    /**
-     * Regulatory items have a real global destination (`/regulatory` already
-     * lists every item in the portfolio) — GTM items and shipments do not:
-     * neither has a page outside its own project, so no summary link is
-     * offered for them here. Each one still appears correctly in the
-     * exceptions list above, pointing at its own project's tab.
-     */
-    counts.regulatoryItems > 0
-      ? { label: `${counts.regulatoryItems} itens regulatórios atrasados`, href: "/regulatory" }
-      : null,
   ].filter((link): link is { label: string; href: string } => link !== null);
 
   return (

@@ -7,7 +7,7 @@ import type {
   Prisma,
 } from "@/generated/prisma";
 
-/** The six values `Document.status` actually holds — never `SUBMITTED` or `SUCCESS`-like extras that only `DocumentRequest`/`RegulatoryItem` use. */
+/** The six values `Document.status` actually holds — never `SUBMITTED`, which only `DocumentRequest` uses. */
 export type DocumentStatus = Extract<
   DocumentCycleStatus,
   "PENDING" | "REQUESTED" | "RECEIVED" | "IN_REVIEW" | "APPROVED" | "REJECTED"

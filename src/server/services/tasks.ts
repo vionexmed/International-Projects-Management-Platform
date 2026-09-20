@@ -158,7 +158,13 @@ export type CreateTaskInput = {
  */
 const DUE_SOON_MS = 3 * 24 * 60 * 60 * 1000;
 
-async function notifyAboutDeadline(task: {
+/**
+ * Exported for `stages.ts`: a regulatory or GTM item is a `Task` row created
+ * outside `createTask` (its own capability gates the write instead of the
+ * generic `task:create`), so it has to trigger this itself to get the same
+ * due-soon/overdue notification any other task gets for free.
+ */
+export async function notifyAboutDeadline(task: {
   id: string;
   title: string;
   dueDate: Date | null;

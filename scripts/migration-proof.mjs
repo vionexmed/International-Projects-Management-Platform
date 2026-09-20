@@ -66,9 +66,7 @@ const REQUIRED_TABLES = [
   "DocumentRequestReply",
   "DocumentRequestReview",
   "ClinicalStudy",
-  "RegulatoryItem",
   "ImportShipment",
-  "GtmItem",
   "MessageThread",
   "Message",
   "MessageAttachment",
@@ -88,9 +86,9 @@ const REQUIRED_ENUMS = [
   "ReviewDecision",
   "NotificationType",
   // The status vocabulary was unified in 20260920122153: HealthStatus
-  // (Project/Supplier), DocumentCycleStatus (Document/RegulatoryItem/
-  // DocumentRequest) and ProgressStatus (Stage/GTM item/Milestone/Clinical
-  // study/Task) replaced ten separate, mostly-overlapping enums.
+  // (Project/Supplier), DocumentCycleStatus (Document/DocumentRequest) and
+  // ProgressStatus (Stage/Milestone/ClinicalStudy/Task) replaced ten
+  // separate, mostly-overlapping enums.
   "HealthStatus",
   "DocumentCycleStatus",
   "ProgressStatus",

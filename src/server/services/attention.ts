@@ -30,8 +30,6 @@ export type AttentionKind =
   | "REVIEW_WAITING"
   | "MILESTONE_DELAYED"
   | "PROJECT_BLOCKED"
-  | "REGULATORY_ITEM_OVERDUE"
-  | "GTM_ITEM_OVERDUE"
   | "SHIPMENT_LATE";
 
 export type AttentionItem = {
@@ -73,8 +71,6 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
     waitingReviews,
     delayedMilestones,
     blockedProjects,
-    overdueRegulatoryItems,
-    overdueGtmItems,
     lateShipments,
   ] = await Promise.all([
       db.task.findMany({
@@ -166,46 +162,8 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
         take,
       }),
 
-      // Regulatory, GTM and shipment work is a Vionex-internal domain — the
-      // supplier has no page for it, so these three never reach that side.
-      internal
-        ? db.regulatoryItem.findMany({
-            where: {
-              project: projectScope(user),
-              status: { not: "APPROVED" },
-              dueDate: { lt: now },
-            },
-            select: {
-              id: true,
-              title: true,
-              dueDate: true,
-              ownerName: true,
-              project: { select: { id: true, name: true } },
-            },
-            orderBy: { dueDate: "asc" },
-            take,
-          })
-        : Promise.resolve([]),
-
-      internal
-        ? db.gtmItem.findMany({
-            where: {
-              project: projectScope(user),
-              status: { not: "COMPLETED" },
-              dueDate: { lt: now },
-            },
-            select: {
-              id: true,
-              title: true,
-              dueDate: true,
-              owner: true,
-              project: { select: { id: true, name: true } },
-            },
-            orderBy: { dueDate: "asc" },
-            take,
-          })
-        : Promise.resolve([]),
-
+      // Shipment work is a Vionex-internal domain — the supplier has no page
+      // for it, so it never reaches that side.
       internal
         ? db.importShipment.findMany({
             where: {
@@ -286,28 +244,6 @@ export async function listAttentionItems(user: SessionUser, take = 6) {
       href: `${projectHref}/${project.id}`,
     })),
 
-    ...overdueRegulatoryItems.map((item) => ({
-      id: `regulatory:${item.id}`,
-      kind: "REGULATORY_ITEM_OVERDUE" as const,
-      description: item.title,
-      project: item.project,
-      responsible: item.ownerName,
-      dueDate: item.dueDate,
-      severity: "risk" as const,
-      href: `/projects/${item.project.id}/regulatory`,
-    })),
-
-    ...overdueGtmItems.map((item) => ({
-      id: `gtm:${item.id}`,
-      kind: "GTM_ITEM_OVERDUE" as const,
-      description: item.title,
-      project: item.project,
-      responsible: item.owner,
-      dueDate: item.dueDate,
-      severity: "risk" as const,
-      href: `/projects/${item.project.id}/go-to-market`,
-    })),
-
     ...lateShipments.map((shipment) => ({
       id: `shipment:${shipment.id}`,
       kind: "SHIPMENT_LATE" as const,
@@ -334,8 +270,7 @@ export async function countAttentionItems(user: SessionUser) {
   const now = startOfTodayUtc();
   const internal = !isSupplierRole(user.role);
 
-  const [tasks, requests, reviews, milestones, projects, regulatoryItems, gtmItems, shipments] =
-    await Promise.all([
+  const [tasks, requests, reviews, milestones, projects, shipments] = await Promise.all([
       db.task.count({
         where: {
           AND: [
@@ -366,16 +301,6 @@ export async function countAttentionItems(user: SessionUser) {
       db.milestone.count({ where: { project: projectScope(user), status: "DELAYED" } }),
       db.project.count({ where: { AND: [projectScope(user), { status: "BLOCKED" }] } }),
       internal
-        ? db.regulatoryItem.count({
-            where: { project: projectScope(user), status: { not: "APPROVED" }, dueDate: { lt: now } },
-          })
-        : Promise.resolve(0),
-      internal
-        ? db.gtmItem.count({
-            where: { project: projectScope(user), status: { not: "COMPLETED" }, dueDate: { lt: now } },
-          })
-        : Promise.resolve(0),
-      internal
         ? db.importShipment.count({
             where: {
               project: projectScope(user),
@@ -393,9 +318,7 @@ export async function countAttentionItems(user: SessionUser) {
     reviews,
     milestones,
     projects,
-    regulatoryItems,
-    gtmItems,
     shipments,
-    total: tasks + requests + reviews + milestones + projects + regulatoryItems + gtmItems + shipments,
+    total: tasks + requests + reviews + milestones + projects + shipments,
   };
 }

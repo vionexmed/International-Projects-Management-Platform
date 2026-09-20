@@ -6,10 +6,10 @@ import {
   countDocumentRequestsByQueue,
   isRequestQueueFilter,
   pageDocumentRequests,
-  type DocumentStatus,
   type RequestQueueFilter,
   type RequestStatus,
 } from "@/server/services/documents";
+import type { TaskStatus } from "@/server/services/tasks";
 import { db } from "@/server/db";
 import { projectScope } from "@/server/authz/scopes";
 import { PageHeader, SectionHeader } from "@/components/app/page-header";
@@ -73,10 +73,10 @@ export default async function RegulatoryPage({
   const [requests, counts, items] = await Promise.all([
     pageDocumentRequests(user, { queue, page: Number(params.page ?? 1) || 1, perPage: 25 }),
     countDocumentRequestsByQueue(user),
-    db.regulatoryItem.findMany({
-      where: { project: projectScope(user) },
+    db.task.findMany({
+      where: { project: projectScope(user), category: "REGULATORY" },
       include: { project: { select: { id: true, name: true, projectCode: true } } },
-      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+      orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
       take: 100,
     }),
   ]);
@@ -203,12 +203,12 @@ export default async function RegulatoryPage({
                 </THead>
                 <TBody>
                   {items.map((item) => {
-                    const status = meta.regulatory(item.status as DocumentStatus, dict);
+                    const status = meta.task(item.status as TaskStatus, dict);
                     return (
                       <TR key={item.id} interactive>
                         <TD>
                           <Link
-                            href={`/projects/${item.project.id}/regulatory`}
+                            href={`/tasks/${item.id}`}
                             className="block after:absolute after:inset-0 after:content-['']"
                           >
                             <CellStack title={item.title} />

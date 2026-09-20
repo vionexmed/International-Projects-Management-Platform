@@ -334,17 +334,15 @@ model Project {
   supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   owner        User         @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
-  stages          ProjectStage[]
-  tasks           Task[]
-  documents       Document[]
-  requests        DocumentRequest[]
-  milestones      Milestone[]
-  clinicalStudy   ClinicalStudy?
-  regulatoryItems RegulatoryItem[]
-  shipments       ImportShipment[]
-  gtmItems        GtmItem[]
-  threads         MessageThread[]
-  timeline        TimelineEvent[]
+  stages        ProjectStage[]
+  tasks         Task[]
+  documents     Document[]
+  requests      DocumentRequest[]
+  milestones    Milestone[]
+  clinicalStudy ClinicalStudy?
+  shipments     ImportShipment[]
+  threads       MessageThread[]
+  timeline      TimelineEvent[]
 
   @@unique([organizationId, projectCode])
   @@index([organizationId, status])
@@ -395,6 +393,16 @@ model Milestone {
 // Tasks
 // ---------------------------------------------------------------------------
 
+/**
+ * A unit of work — including, since Fase 3 of the architecture-simplification
+ * plan (2026-09-20), what used to be `RegulatoryItem` and `GtmItem` rows.
+ * Those two were their own tables from the start, and neither carried a real
+ * owner, comments, or a place in `/tasks` — they were a parallel "to-do" shape
+ * that cost the same and did less. `authority`, `requestedFrom` and
+ * `gtmCategory` are what was genuinely specific to each; everything else
+ * (owner, status, due date, notes) was already exactly a task's own columns
+ * under a different name.
+ */
 model Task {
   id             String         @id @default(cuid())
   organizationId String
@@ -410,6 +418,14 @@ model Task {
   status         ProgressStatus @default(OPEN)
   dueDate        DateTime?
   completedAt    DateTime?
+  /// Regulatory body the item is filed with (e.g. ANVISA, CONEP). Only ever set on a `category: REGULATORY` task.
+  authority      String?
+  /// Free text: who this is actually requested from — the project's own supplier, Vionex itself, or a third party.
+  /// Kept apart from `supplierId`/`project.supplier` because a regulatory submission is not always the supplier's job.
+  /// Only ever set on a `category: REGULATORY` task.
+  requestedFrom  String?
+  /// Go-to-market sub-area (pricing, channels, KOLs, ...). Only ever set on a `category: GO_TO_MARKET` task.
+  gtmCategory    GtmCategory?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -612,24 +628,6 @@ model ClinicalStudy {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
-model RegulatoryItem {
-  id            String              @id @default(cuid())
-  projectId     String
-  title         String
-  authority     String?
-  requestedFrom String?
-  ownerName     String?
-  status        DocumentCycleStatus @default(PENDING)
-  dueDate       DateTime?
-  notes         String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([projectId, status])
-}
-
 model ImportShipment {
   id             String        @id @default(cuid())
   projectId      String
@@ -651,24 +649,6 @@ model ImportShipment {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
-}
-
-model GtmItem {
-  id        String         @id @default(cuid())
-  projectId String
-  category  GtmCategory
-  title     String
-  detail    String?
-  owner     String?
-  status    ProgressStatus @default(NOT_STARTED)
-  dueDate   DateTime?
-  position  Int            @default(0)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([projectId, category])
 }
 
 // ---------------------------------------------------------------------------

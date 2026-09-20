@@ -61,18 +61,6 @@ export async function seedStageDetails(db: PrismaClient, ids: Ids) {
     ],
   });
 
-  await db.regulatoryItem.createMany({
-    data: [
-      { projectId: alpha, title: "Certificate of Analysis", authority: "ANVISA", requestedFrom: "Manufacturer A", ownerName: "Stefany Rocha", status: "REQUESTED", dueDate: daysFromNow(10) },
-      { projectId: alpha, title: "Instructions for Use (IFU)", authority: "ANVISA", requestedFrom: "Manufacturer A", ownerName: "Stefany Rocha", status: "REQUESTED", dueDate: daysFromNow(13) },
-      { projectId: alpha, title: "Clinical Evaluation Report", authority: "ANVISA", requestedFrom: "Vionex", ownerName: "Stefany Rocha", status: "APPROVED" },
-      { projectId: alpha, title: "Risk Management File", authority: "ANVISA", requestedFrom: "Vionex", ownerName: "Stefany Rocha", status: "IN_REVIEW", dueDate: daysFromNow(20) },
-      { projectId: alpha, title: "ISO 13485 Certificate", authority: "ANVISA", requestedFrom: "Manufacturer A", ownerName: "Stefany Rocha", status: "RECEIVED" },
-      { projectId: beta, title: "Clinical protocol", authority: "CONEP", requestedFrom: "Vionex", ownerName: "Lucas Silva", status: "PENDING", dueDate: daysFromNow(13) },
-      { projectId: gamma, title: "Import licence", authority: "ANVISA", requestedFrom: "Vionex", ownerName: "João Mendes", status: "APPROVED" },
-    ],
-  });
-
   await db.importShipment.createMany({
     data: [
       {
@@ -90,29 +78,25 @@ export async function seedStageDetails(db: PrismaClient, ids: Ids) {
     ],
   });
 
-  const gtmCategories = [
+  /**
+   * `RegulatoryItem`/`GtmItem` no longer exist as of Fase 3 — everything
+   * below that used to be a row in either is now a `Task`, with `authority`/
+   * `requestedFrom`/`gtmCategory` carrying what was genuinely specific to
+   * each. Two items ("Certificate of Analysis", "Instructions for Use")
+   * already exist as hand-authored regulatory tasks below and are not
+   * repeated here; "Plano de lançamento" likewise already exists for
+   * `epsilon`, so the GTM board below is seeded for `alpha` only.
+   */
+  const GTM_CATEGORIES = [
     ["MARKET_ANALYSIS", "Análise de mercado e concorrência", "COMPLETED"],
     ["COMMERCIAL_STRATEGY", "Definição da estratégia comercial", "COMPLETED"],
     ["PRICING", "Estrutura de preços e margens", "IN_PROGRESS"],
     ["SALES_CHANNELS", "Mapeamento de distribuidores", "IN_PROGRESS"],
-    ["KOLS", "Engajamento de KOLs", "NOT_STARTED"],
-    ["MARKETING", "Materiais de marketing", "NOT_STARTED"],
-    ["TRAINING", "Treinamento da força de vendas", "NOT_STARTED"],
-    ["LAUNCH_PLAN", "Plano de lançamento", "NOT_STARTED"],
+    ["KOLS", "Engajamento de KOLs", "OPEN"],
+    ["MARKETING", "Materiais de marketing", "OPEN"],
+    ["TRAINING", "Treinamento da força de vendas", "OPEN"],
+    ["LAUNCH_PLAN", "Plano de lançamento", "OPEN"],
   ] as const;
-
-  await db.gtmItem.createMany({
-    data: [alpha, epsilon].flatMap((projectId) =>
-      gtmCategories.map(([category, title, status], index) => ({
-        projectId,
-        category,
-        title,
-        status: projectId === epsilon && index < 5 ? ("COMPLETED" as const) : status,
-        owner: "Maria Santos",
-        position: index,
-      })),
-    ),
-  });
 
   const tasks = await Promise.all([
     db.task.create({
@@ -180,6 +164,49 @@ export async function seedStageDetails(db: PrismaClient, ids: Ids) {
         priority: "HIGH", status: "WAITING", dueDate: daysFromNow(-2),
       },
     }),
+    db.task.create({
+      data: {
+        organizationId: orgId, projectId: alpha, createdById: stefany, assignedToId: stefany,
+        title: "Clinical Evaluation Report", category: "REGULATORY", priority: "MEDIUM",
+        authority: "ANVISA", requestedFrom: "Vionex", status: "COMPLETED", completedAt: daysFromNow(-30),
+      },
+    }),
+    db.task.create({
+      data: {
+        organizationId: orgId, projectId: alpha, createdById: stefany, assignedToId: stefany,
+        title: "Risk Management File", category: "REGULATORY", priority: "MEDIUM",
+        authority: "ANVISA", requestedFrom: "Vionex", status: "IN_PROGRESS", dueDate: daysFromNow(20),
+      },
+    }),
+    db.task.create({
+      data: {
+        organizationId: orgId, projectId: alpha, createdById: stefany, assignedToId: stefany,
+        title: "ISO 13485 Certificate", category: "REGULATORY", priority: "MEDIUM",
+        authority: "ANVISA", requestedFrom: "Manufacturer A", status: "IN_PROGRESS",
+      },
+    }),
+    db.task.create({
+      data: {
+        organizationId: orgId, projectId: beta, createdById: lucas, assignedToId: lucas,
+        title: "CONEP submission", category: "REGULATORY", priority: "MEDIUM",
+        authority: "CONEP", requestedFrom: "Vionex", status: "OPEN", dueDate: daysFromNow(13),
+      },
+    }),
+    db.task.create({
+      data: {
+        organizationId: orgId, projectId: gamma, createdById: joao, assignedToId: joao,
+        title: "Import licence", category: "REGULATORY", priority: "MEDIUM",
+        authority: "ANVISA", requestedFrom: "Vionex", status: "COMPLETED", completedAt: daysFromNow(-5),
+      },
+    }),
+    ...GTM_CATEGORIES.map(([category, title, status]) =>
+      db.task.create({
+        data: {
+          organizationId: orgId, projectId: alpha, createdById: maria, assignedToId: maria,
+          title, category: "GO_TO_MARKET", priority: "MEDIUM", gtmCategory: category, status,
+        },
+      }),
+    ),
   ]);
 
   await db.taskComment.createMany({

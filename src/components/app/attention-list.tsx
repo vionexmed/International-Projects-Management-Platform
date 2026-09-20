@@ -13,8 +13,6 @@ const KIND_LABEL: Record<AttentionItem["kind"], string> = {
   REVIEW_WAITING: "Aguardando análise",
   MILESTONE_DELAYED: "Marco atrasado",
   PROJECT_BLOCKED: "Projeto bloqueado",
-  REGULATORY_ITEM_OVERDUE: "Item regulatório atrasado",
-  GTM_ITEM_OVERDUE: "Item de GTM atrasado",
   SHIPMENT_LATE: "Embarque atrasado",
 };
 

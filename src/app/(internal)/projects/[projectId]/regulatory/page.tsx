@@ -2,11 +2,8 @@ import Link from "next/link";
 import { Download, Inbox, ShieldCheck } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
-import {
-  listDocumentRequests,
-  type DocumentStatus,
-  type RequestStatus,
-} from "@/server/services/documents";
+import { listDocumentRequests, type RequestStatus } from "@/server/services/documents";
+import type { TaskStatus } from "@/server/services/tasks";
 import { db } from "@/server/db";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -27,7 +24,6 @@ import { InlineStatusSelect } from "@/features/projects/inline-status-select";
 import { updateRegulatoryItemAction } from "@/server/actions/stages";
 import { canReviewDocumentType } from "@/server/authz/permissions";
 import { orNotFound } from "@/server/authz/rsc";
-import { StageTaskList } from "@/features/projects/stage-task-list";
 import { StageDocumentList } from "@/features/projects/stage-document-list";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
@@ -35,13 +31,12 @@ import { meta } from "@/lib/labels";
 import { formatDate, formatDateTime, daysUntil } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const REGULATORY_STATUS_OPTIONS = [
-  { value: "PENDING", label: "Pendente" },
-  { value: "REQUESTED", label: "Solicitado" },
-  { value: "RECEIVED", label: "Recebido" },
-  { value: "IN_REVIEW", label: "Em análise" },
-  { value: "APPROVED", label: "Aprovado" },
-  { value: "REJECTED", label: "Rejeitado" },
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Aberto" },
+  { value: "IN_PROGRESS", label: "Em andamento" },
+  { value: "WAITING", label: "Aguardando" },
+  { value: "COMPLETED", label: "Concluído" },
+  { value: "CANCELLED", label: "Cancelado" },
 ];
 
 export default async function ProjectRegulatoryPage({
@@ -56,16 +51,12 @@ export default async function ProjectRegulatoryPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [requests, items, tasks, documents] = await Promise.all([
+  const [requests, items, documents] = await Promise.all([
     listDocumentRequests(user, { projectId }),
-    db.regulatoryItem.findMany({
-      where: { projectId },
-      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
-    }),
     db.task.findMany({
       where: { projectId, category: "REGULATORY" },
-      include: { assignedTo: { select: { name: true } }, supplier: { select: { name: true } } },
-      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+      include: { assignedTo: { select: { name: true } } },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
     }),
     db.document.findMany({
       where: { projectId, type: { in: ["REGULATORY", "CERTIFICATE", "IFU"] } },
@@ -96,7 +87,7 @@ export default async function ProjectRegulatoryPage({
 
   const canRequest = can(user, "document:request");
   const canManage = can(user, "regulatory:manage");
-  const approved = items.filter((item) => item.status === "APPROVED").length;
+  const approved = items.filter((item) => item.status === "COMPLETED").length;
   const openRequests = requests.filter((request) => request.status === "PENDING").length;
 
   return (
@@ -105,7 +96,7 @@ export default async function ProjectRegulatoryPage({
       <Panel>
         <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
           <Summary label="Itens regulatórios" value={items.length} />
-          <Summary label="Aprovados" value={approved} tone="ok" />
+          <Summary label="Concluídos" value={approved} tone="ok" />
           <Summary label="Solicitações abertas" value={openRequests} tone={openRequests ? "warn" : undefined} />
           <Summary label="Órgão" text={items.find((item) => item.authority)?.authority ?? "—"} />
         </div>
@@ -214,7 +205,13 @@ export default async function ProjectRegulatoryPage({
         )}
       </Panel>
 
-      {/* Regulatory checklist */}
+      {/*
+        Regulatory checklist — real tasks (category REGULATORY) since Fase 3
+        of the architecture-simplification plan. This is the same table
+        `/tasks?category=REGULATORY` would show, filtered to this project,
+        plus `authority`/`requestedFrom`: the two fields a task only carries
+        for this category.
+      */}
       <Panel>
         <PanelHeader
           title="Itens regulatórios"
@@ -242,17 +239,19 @@ export default async function ProjectRegulatoryPage({
               </THead>
               <TBody>
                 {items.map((item) => {
-                  const status = meta.regulatory(item.status as DocumentStatus, dict);
+                  const status = meta.task(item.status as TaskStatus, dict);
                   return (
                     <TR key={item.id}>
                       <TD>
-                        <div className="font-medium text-ink">{item.title}</div>
+                        <Link href={`/tasks/${item.id}`} className="font-medium text-ink hover:underline">
+                          {item.title}
+                        </Link>
                         {item.authority ? (
                           <div className="mt-0.5 text-[13px] text-muted">{item.authority}</div>
                         ) : null}
                       </TD>
                       <TD label="Solicitado a" className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
-                      <TD label="Responsável" className="text-[13px] text-ink-soft">{item.ownerName ?? "—"}</TD>
+                      <TD label="Responsável" className="text-[13px] text-ink-soft">{item.assignedTo?.name ?? "—"}</TD>
                       <TD label="Prazo" className="text-[13px] whitespace-nowrap text-ink-soft">
                         {formatDate(item.dueDate, locale)}
                       </TD>
@@ -263,7 +262,7 @@ export default async function ProjectRegulatoryPage({
                             hidden={{ projectId, itemId: item.id }}
                             name="status"
                             value={item.status}
-                            options={REGULATORY_STATUS_OPTIONS}
+                            options={STATUS_OPTIONS}
                             ariaLabel={`Status de ${item.title}`}
                           />
                         ) : (
@@ -279,38 +278,21 @@ export default async function ProjectRegulatoryPage({
         )}
       </Panel>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel>
-          <PanelHeader
-            title="Tarefas regulatórias"
-            action={
-              <Link
-                href={`/projects/${projectId}/tasks`}
-                className="text-[13px] font-medium text-brand-strong hover:underline"
-              >
-                Ver todas
-              </Link>
-            }
-          />
-          <StageTaskList tasks={tasks} locale={locale} dict={dict} />
-        </Panel>
-
-        <Panel>
-          <PanelHeader
-            title="Documentos regulatórios"
-            action={
-              <Link
-                href={`/projects/${projectId}/documents`}
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-              >
-                <Download className="size-3.5" />
-                Ver todos
-              </Link>
-            }
-          />
-          <StageDocumentList documents={documents} locale={locale} dict={dict} />
-        </Panel>
-      </div>
+      <Panel>
+        <PanelHeader
+          title="Documentos regulatórios"
+          action={
+            <Link
+              href={`/projects/${projectId}/documents`}
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
+            >
+              <Download className="size-3.5" />
+              Ver todos
+            </Link>
+          }
+        />
+        <StageDocumentList documents={documents} locale={locale} dict={dict} />
+      </Panel>
     </div>
   );
 }

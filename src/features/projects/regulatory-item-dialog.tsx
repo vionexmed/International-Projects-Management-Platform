@@ -2,18 +2,9 @@
 
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Select, Textarea } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { Field, FieldGrid, FormDialog } from "@/components/app/form-dialog";
 import { createRegulatoryItemAction } from "@/server/actions/stages";
-
-const STATUS = [
-  { value: "PENDING", label: "Pendente" },
-  { value: "REQUESTED", label: "Solicitado" },
-  { value: "RECEIVED", label: "Recebido" },
-  { value: "IN_REVIEW", label: "Em análise" },
-  { value: "APPROVED", label: "Aprovado" },
-  { value: "REJECTED", label: "Rejeitado" },
-];
 
 export function RegulatoryItemDialog({
   projectId,
@@ -60,16 +51,6 @@ export function RegulatoryItemDialog({
               <Input id="dueDate" name="dueDate" type="date" />
             </Field>
           </FieldGrid>
-
-          <Field name="status" label="Status" required state={state}>
-            <Select id="status" name="status" defaultValue="PENDING">
-              {STATUS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
 
           <Field name="notes" label="Observações" state={state}>
             <Textarea id="notes" name="notes" rows={2} />

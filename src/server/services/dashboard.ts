@@ -3,9 +3,7 @@ import { db } from "@/server/db";
 import { projectScope, taskScope } from "@/server/authz/scopes";
 import {
   projectProgress,
-  stageWorkAsTasks,
   type StageSnapshot,
-  type StageWorkInput,
   type TaskSnapshot,
 } from "@/server/services/project-health";
 import type { SessionUser } from "@/types/auth";
@@ -89,8 +87,6 @@ export async function getPortfolioProgress(user: SessionUser) {
       owner: { select: { name: true } },
       stages: { select: { key: true, status: true, progress: true } },
       tasks: { select: { category: true, status: true, priority: true, dueDate: true } },
-      regulatoryItems: { select: { status: true, dueDate: true } },
-      gtmItems: { select: { status: true, dueDate: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -105,12 +101,6 @@ export async function getPortfolioProgress(user: SessionUser) {
     supplierName: project.supplier.name,
     country: project.supplier.country,
     ownerName: project.owner.name,
-    progress: projectProgress(project.stages as StageSnapshot[], [
-      ...(project.tasks as TaskSnapshot[]),
-      ...stageWorkAsTasks({
-        regulatoryItems: project.regulatoryItems,
-        gtmItems: project.gtmItems,
-      } as StageWorkInput),
-    ]),
+    progress: projectProgress(project.stages as StageSnapshot[], project.tasks as TaskSnapshot[]),
   }));
 }

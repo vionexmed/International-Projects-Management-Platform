@@ -20,9 +20,7 @@ import {
   deriveProjectStatus,
   projectProgress,
   stageProgress,
-  stageWorkAsTasks,
   type StageSnapshot,
-  type StageWorkInput,
   type TaskSnapshot,
 } from "@/server/services/project-health";
 import type { SessionUser } from "@/types/auth";
@@ -76,10 +74,6 @@ const listInclude = {
   owner: { select: { id: true, name: true } },
   stages: { select: { key: true, status: true, progress: true } },
   tasks: { select: { category: true, status: true, priority: true, dueDate: true } },
-  // Counted as work, exactly as `recalculateProject` counts them: a list that
-  // disagreed with the stored status would be its own kind of confusion.
-  regulatoryItems: { select: { status: true, dueDate: true } },
-  gtmItems: { select: { status: true, dueDate: true } },
   milestones: {
     where: { status: { in: ["PLANNED", "IN_PROGRESS", "DELAYED"] as const } },
     orderBy: [{ dueDate: "asc" }, { position: "asc" }] as const,
@@ -145,13 +139,7 @@ export async function listProjects(user: SessionUser, filters: ProjectListFilter
     targetLaunchDate: row.targetLaunchDate,
     supplier: row.supplier,
     owner: row.owner,
-    progress: projectProgress(row.stages as StageSnapshot[], [
-      ...(row.tasks as TaskSnapshot[]),
-      ...stageWorkAsTasks({
-        regulatoryItems: row.regulatoryItems,
-        gtmItems: row.gtmItems,
-      } as StageWorkInput),
-    ]),
+    progress: projectProgress(row.stages as StageSnapshot[], row.tasks as TaskSnapshot[]),
     nextMilestone: row.milestones[0] ?? null,
   }));
 
@@ -192,7 +180,7 @@ export async function countProjectsByStatus(user: SessionUser) {
 export async function getProjectWorkspace(user: SessionUser, projectId: string) {
   const project = await requireProjectAccess(user, projectId);
 
-  const [stages, tasks, milestones, regulatoryItems, gtmItems] = await Promise.all([
+  const [stages, tasks, milestones] = await Promise.all([
     db.projectStage.findMany({ where: { projectId }, orderBy: { position: "asc" } }),
     db.task.findMany({
       where: { projectId },
@@ -202,15 +190,10 @@ export async function getProjectWorkspace(user: SessionUser, projectId: string) 
       where: { projectId },
       orderBy: [{ position: "asc" }, { dueDate: "asc" }],
     }),
-    db.regulatoryItem.findMany({ where: { projectId }, select: { status: true, dueDate: true } }),
-    db.gtmItem.findMany({ where: { projectId }, select: { status: true, dueDate: true } }),
   ]);
 
   const snapshots = stages as StageSnapshot[];
-  const taskSnapshots = [
-    ...(tasks as TaskSnapshot[]),
-    ...stageWorkAsTasks({ regulatoryItems, gtmItems } as StageWorkInput),
-  ];
+  const taskSnapshots = tasks as TaskSnapshot[];
 
   return {
     project,
@@ -235,7 +218,7 @@ export async function getProjectWorkspace(user: SessionUser, projectId: string) 
 export async function getSupplierProjectWorkspace(user: SessionUser, projectId: string) {
   const project = await requireSharedProjectAccess(user, projectId);
 
-  const [stages, tasks, milestones, regulatoryItems, gtmItems] = await Promise.all([
+  const [stages, tasks, milestones] = await Promise.all([
     db.projectStage.findMany({
       where: { projectId },
       orderBy: { position: "asc" },
@@ -250,18 +233,9 @@ export async function getSupplierProjectWorkspace(user: SessionUser, projectId: 
       orderBy: [{ position: "asc" }, { dueDate: "asc" }],
       select: SUPPLIER_MILESTONE_SELECT,
     }),
-    /**
-     * Two columns each, and neither is readable text: the supplier needs the
-     * same progress number Vionex sees, not the regulatory notes behind it.
-     */
-    db.regulatoryItem.findMany({ where: { projectId }, select: { status: true, dueDate: true } }),
-    db.gtmItem.findMany({ where: { projectId }, select: { status: true, dueDate: true } }),
   ]);
 
-  const taskSnapshots = [
-    ...(tasks as TaskSnapshot[]),
-    ...stageWorkAsTasks({ regulatoryItems, gtmItems } as StageWorkInput),
-  ];
+  const taskSnapshots = tasks as TaskSnapshot[];
   const snapshots = stages as StageSnapshot[];
 
   return {
@@ -371,26 +345,12 @@ export async function recalculateProject(projectId: string, actorId: string | nu
       blockerNote: true,
       stages: { select: { key: true, status: true, progress: true } },
       tasks: { select: { category: true, status: true, priority: true, dueDate: true } },
-      /**
-       * Regulatory and GTM items count too. They always were work with a
-       * deadline; they just never reached the rules that decide whether a
-       * project is on track, so a project could be visibly late in its own
-       * Regulatory tab and still read "on track" everywhere else.
-       */
-      regulatoryItems: { select: { status: true, dueDate: true } },
-      gtmItems: { select: { status: true, dueDate: true } },
     },
   });
   if (!project) return;
 
   const stages = project.stages as StageSnapshot[];
-  const tasks = [
-    ...(project.tasks as TaskSnapshot[]),
-    ...stageWorkAsTasks({
-      regulatoryItems: project.regulatoryItems,
-      gtmItems: project.gtmItems,
-    } as StageWorkInput),
-  ];
+  const tasks = project.tasks as TaskSnapshot[];
 
   const nextStatus = deriveProjectStatus({
     currentStatus: project.status as ProjectStatus,
