@@ -25,6 +25,7 @@ import { updateRegulatoryItemAction } from "@/server/actions/stages";
 import { canReviewDocumentType } from "@/server/authz/permissions";
 import { orNotFound } from "@/server/authz/rsc";
 import { StageDocumentList } from "@/features/projects/stage-document-list";
+import { TabsNav } from "@/components/app/tabs-nav";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
@@ -39,12 +40,19 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelado" },
 ];
 
+const TABS = ["requests", "items", "documents"] as const;
+type Tab = (typeof TABS)[number];
+
 export default async function ProjectRegulatoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { projectId } = await params;
+  const { tab } = await searchParams;
+  const activeTab: Tab = TABS.includes(tab as Tab) ? (tab as Tab) : "requests";
   const user = await requireInternalUser();
   const project = await orNotFound(requireProjectAccess(user, projectId));
 
@@ -102,108 +110,133 @@ export default async function ProjectRegulatoryPage({
         </div>
       </Panel>
 
+      <TabsNav
+        items={[
+          {
+            href: `/projects/${projectId}/regulatory`,
+            label: "Solicitações",
+            count: requests.length,
+            active: activeTab === "requests",
+          },
+          {
+            href: `/projects/${projectId}/regulatory?tab=items`,
+            label: "Itens regulatórios",
+            count: items.length,
+            active: activeTab === "items",
+          },
+          {
+            href: `/projects/${projectId}/regulatory?tab=documents`,
+            label: "Documentos",
+            count: documents.length,
+            active: activeTab === "documents",
+          },
+        ]}
+      />
+
       {/* Document requests to the supplier */}
-      <Panel>
-        <PanelHeader
-          title="Solicitações ao fornecedor"
-          description={`Documentos pedidos a ${project.supplier.name}.`}
-          action={
-            canRequest ? (
-              <RequestDocumentDialog projectId={projectId} supplierName={project.supplier.name} />
-            ) : null
-          }
-        />
-
-        {requests.length === 0 ? (
-          <EmptyState
-            icon={Inbox}
-            title="Nenhuma solicitação enviada."
-            description="Solicite um documento para que ele apareça no portal do fornecedor."
-            compact
+      {activeTab === "requests" ? (
+        <Panel>
+          <PanelHeader
+            title="Solicitações ao fornecedor"
+            description={`Documentos pedidos a ${project.supplier.name}.`}
+            action={
+              canRequest ? (
+                <RequestDocumentDialog projectId={projectId} supplierName={project.supplier.name} />
+              ) : null
+            }
           />
-        ) : (
-          <TableScroll>
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Documento</TH>
-                  <TH>Solicitado a</TH>
-                  <TH>Responsável</TH>
-                  <TH>Prazo</TH>
-                  <TH>Status</TH>
-                  <TH className="w-px" />
-                </TR>
-              </THead>
-              <TBody>
-                {requests.map((request) => {
-                  const status = meta.request(request.status as RequestStatus, dict);
-                  const remaining = daysUntil(request.dueDate);
-                  const late =
-                    remaining !== null &&
-                    remaining < 0 &&
-                    ["PENDING", "REJECTED"].includes(request.status);
 
-                  return (
-                    <TR key={request.id}>
-                      <TD>
-                        <div className="font-medium text-ink">{request.title}</div>
-                        {request.document?.name ? (
-                          <div className="mt-0.5 text-[13px] text-muted">
-                            Documento: {request.document.name}
-                          </div>
-                        ) : null}
-                      </TD>
-                      <TD label="Solicitado a" className="text-[13px] text-ink-soft">{request.supplier.name}</TD>
-                      <TD label="Responsável" className="text-[13px] text-ink-soft">{request.requestedBy.name}</TD>
-                      <TD label="Prazo" className={cn("text-[13px] whitespace-nowrap", late ? "font-medium text-risk" : "text-ink-soft")}>
-                        {formatDate(request.dueDate, locale)}
-                        {late ? " · atrasado" : ""}
-                      </TD>
-                      <TD label="Status">
-                        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                      </TD>
-                      <TD className="whitespace-nowrap text-right max-md:mt-3">
-                        {canReviewDocumentType(user.role, request.type) &&
-                        ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
-                          <ReviewRequestDialog
-                            requestId={request.id}
-                            projectId={projectId}
-                            title={request.title}
-                            supplierName={request.supplier.name}
-                            status={meta.request(request.status as RequestStatus, dict).label}
-                            submittedAt={
-                              request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
-                            }
-                            dueDate={request.dueDate ? formatDate(request.dueDate, locale) : null}
-                            rounds={(reviewsByRequest.get(request.id) ?? []).map((review) => ({
-                              ...review,
-                              when: formatDateTime(review.createdAt, locale),
-                            }))}
-                            submission={
-                              request.document?.currentVersion
-                                ? {
-                                    versionId: request.document.currentVersion.id,
-                                    fileName: request.document.currentVersion.fileName,
-                                    fileSize: request.document.currentVersion.fileSize,
-                                    version: request.document.currentVersion.version,
-                                    uploadedAt: formatDateTime(
-                                      request.document.currentVersion.createdAt,
-                                      locale,
-                                    ),
-                                  }
-                                : null
-                            }
-                          />
-                        ) : null}
-                      </TD>
-                    </TR>
-                  );
-                })}
-              </TBody>
-            </Table>
-          </TableScroll>
-        )}
-      </Panel>
+          {requests.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title="Nenhuma solicitação enviada."
+              description="Solicite um documento para que ele apareça no portal do fornecedor."
+              compact
+            />
+          ) : (
+            <TableScroll>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Documento</TH>
+                    <TH>Solicitado a</TH>
+                    <TH>Responsável</TH>
+                    <TH>Prazo</TH>
+                    <TH>Status</TH>
+                    <TH className="w-px" />
+                  </TR>
+                </THead>
+                <TBody>
+                  {requests.map((request) => {
+                    const status = meta.request(request.status as RequestStatus, dict);
+                    const remaining = daysUntil(request.dueDate);
+                    const late =
+                      remaining !== null &&
+                      remaining < 0 &&
+                      ["PENDING", "REJECTED"].includes(request.status);
+
+                    return (
+                      <TR key={request.id}>
+                        <TD>
+                          <div className="font-medium text-ink">{request.title}</div>
+                          {request.document?.name ? (
+                            <div className="mt-0.5 text-[13px] text-muted">
+                              Documento: {request.document.name}
+                            </div>
+                          ) : null}
+                        </TD>
+                        <TD label="Solicitado a" className="text-[13px] text-ink-soft">{request.supplier.name}</TD>
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{request.requestedBy.name}</TD>
+                        <TD label="Prazo" className={cn("text-[13px] whitespace-nowrap", late ? "font-medium text-risk" : "text-ink-soft")}>
+                          {formatDate(request.dueDate, locale)}
+                          {late ? " · atrasado" : ""}
+                        </TD>
+                        <TD label="Status">
+                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                        </TD>
+                        <TD className="whitespace-nowrap text-right max-md:mt-3">
+                          {canReviewDocumentType(user.role, request.type) &&
+                          ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
+                            <ReviewRequestDialog
+                              requestId={request.id}
+                              projectId={projectId}
+                              title={request.title}
+                              supplierName={request.supplier.name}
+                              status={meta.request(request.status as RequestStatus, dict).label}
+                              submittedAt={
+                                request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
+                              }
+                              dueDate={request.dueDate ? formatDate(request.dueDate, locale) : null}
+                              rounds={(reviewsByRequest.get(request.id) ?? []).map((review) => ({
+                                ...review,
+                                when: formatDateTime(review.createdAt, locale),
+                              }))}
+                              submission={
+                                request.document?.currentVersion
+                                  ? {
+                                      versionId: request.document.currentVersion.id,
+                                      fileName: request.document.currentVersion.fileName,
+                                      fileSize: request.document.currentVersion.fileSize,
+                                      version: request.document.currentVersion.version,
+                                      uploadedAt: formatDateTime(
+                                        request.document.currentVersion.createdAt,
+                                        locale,
+                                      ),
+                                    }
+                                  : null
+                              }
+                            />
+                          ) : null}
+                        </TD>
+                      </TR>
+                    );
+                  })}
+                </TBody>
+              </Table>
+            </TableScroll>
+          )}
+        </Panel>
+      ) : null}
 
       {/*
         Regulatory checklist — real tasks (category REGULATORY) since Fase 3
@@ -212,87 +245,91 @@ export default async function ProjectRegulatoryPage({
         plus `authority`/`requestedFrom`: the two fields a task only carries
         for this category.
       */}
-      <Panel>
-        <PanelHeader
-          title="Itens regulatórios"
-          description="Documentação exigida pelo órgão regulatório."
-          action={
-            canManage ? (
-              <RegulatoryItemDialog projectId={projectId} supplierName={project.supplier.name} />
-            ) : null
-          }
-        />
+      {activeTab === "items" ? (
+        <Panel>
+          <PanelHeader
+            title="Itens regulatórios"
+            description="Documentação exigida pelo órgão regulatório."
+            action={
+              canManage ? (
+                <RegulatoryItemDialog projectId={projectId} supplierName={project.supplier.name} />
+              ) : null
+            }
+          />
 
-        {items.length === 0 ? (
-          <EmptyState icon={ShieldCheck} title="Nenhum item regulatório cadastrado." compact />
-        ) : (
-          <TableScroll>
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Item</TH>
-                  <TH>Solicitado a</TH>
-                  <TH>Responsável</TH>
-                  <TH>Prazo</TH>
-                  <TH>Status</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {items.map((item) => {
-                  const status = meta.task(item.status as TaskStatus, dict);
-                  return (
-                    <TR key={item.id}>
-                      <TD>
-                        <Link href={`/tasks/${item.id}`} className="font-medium text-ink hover:underline">
-                          {item.title}
-                        </Link>
-                        {item.authority ? (
-                          <div className="mt-0.5 text-[13px] text-muted">{item.authority}</div>
-                        ) : null}
-                      </TD>
-                      <TD label="Solicitado a" className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
-                      <TD label="Responsável" className="text-[13px] text-ink-soft">{item.assignedTo?.name ?? "—"}</TD>
-                      <TD label="Prazo" className="text-[13px] whitespace-nowrap text-ink-soft">
-                        {formatDate(item.dueDate, locale)}
-                      </TD>
-                      <TD label="Status">
-                        {canManage ? (
-                          <InlineStatusSelect
-                            action={updateRegulatoryItemAction}
-                            hidden={{ projectId, itemId: item.id }}
-                            name="status"
-                            value={item.status}
-                            options={STATUS_OPTIONS}
-                            ariaLabel={`Status de ${item.title}`}
-                          />
-                        ) : (
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                        )}
-                      </TD>
-                    </TR>
-                  );
-                })}
-              </TBody>
-            </Table>
-          </TableScroll>
-        )}
-      </Panel>
+          {items.length === 0 ? (
+            <EmptyState icon={ShieldCheck} title="Nenhum item regulatório cadastrado." compact />
+          ) : (
+            <TableScroll>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Item</TH>
+                    <TH>Solicitado a</TH>
+                    <TH>Responsável</TH>
+                    <TH>Prazo</TH>
+                    <TH>Status</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {items.map((item) => {
+                    const status = meta.task(item.status as TaskStatus, dict);
+                    return (
+                      <TR key={item.id}>
+                        <TD>
+                          <Link href={`/tasks/${item.id}`} className="font-medium text-ink hover:underline">
+                            {item.title}
+                          </Link>
+                          {item.authority ? (
+                            <div className="mt-0.5 text-[13px] text-muted">{item.authority}</div>
+                          ) : null}
+                        </TD>
+                        <TD label="Solicitado a" className="text-[13px] text-ink-soft">{item.requestedFrom ?? "—"}</TD>
+                        <TD label="Responsável" className="text-[13px] text-ink-soft">{item.assignedTo?.name ?? "—"}</TD>
+                        <TD label="Prazo" className="text-[13px] whitespace-nowrap text-ink-soft">
+                          {formatDate(item.dueDate, locale)}
+                        </TD>
+                        <TD label="Status">
+                          {canManage ? (
+                            <InlineStatusSelect
+                              action={updateRegulatoryItemAction}
+                              hidden={{ projectId, itemId: item.id }}
+                              name="status"
+                              value={item.status}
+                              options={STATUS_OPTIONS}
+                              ariaLabel={`Status de ${item.title}`}
+                            />
+                          ) : (
+                            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          )}
+                        </TD>
+                      </TR>
+                    );
+                  })}
+                </TBody>
+              </Table>
+            </TableScroll>
+          )}
+        </Panel>
+      ) : null}
 
-      <Panel>
-        <PanelHeader
-          title="Documentos regulatórios"
-          action={
-            <Link
-              href={`/projects/${projectId}/documents`}
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-            >
-              <Download className="size-3.5" />
-              Ver todos
-            </Link>
-          }
-        />
-        <StageDocumentList documents={documents} locale={locale} dict={dict} />
-      </Panel>
+      {activeTab === "documents" ? (
+        <Panel>
+          <PanelHeader
+            title="Documentos regulatórios"
+            action={
+              <Link
+                href={`/projects/${projectId}/documents`}
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
+              >
+                <Download className="size-3.5" />
+                Ver todos
+              </Link>
+            }
+          />
+          <StageDocumentList documents={documents} locale={locale} dict={dict} />
+        </Panel>
+      ) : null}
     </div>
   );
 }
