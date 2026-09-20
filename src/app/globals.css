@@ -72,6 +72,14 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    /*
+      Uma rede de segurança, não a correção em si: se um elemento qualquer
+      ficar mais largo que a viewport num celular, a página inteira ganha
+      rolagem horizontal em vez de simplesmente cortar aquele elemento. Em
+      `html`, não em `body`, porque `overflow` em `body` quebra `position:
+      sticky` (a sidebar e a barra superior usam) em alguns navegadores.
+    */
+    overflow-x: hidden;
   }
 
   body {
