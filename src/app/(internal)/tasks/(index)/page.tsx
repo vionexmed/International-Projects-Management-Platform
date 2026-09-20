@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import type { TaskCategory, TaskPriority, TaskStatus } from "@/generated/prisma";
+import type { TaskCategory, TaskPriority } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
-import { countTasksByStatus, listTasks } from "@/server/services/tasks";
+import { countTasksByStatus, listTasks, type TaskStatus } from "@/server/services/tasks";
 import { listProjects } from "@/server/services/projects";
 import { listInternalUserOptions } from "@/server/services/users";
 import { listSupplierOptions } from "@/server/services/suppliers";

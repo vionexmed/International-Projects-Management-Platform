@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
-import type { Task, TaskPriority, TaskStatus } from "@/generated/prisma";
+import type { ProgressStatus, Task, TaskPriority } from "@/generated/prisma";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge, PriorityBadge } from "@/components/ui/badge";
 import { deriveTaskStatus } from "@/lib/status";
@@ -8,9 +8,11 @@ import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { meta } from "@/lib/labels";
+import type { TaskStatus } from "@/server/services/tasks";
 
 export type StageTask = Pick<Task, "id" | "title" | "dueDate"> & {
-  status: TaskStatus;
+  // The raw column type: every caller here queries `Task` directly.
+  status: ProgressStatus;
   priority: TaskPriority;
   assignedTo: { name: string } | null;
   supplier: { name: string } | null;
@@ -35,7 +37,7 @@ export function StageTaskList({
   return (
     <ul className="divide-y divide-line-soft">
       {tasks.map((task) => {
-        const derived = deriveTaskStatus(task.status, task.dueDate);
+        const derived = deriveTaskStatus(task.status as TaskStatus, task.dueDate);
         const status = meta.task(derived, dict);
         const priority = meta.priority(task.priority, dict);
 

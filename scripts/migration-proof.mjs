@@ -82,14 +82,18 @@ const REQUIRED_TABLES = [
 /** Enums whose absence would only surface at the first write. */
 const REQUIRED_ENUMS = [
   "UserRole",
-  "ProjectStatus",
   "StageKey",
-  "TaskStatus",
   "DocumentType",
   "DocumentVisibility",
-  "RequestStatus",
   "ReviewDecision",
   "NotificationType",
+  // The status vocabulary was unified in 20260920122153: HealthStatus
+  // (Project/Supplier), DocumentCycleStatus (Document/RegulatoryItem/
+  // DocumentRequest) and ProgressStatus (Stage/GTM item/Milestone/Clinical
+  // study/Task) replaced ten separate, mostly-overlapping enums.
+  "HealthStatus",
+  "DocumentCycleStatus",
+  "ProgressStatus",
 ];
 
 const admin = new pg.Client({ connectionString: ADMIN_URL });

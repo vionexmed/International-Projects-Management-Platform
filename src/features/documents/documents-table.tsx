@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Download, FileText, History } from "lucide-react";
-import type { DocumentStatus, DocumentType, DocumentVisibility } from "@/generated/prisma";
+import type { DocumentCycleStatus, DocumentType, DocumentVisibility } from "@/generated/prisma";
+import type { DocumentStatus } from "@/server/services/documents";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -22,7 +23,8 @@ export type DocumentRow = {
   id: string;
   name: string;
   type: DocumentType;
-  status: DocumentStatus;
+  // The raw column type: callers pass `listDocuments()` rows unnarrowed.
+  status: DocumentCycleStatus;
   visibility: DocumentVisibility;
   updatedAt: Date;
   project: { id: string; name: string; projectCode: string };
@@ -75,7 +77,7 @@ export function DocumentsTable({
         </THead>
         <TBody>
           {documents.map((document) => {
-            const status = meta.document(document.status, dict);
+            const status = meta.document(document.status as DocumentStatus, dict);
             return (
               <TR key={document.id} interactive>
                 <TD>

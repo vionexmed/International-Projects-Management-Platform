@@ -1,5 +1,8 @@
 import "server-only";
-import type { Prisma, ProjectStatus, StageKey } from "@/generated/prisma";
+import type { HealthStatus, Prisma, StageKey } from "@/generated/prisma";
+
+/** The four values `Project.status` actually holds — never `INACTIVE`, which only `Supplier.status` uses. */
+export type ProjectStatus = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "COMPLETED">;
 import { db } from "@/server/db";
 import { projectScope } from "@/server/authz/scopes";
 import { requireProjectAccess, requireSharedProjectAccess } from "@/server/authz/access";
@@ -19,6 +22,7 @@ import {
   stageProgress,
   stageWorkAsTasks,
   type StageSnapshot,
+  type StageWorkInput,
   type TaskSnapshot,
 } from "@/server/services/project-health";
 import type { SessionUser } from "@/types/auth";
@@ -135,7 +139,7 @@ export async function listProjects(user: SessionUser, filters: ProjectListFilter
     id: row.id,
     name: row.name,
     projectCode: row.projectCode,
-    status: row.status,
+    status: row.status as ProjectStatus,
     currentStage: row.currentStage,
     country: row.country,
     targetLaunchDate: row.targetLaunchDate,
@@ -143,7 +147,10 @@ export async function listProjects(user: SessionUser, filters: ProjectListFilter
     owner: row.owner,
     progress: projectProgress(row.stages as StageSnapshot[], [
       ...(row.tasks as TaskSnapshot[]),
-      ...stageWorkAsTasks({ regulatoryItems: row.regulatoryItems, gtmItems: row.gtmItems }),
+      ...stageWorkAsTasks({
+        regulatoryItems: row.regulatoryItems,
+        gtmItems: row.gtmItems,
+      } as StageWorkInput),
     ]),
     nextMilestone: row.milestones[0] ?? null,
   }));
@@ -168,7 +175,7 @@ export async function countProjectsByStatus(user: SessionUser) {
   };
 
   for (const group of grouped) {
-    counts[group.status] = group._count._all;
+    counts[group.status as ProjectStatus] = group._count._all;
     counts.ALL += group._count._all;
   }
   return counts;
@@ -202,7 +209,7 @@ export async function getProjectWorkspace(user: SessionUser, projectId: string) 
   const snapshots = stages as StageSnapshot[];
   const taskSnapshots = [
     ...(tasks as TaskSnapshot[]),
-    ...stageWorkAsTasks({ regulatoryItems, gtmItems }),
+    ...stageWorkAsTasks({ regulatoryItems, gtmItems } as StageWorkInput),
   ];
 
   return {
@@ -253,7 +260,7 @@ export async function getSupplierProjectWorkspace(user: SessionUser, projectId: 
 
   const taskSnapshots = [
     ...(tasks as TaskSnapshot[]),
-    ...stageWorkAsTasks({ regulatoryItems, gtmItems }),
+    ...stageWorkAsTasks({ regulatoryItems, gtmItems } as StageWorkInput),
   ];
   const snapshots = stages as StageSnapshot[];
 
@@ -382,11 +389,11 @@ export async function recalculateProject(projectId: string, actorId: string | nu
     ...stageWorkAsTasks({
       regulatoryItems: project.regulatoryItems,
       gtmItems: project.gtmItems,
-    }),
+    } as StageWorkInput),
   ];
 
   const nextStatus = deriveProjectStatus({
-    currentStatus: project.status,
+    currentStatus: project.status as ProjectStatus,
     hasExplicitBlocker: Boolean(project.blockerNote?.trim()),
     stages,
     tasks,

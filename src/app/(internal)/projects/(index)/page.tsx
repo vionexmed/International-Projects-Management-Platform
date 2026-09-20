@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, FolderKanban } from "lucide-react";
-import type { ProjectStatus, StageKey } from "@/generated/prisma";
+import type { StageKey } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import {
   countProjectsByStatus,
   listProjectCountries,
   listProjects,
+  type ProjectStatus,
 } from "@/server/services/projects";
 import { listSupplierOptions } from "@/server/services/suppliers";
 import { listInternalUserOptions } from "@/server/services/users";

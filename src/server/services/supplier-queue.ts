@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/server/db";
 import { documentRequestScope, taskScope } from "@/server/authz/scopes";
 import { isSupplierRole } from "@/types/auth";
-import type { RequestStatus } from "@/generated/prisma";
+import type { RequestStatus } from "@/server/services/documents";
 import type { SessionUser } from "@/types/auth";
 
 /**
@@ -102,7 +102,7 @@ export async function listSupplierQueue(user: SessionUser) {
           : request.status === "APPROVED"
             ? ("done" as const)
             : ("waiting" as const),
-      requestStatus: request.status,
+      requestStatus: request.status as RequestStatus,
       href: `/supplier/action-required/${request.id}`,
     })),
 

@@ -12,6 +12,7 @@ import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
+import type { ProjectStatus } from "@/server/services/projects";
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
@@ -41,7 +42,7 @@ export default async function ProjectLayout({
   const project = await orNotFound(requireProjectAccess(user, projectId));
 
   const dict = getDictionary(localeFromLanguage(user.language));
-  const status = meta.project(project.status, dict);
+  const status = meta.project(project.status as ProjectStatus, dict);
   const editable = can(user, "project:update");
 
   const [suppliers, owners] = editable
@@ -83,7 +84,7 @@ export default async function ProjectLayout({
                 category: project.category,
                 description: project.description,
                 blockerNote: project.blockerNote,
-                status: project.status,
+                status: project.status as ProjectStatus,
                 startDate: project.startDate?.toISOString().slice(0, 10) ?? "",
                 targetLaunchDate: project.targetLaunchDate?.toISOString().slice(0, 10) ?? "",
               }}

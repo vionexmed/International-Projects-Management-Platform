@@ -39,40 +39,11 @@ enum Language {
   ZH
 }
 
-enum SupplierStatus {
-  ON_TRACK
-  AT_RISK
-  BLOCKED
-  INACTIVE
-}
-
-enum ProjectStatus {
-  ON_TRACK
-  AT_RISK
-  BLOCKED
-  COMPLETED
-}
-
 enum StageKey {
   CLINICAL
   REGULATORY
   IMPORT_LOGISTICS
   GO_TO_MARKET
-}
-
-enum StageStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  COMPLETED
-  BLOCKED
-}
-
-enum TaskStatus {
-  OPEN
-  IN_PROGRESS
-  WAITING
-  COMPLETED
-  CANCELLED
 }
 
 enum TaskPriority {
@@ -103,39 +74,19 @@ enum DocumentType {
   OTHER
 }
 
-enum DocumentStatus {
-  PENDING
-  REQUESTED
-  RECEIVED
-  IN_REVIEW
-  APPROVED
-  REJECTED
-}
-
 /// Controls whether a document is visible inside the Supplier Portal.
 enum DocumentVisibility {
   INTERNAL_ONLY
   SHARED_WITH_SUPPLIER
 }
 
-enum RequestStatus {
-  PENDING
-  SUBMITTED
-  IN_REVIEW
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
 /**
  * What a reviewer decided, as opposed to where the request currently stands.
- *
  * Deliberately not `RequestStatus`. That enum answers "where is this now" and
  * carries PENDING, SUBMITTED, IN_REVIEW and CANCELLED — none of which is a
  * verdict, and all of which would be representable as one if the two shared a
  * type. A review row saying `decision: PENDING` is nonsense the database would
  * happily store.
- *
  * `CHANGES_REQUESTED` rather than `REJECTED` because that is what the act is:
  * the supplier is expected to come back. `DocumentRequest.status` keeps
  * `REJECTED` — changing a legacy enum value to rename a concept would rewrite
@@ -146,27 +97,79 @@ enum ReviewDecision {
   CHANGES_REQUESTED
 }
 
-enum MilestoneStatus {
-  PLANNED
-  IN_PROGRESS
+/**
+ * Health of a project or a supplier relationship — replaces `ProjectStatus`
+ * and `SupplierStatus`, which were the same four words (ON_TRACK, AT_RISK,
+ * BLOCKED) with a different fourth value each (COMPLETED vs INACTIVE). A pure
+ * union: every value either type already had keeps its exact spelling, and
+ * neither model uses a value that was not already legal for it.
+ */
+enum HealthStatus {
+  ON_TRACK
+  AT_RISK
+  BLOCKED
   COMPLETED
-  DELAYED
+  INACTIVE
 }
 
-enum ClinicalStudyStatus {
-  PLANNED
-  IN_PROGRESS
-  COMPLETED
-  SUSPENDED
-}
-
-enum RegulatoryItemStatus {
+/**
+ * Where a document, a regulatory item or a document request stands — replaces
+ * `DocumentStatus`, `RegulatoryItemStatus` (byte-identical to it) and
+ * `RequestStatus` (four of its six values already matched). A pure union of
+ * the three: no value is renamed, so every stored row keeps the exact word it
+ * already had, and each model still only ever writes the subset it always did
+ * (`Document.status`, for instance, has never actually stored `PENDING` or
+ * `REQUESTED` — see `src/server/services/documents.ts` — but the value stays
+ * declared rather than pruned, matching what `DocumentStatus` always allowed).
+ * `RECEIVED` (the word `Document`/`RegulatoryItem` use for "something arrived")
+ * and `SUBMITTED` (the word `DocumentRequest` uses for the same event) are
+ * deliberately both kept rather than merged into one spelling — which of the
+ * two words is right is a product-copy decision, not a schema one, and is left
+ * open in `docs/product-freeze/` rather than decided here.
+ */
+enum DocumentCycleStatus {
   PENDING
   REQUESTED
   RECEIVED
+  SUBMITTED
   IN_REVIEW
   APPROVED
   REJECTED
+  CANCELLED
+}
+
+/**
+ * How a piece of work is coming along — replaces `StageStatus`, `GtmItemStatus`
+ * (identical to it), `MilestoneStatus`, `ClinicalStudyStatus` and `TaskStatus`.
+ * A pure union of all five: nothing is renamed or merged, so every existing row
+ * keeps its exact stored word.
+ * `NOT_STARTED` (stage/GTM item), `PLANNED` (milestone/clinical study) and
+ * `OPEN` (task) all mean the same thing — work that has not begun — but are
+ * kept as three separate values rather than collapsed into one spelling, for
+ * the same reason `RECEIVED`/`SUBMITTED` above were: several of the words in
+ * this vocabulary carry Portuguese grammatical gender that agrees with the
+ * noun they describe (`Não iniciad**a**` for a etapa, `Não iniciad**o**` for
+ * an item, `Abert**a**` for a tarefa), so a single shared spelling cannot
+ * serve all five without either breaking that agreement or a larger i18n
+ * change than this round is authorised to make. The same restraint applies to
+ * `BLOCKED` (stage/GTM item), `DELAYED` (milestone), `SUSPENDED` (clinical
+ * study) and `WAITING` (task): each names a real, distinguishable way work
+ * stalls, and a regulated medical-device business is exactly the kind of
+ * place where quietly conflating "a supplier is blocking this" with "an
+ * ethics committee suspended this clinical study" would be a mistake, not a
+ * simplification.
+ */
+enum ProgressStatus {
+  NOT_STARTED
+  PLANNED
+  OPEN
+  IN_PROGRESS
+  WAITING
+  BLOCKED
+  DELAYED
+  SUSPENDED
+  COMPLETED
+  CANCELLED
 }
 
 enum ShipmentStage {
@@ -188,13 +191,6 @@ enum GtmCategory {
   MARKETING
   TRAINING
   LAUNCH_PLAN
-}
-
-enum GtmItemStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  COMPLETED
-  BLOCKED
 }
 
 enum TimelineEventType {
@@ -247,7 +243,7 @@ model Organization {
 }
 
 model Supplier {
-  id             String         @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   name           String
   country        String
@@ -256,10 +252,10 @@ model Supplier {
   primaryContact String?
   email          String?
   phone          String?
-  status         SupplierStatus @default(ON_TRACK)
+  status         HealthStatus @default(ON_TRACK)
   notes          String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   users        User[]
@@ -291,13 +287,13 @@ model User {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   supplier     Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  ownedProjects     Project[]         @relation("ProjectOwner")
-  assignedTasks     Task[]            @relation("TaskAssignee")
-  createdTasks      Task[]            @relation("TaskCreator")
+  ownedProjects     Project[]               @relation("ProjectOwner")
+  assignedTasks     Task[]                  @relation("TaskAssignee")
+  createdTasks      Task[]                  @relation("TaskCreator")
   comments          TaskComment[]
-  uploadedDocuments Document[]        @relation("DocumentCreator")
+  uploadedDocuments Document[]              @relation("DocumentCreator")
   documentVersions  DocumentVersion[]
-  requestedDocs     DocumentRequest[] @relation("RequestAuthor")
+  requestedDocs     DocumentRequest[]       @relation("RequestAuthor")
   requestReplies    DocumentRequestReply[]  @relation("RequestReplyAuthor")
   documentReviews   DocumentRequestReview[] @relation("RequestReviewer")
   timelineEvents    TimelineEvent[]
@@ -315,7 +311,7 @@ model User {
 // ---------------------------------------------------------------------------
 
 model Project {
-  id               String        @id @default(cuid())
+  id               String       @id @default(cuid())
   organizationId   String
   supplierId       String
   ownerId          String
@@ -325,30 +321,30 @@ model Project {
   country          String
   productType      String?
   category         String?
-  status           ProjectStatus @default(ON_TRACK)
-  currentStage     StageKey      @default(CLINICAL)
+  status           HealthStatus @default(ON_TRACK)
+  currentStage     StageKey     @default(CLINICAL)
   blockerNote      String?
   startDate        DateTime?
   targetLaunchDate DateTime?
   archivedAt       DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   owner        User         @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
-  stages         ProjectStage[]
-  tasks          Task[]
-  documents      Document[]
-  requests       DocumentRequest[]
-  milestones     Milestone[]
-  clinicalStudy  ClinicalStudy?
+  stages          ProjectStage[]
+  tasks           Task[]
+  documents       Document[]
+  requests        DocumentRequest[]
+  milestones      Milestone[]
+  clinicalStudy   ClinicalStudy?
   regulatoryItems RegulatoryItem[]
-  shipments      ImportShipment[]
-  gtmItems       GtmItem[]
-  threads        MessageThread[]
-  timeline       TimelineEvent[]
+  shipments       ImportShipment[]
+  gtmItems        GtmItem[]
+  threads         MessageThread[]
+  timeline        TimelineEvent[]
 
   @@unique([organizationId, projectCode])
   @@index([organizationId, status])
@@ -357,19 +353,19 @@ model Project {
 }
 
 model ProjectStage {
-  id        String      @id @default(cuid())
+  id        String         @id @default(cuid())
   projectId String
   key       StageKey
   name      String
   position  Int
-  status    StageStatus @default(NOT_STARTED)
+  status    ProgressStatus @default(NOT_STARTED)
   /// Manual progress override, 0–100. When null, progress is derived from tasks.
   progress  Int?
   startDate DateTime?
   dueDate   DateTime?
   notes     String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -378,17 +374,17 @@ model ProjectStage {
 }
 
 model Milestone {
-  id          String          @id @default(cuid())
+  id          String         @id @default(cuid())
   projectId   String
   title       String
   description String?
   stage       StageKey?
   dueDate     DateTime?
-  status      MilestoneStatus @default(PLANNED)
-  position    Int             @default(0)
+  status      ProgressStatus @default(PLANNED)
+  position    Int            @default(0)
   completedAt DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -400,7 +396,7 @@ model Milestone {
 // ---------------------------------------------------------------------------
 
 model Task {
-  id             String       @id @default(cuid())
+  id             String         @id @default(cuid())
   organizationId String
   projectId      String
   assignedToId   String?
@@ -409,13 +405,13 @@ model Task {
   supplierId     String?
   title          String
   description    String?
-  category       TaskCategory @default(GENERAL)
-  priority       TaskPriority @default(MEDIUM)
-  status         TaskStatus   @default(OPEN)
+  category       TaskCategory   @default(GENERAL)
+  priority       TaskPriority   @default(MEDIUM)
+  status         ProgressStatus @default(OPEN)
   dueDate        DateTime?
   completedAt    DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -453,19 +449,19 @@ model TaskComment {
 // ---------------------------------------------------------------------------
 
 model Document {
-  id               String             @id @default(cuid())
+  id               String              @id @default(cuid())
   organizationId   String
   projectId        String
   supplierId       String?
   createdById      String
-  currentVersionId String?            @unique
+  currentVersionId String?             @unique
   name             String
-  type             DocumentType       @default(OTHER)
-  status           DocumentStatus     @default(RECEIVED)
-  visibility       DocumentVisibility @default(INTERNAL_ONLY)
+  type             DocumentType        @default(OTHER)
+  status           DocumentCycleStatus @default(RECEIVED)
+  visibility       DocumentVisibility  @default(INTERNAL_ONLY)
   notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -507,7 +503,7 @@ model DocumentVersion {
 }
 
 model DocumentRequest {
-  id            String        @id @default(cuid())
+  id            String              @id @default(cuid())
   projectId     String
   supplierId    String
   requestedById String
@@ -515,14 +511,14 @@ model DocumentRequest {
   taskId        String?
   title         String
   description   String?
-  type          DocumentType  @default(OTHER)
-  status        RequestStatus @default(PENDING)
+  type          DocumentType        @default(OTHER)
+  status        DocumentCycleStatus @default(PENDING)
   dueDate       DateTime?
   submittedAt   DateTime?
   reviewedAt    DateTime?
   reviewNote    String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   supplier    Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
@@ -548,11 +544,9 @@ model DocumentRequestReply {
 
   /**
    * The relation this column always implied.
-   *
    * `authorId` was written from the first day and never constrained, so the
    * screen showed anonymous messages and nothing stopped a reply pointing at a
    * user that had ceased to exist.
-   *
    * `Restrict`, matching every other authorship link in this schema
    * (`Task.createdById`, `Document.createdById`, `DocumentVersion.uploadedById`,
    * `DocumentRequest.requestedById`). Accounts here are suspended, not deleted,
@@ -567,14 +561,12 @@ model DocumentRequestReply {
 
 /**
  * One round of review on a document request.
- *
  * `DocumentRequest.reviewNote` holds the *current* verdict and is overwritten
  * by the next one, which is right for a field answering "where does this
  * stand" and useless as a record: in a reject → resubmit → reject sequence the
  * first reason was gone. The note has been preserved in the request's
  * conversation since PC-2, which keeps it readable; this keeps it *queryable* —
  * who decided what, on which file, and when.
- *
  * Written inside the same transaction as the decision, so a request cannot end
  * up approved with no review, or reviewed while its status says otherwise.
  */
@@ -604,34 +596,34 @@ model DocumentRequestReview {
 // ---------------------------------------------------------------------------
 
 model ClinicalStudy {
-  id                 String              @id @default(cuid())
-  projectId          String              @unique
+  id                 String         @id @default(cuid())
+  projectId          String         @unique
   institution        String?
   country            String?
   protocol           String?
   studyType          String?
-  status             ClinicalStudyStatus @default(PLANNED)
+  status             ProgressStatus @default(PLANNED)
   startDate          DateTime?
   expectedCompletion DateTime?
   notes              String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model RegulatoryItem {
-  id            String               @id @default(cuid())
+  id            String              @id @default(cuid())
   projectId     String
   title         String
   authority     String?
   requestedFrom String?
   ownerName     String?
-  status        RegulatoryItemStatus @default(PENDING)
+  status        DocumentCycleStatus @default(PENDING)
   dueDate       DateTime?
   notes         String?
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -662,17 +654,17 @@ model ImportShipment {
 }
 
 model GtmItem {
-  id        String        @id @default(cuid())
+  id        String         @id @default(cuid())
   projectId String
   category  GtmCategory
   title     String
   detail    String?
   owner     String?
-  status    GtmItemStatus @default(NOT_STARTED)
+  status    ProgressStatus @default(NOT_STARTED)
   dueDate   DateTime?
-  position  Int           @default(0)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  position  Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -684,13 +676,13 @@ model GtmItem {
 // ---------------------------------------------------------------------------
 
 model MessageThread {
-  id         String   @id @default(cuid())
-  projectId  String
-  subject    String
+  id           String   @id @default(cuid())
+  projectId    String
+  subject      String
   /// Threads visible to the supplier are the shared Vionex ↔ supplier channel.
-  withSupplier Boolean @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  withSupplier Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   messages Message[]
@@ -716,18 +708,15 @@ model Message {
 
 /**
  * A file attached to a message.
- *
  * It points at a `DocumentVersion` rather than carrying a file of its own, and
  * that is the whole design. The platform already has exactly one way a stored
  * file reaches a browser — `/api/files/[versionId]`, which revalidates the
  * session, re-applies the caller's scope and writes the download to the audit
  * log. A second path would mean a second authorisation to keep correct, and
  * two authorisations eventually disagree.
- *
  * The **version**, not the document: an attachment is the file as it was sent.
  * A later version of the same document must not retroactively change what
  * somebody received.
- *
  * Visibility follows the thread. A file attached to a thread shared with a
  * supplier is created `SHARED_WITH_SUPPLIER`, so `documentScope` lets them
  * download it; one attached to an internal thread stays `INTERNAL_ONLY`, and

@@ -2,7 +2,15 @@ import "server-only";
 import { startOfTodayUtc } from "@/lib/format";
 import { db } from "@/server/db";
 import { documentRequestScope, projectScope, taskScope } from "@/server/authz/scopes";
-import type { Prisma, ProjectStatus, RequestStatus, StageKey } from "@/generated/prisma";
+import type { DocumentCycleStatus, HealthStatus, Prisma, StageKey } from "@/generated/prisma";
+
+/** The four values `Project.status` actually holds. */
+type ProjectStatus = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "COMPLETED">;
+/** The six values `DocumentRequest.status` actually holds — never `RECEIVED`, which only `Document`/`RegulatoryItem` use. */
+type RequestStatus = Extract<
+  DocumentCycleStatus,
+  "PENDING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "CANCELLED"
+>;
 import type { SessionUser } from "@/types/auth";
 
 /**

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Users } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
-import { getSupplierProfile } from "@/server/services/suppliers";
+import { getSupplierProfile, type SupplierStatus } from "@/server/services/suppliers";
+import type { ProjectStatus } from "@/server/services/projects";
 import { Field, Panel, PanelHeader } from "@/components/ui/card";
 import { SolidBadge, StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,7 +36,7 @@ export default async function SupplierProfilePage({
   const { supplier, projects, openTasks, overdueTasks, documentCount } = profile;
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
-  const status = meta.supplier(supplier.status, dict);
+  const status = meta.supplier(supplier.status as SupplierStatus, dict);
 
   return (
     <>
@@ -146,7 +147,7 @@ export default async function SupplierProfilePage({
           ) : (
             <ul className="divide-y divide-line-soft">
               {projects.slice(0, 5).map((project) => {
-                const projectStatus = meta.project(project.status, dict);
+                const projectStatus = meta.project(project.status as ProjectStatus, dict);
                 return (
                   <li key={project.id}>
                     <Link

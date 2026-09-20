@@ -1,6 +1,9 @@
 import "server-only";
 import { startOfTodayUtc } from "@/lib/format";
-import type { Prisma, SupplierStatus } from "@/generated/prisma";
+import type { HealthStatus, Prisma } from "@/generated/prisma";
+
+/** The four values `Supplier.status` actually holds — never `COMPLETED`, which only `Project.status` uses. */
+export type SupplierStatus = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "INACTIVE">;
 import { db } from "@/server/db";
 import { supplierScope } from "@/server/authz/scopes";
 import { recordAudit } from "@/server/services/audit";
@@ -71,7 +74,7 @@ export async function listSuppliers(
     id: supplier.id,
     name: supplier.name,
     country: supplier.country,
-    status: supplier.status,
+    status: supplier.status as SupplierStatus,
     projectCount: projects.get(supplier.id) ?? 0,
     openTaskCount: open.get(supplier.id) ?? 0,
     overdueTaskCount: overdue.get(supplier.id) ?? 0,

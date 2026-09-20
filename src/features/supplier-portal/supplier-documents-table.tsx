@@ -1,5 +1,5 @@
 import { Download, FileText } from "lucide-react";
-import type { DocumentStatus, DocumentType } from "@/generated/prisma";
+import type { DocumentCycleStatus, DocumentType } from "@/generated/prisma";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/badge";
 import {
@@ -16,12 +16,14 @@ import { formatDate, formatFileSize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
+import type { DocumentStatus } from "@/server/services/documents";
 
 export type SupplierDocumentRow = {
   id: string;
   name: string;
   type: DocumentType;
-  status: DocumentStatus;
+  // The raw column type: callers pass `listDocuments()` rows unnarrowed.
+  status: DocumentCycleStatus;
   updatedAt: Date;
   project: { id: string; name: string };
   currentVersion: { id: string; version: number; fileName: string; fileSize: number } | null;
@@ -64,7 +66,7 @@ export function SupplierDocumentsTable({
         </THead>
         <TBody>
           {documents.map((document) => {
-            const status = meta.document(document.status, dict);
+            const status = meta.document(document.status as DocumentStatus, dict);
             return (
               <TR key={document.id}>
                 <TD>

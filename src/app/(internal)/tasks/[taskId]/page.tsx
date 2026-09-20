@@ -18,6 +18,7 @@ import { localeFromLanguage } from "@/lib/i18n/config";
 import { deriveTaskStatus } from "@/lib/status";
 import { label, meta } from "@/lib/labels";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import type { TaskStatus } from "@/server/services/tasks";
 
 export async function generateMetadata({ params }: { params: Promise<{ taskId: string }> }) {
   const { taskId } = await params;
@@ -52,7 +53,7 @@ export default async function TaskDetailPage({
     }),
   ]);
 
-  const derived = deriveTaskStatus(task.status, task.dueDate);
+  const derived = deriveTaskStatus(task.status as TaskStatus, task.dueDate);
   const status = meta.task(derived, dict);
   const priority = meta.priority(task.priority, dict);
   const editable = can(user, "task:update");

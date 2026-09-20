@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { label, meta } from "@/lib/labels";
+import { label, meta, type MilestoneProgress, type StageProgress } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 
 export default async function SupplierProjectOverviewPage({
@@ -46,7 +46,7 @@ export default async function SupplierProjectOverviewPage({
         <PanelHeader title={dict.portal.project.stageProgress} />
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
           {stages.map((stage) => {
-            const status = meta.stage(stage.status, dict);
+            const status = meta.stage(stage.status as StageProgress, dict);
             return (
               <div key={stage.id}>
                 <div className="mb-2 flex items-baseline justify-between gap-3">
@@ -74,7 +74,7 @@ export default async function SupplierProjectOverviewPage({
         ) : (
           <ul className="divide-y divide-line-soft">
             {upcoming.map((milestone) => {
-              const status = meta.milestone(milestone.status, dict);
+              const status = meta.milestone(milestone.status as MilestoneProgress, dict);
               return (
                 <li
                   key={milestone.id}

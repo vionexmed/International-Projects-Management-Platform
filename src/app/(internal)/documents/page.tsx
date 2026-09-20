@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import type { DocumentStatus, DocumentType } from "@/generated/prisma";
+import type { DocumentType } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
-import { listDocuments } from "@/server/services/documents";
+import { listDocuments, type DocumentStatus } from "@/server/services/documents";
 import { listProjects } from "@/server/services/projects";
 import { listSupplierOptions } from "@/server/services/suppliers";
 import { listInternalUserOptions } from "@/server/services/users";

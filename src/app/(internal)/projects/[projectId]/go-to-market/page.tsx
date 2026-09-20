@@ -13,7 +13,7 @@ import { updateGtmItemAction } from "@/server/actions/stages";
 import { orNotFound } from "@/server/authz/rsc";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label, meta } from "@/lib/labels";
+import { OPTIONS, label, meta, type GtmProgress } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 import { toPercent } from "@/lib/utils";
 
@@ -85,7 +85,7 @@ export default async function ProjectGoToMarketPage({
             <PanelHeader title={label.gtmCategory(group.category, dict)} />
             <ul className="divide-y divide-line-soft">
               {group.items.map((item) => {
-                const status = meta.gtm(item.status, dict);
+                const status = meta.gtm(item.status as GtmProgress, dict);
                 return (
                   <li
                     key={item.id}

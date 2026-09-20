@@ -12,7 +12,7 @@ import { StageTaskList } from "@/features/projects/stage-task-list";
 import { StageDocumentList } from "@/features/projects/stage-document-list";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { meta } from "@/lib/labels";
+import { meta, type ClinicalProgress } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 
 export default async function ProjectClinicalPage({
@@ -41,7 +41,7 @@ export default async function ProjectClinicalPage({
     }),
   ]);
 
-  const status = study ? meta.clinical(study.status, dict) : null;
+  const status = study ? meta.clinical(study.status as ClinicalProgress, dict) : null;
   const editable = can(user, "clinical:manage");
 
   const pending = tasks.filter((task) => task.status !== "COMPLETED" && task.status !== "CANCELLED");
@@ -62,7 +62,7 @@ export default async function ProjectClinicalPage({
                   country: study?.country ?? "",
                   protocol: study?.protocol ?? "",
                   studyType: study?.studyType ?? "",
-                  status: study?.status ?? "PLANNED",
+                  status: (study?.status as ClinicalProgress) ?? "PLANNED",
                   startDate: study?.startDate?.toISOString().slice(0, 10) ?? "",
                   expectedCompletion: study?.expectedCompletion?.toISOString().slice(0, 10) ?? "",
                   notes: study?.notes ?? "",

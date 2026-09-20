@@ -8,6 +8,7 @@ import { SupplierProjectTabs } from "@/features/supplier-portal/supplier-project
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
+import type { ProjectStatus } from "@/server/services/projects";
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
@@ -38,7 +39,7 @@ export default async function SupplierProjectLayout({
   const project = await orNotFound(requireSharedProjectAccess(user, projectId));
 
   const dict = getDictionary(localeFromLanguage(user.language));
-  const status = meta.project(project.status, dict);
+  const status = meta.project(project.status as ProjectStatus, dict);
 
   return (
     <>

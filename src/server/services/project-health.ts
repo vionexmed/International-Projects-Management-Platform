@@ -1,11 +1,21 @@
 import type {
-  GtmItemStatus,
-  ProjectStatus,
-  RegulatoryItemStatus,
+  DocumentCycleStatus,
+  HealthStatus,
+  ProgressStatus,
   ShipmentStage,
   StageKey,
   TaskCategory,
 } from "@/generated/prisma";
+
+/** The four values `Project.status` actually holds — never `INACTIVE`, which only `Supplier.status` uses. */
+type ProjectHealth = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "COMPLETED">;
+/** The six values `RegulatoryItem.status` actually holds. */
+type RegulatoryItemStatus = Extract<
+  DocumentCycleStatus,
+  "PENDING" | "REQUESTED" | "RECEIVED" | "IN_REVIEW" | "APPROVED" | "REJECTED"
+>;
+/** The four values `GtmItem.status` actually holds. */
+type GtmItemStatus = Extract<ProgressStatus, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED">;
 import { toPercent } from "@/lib/utils";
 
 /**
@@ -158,12 +168,12 @@ export function isOverdue(task: TaskSnapshot, now: Date): boolean {
  * COMPLETED is never silently reopened by this rule.
  */
 export function deriveProjectStatus(input: {
-  currentStatus: ProjectStatus;
+  currentStatus: ProjectHealth;
   hasExplicitBlocker: boolean;
   stages: StageSnapshot[];
   tasks: TaskSnapshot[];
   now?: Date;
-}): ProjectStatus {
+}): ProjectHealth {
   const now = input.now ?? new Date();
 
   if (input.currentStatus === "COMPLETED") return "COMPLETED";

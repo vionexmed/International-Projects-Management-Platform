@@ -1,15 +1,17 @@
 import { Download, FileText } from "lucide-react";
-import type { Document, DocumentStatus, DocumentType, DocumentVersion } from "@/generated/prisma";
+import type { Document, DocumentCycleStatus, DocumentType, DocumentVersion } from "@/generated/prisma";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatFileSize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
+import type { DocumentStatus } from "@/server/services/documents";
 
 export type StageDocument = Pick<Document, "id" | "name" | "updatedAt"> & {
   type: DocumentType;
-  status: DocumentStatus;
+  // The raw column type: every caller here queries `Document` directly.
+  status: DocumentCycleStatus;
   currentVersion: DocumentVersion | null;
   createdBy: { name: string };
 };
@@ -36,7 +38,7 @@ export function StageDocumentList({
   return (
     <ul className="divide-y divide-line-soft">
       {documents.map((document) => {
-        const status = meta.document(document.status, dict);
+        const status = meta.document(document.status as DocumentStatus, dict);
         return (
           <li
             key={document.id}

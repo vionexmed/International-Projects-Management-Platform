@@ -2,7 +2,11 @@ import Link from "next/link";
 import { Download, Inbox, ShieldCheck } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
-import { listDocumentRequests } from "@/server/services/documents";
+import {
+  listDocumentRequests,
+  type DocumentStatus,
+  type RequestStatus,
+} from "@/server/services/documents";
 import { db } from "@/server/db";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -141,7 +145,7 @@ export default async function ProjectRegulatoryPage({
               </THead>
               <TBody>
                 {requests.map((request) => {
-                  const status = meta.request(request.status, dict);
+                  const status = meta.request(request.status as RequestStatus, dict);
                   const remaining = daysUntil(request.dueDate);
                   const late =
                     remaining !== null &&
@@ -175,7 +179,7 @@ export default async function ProjectRegulatoryPage({
                             projectId={projectId}
                             title={request.title}
                             supplierName={request.supplier.name}
-                            status={meta.request(request.status, dict).label}
+                            status={meta.request(request.status as RequestStatus, dict).label}
                             submittedAt={
                               request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
                             }
@@ -238,7 +242,7 @@ export default async function ProjectRegulatoryPage({
               </THead>
               <TBody>
                 {items.map((item) => {
-                  const status = meta.regulatory(item.status, dict);
+                  const status = meta.regulatory(item.status as DocumentStatus, dict);
                   return (
                     <TR key={item.id}>
                       <TD>

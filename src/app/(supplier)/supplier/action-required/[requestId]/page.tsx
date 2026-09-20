@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, CircleCheck, Clock, Download, FileText } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { requireDocumentRequestAccess } from "@/server/authz/access";
-import { listRequestReviews } from "@/server/services/documents";
+import { listRequestReviews, type RequestStatus } from "@/server/services/documents";
 import { orNotFound } from "@/server/authz/rsc";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { SolidBadge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ export default async function SupplierRequestPage({
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
-  const status = meta.request(request.status, dict);
+  const status = meta.request(request.status as RequestStatus, dict);
   const remaining = daysUntil(request.dueDate);
   const overdue = remaining !== null && remaining < 0 && request.status === "PENDING";
   /**

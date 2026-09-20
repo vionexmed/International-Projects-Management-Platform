@@ -5,6 +5,7 @@ import {
   projectProgress,
   stageWorkAsTasks,
   type StageSnapshot,
+  type StageWorkInput,
   type TaskSnapshot,
 } from "@/server/services/project-health";
 import type { SessionUser } from "@/types/auth";
@@ -109,7 +110,7 @@ export async function getPortfolioProgress(user: SessionUser) {
       ...stageWorkAsTasks({
         regulatoryItems: project.regulatoryItems,
         gtmItems: project.gtmItems,
-      }),
+      } as StageWorkInput),
     ]),
   }));
 }

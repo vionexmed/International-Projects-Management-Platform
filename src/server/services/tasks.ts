@@ -1,6 +1,6 @@
 import "server-only";
 import { startOfTodayUtc } from "@/lib/format";
-import type { Prisma, TaskCategory, TaskPriority, TaskStatus } from "@/generated/prisma";
+import type { Prisma, ProgressStatus, TaskCategory, TaskPriority } from "@/generated/prisma";
 import { db } from "@/server/db";
 import { taskScope } from "@/server/authz/scopes";
 import { assertRoleCan } from "@/server/authz/permissions";
@@ -8,8 +8,14 @@ import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, notifyOnce, supplierRecipients } from "@/server/services/notifications";
 import { recalculateProject } from "@/server/services/projects";
-import { deriveTaskStatus, type DerivedTaskStatus } from "@/lib/status";
+import { deriveTaskStatus } from "@/lib/status";
 import type { SessionUser } from "@/types/auth";
+
+/** The five values `Task.status` actually holds. */
+export type TaskStatus = Extract<
+  ProgressStatus,
+  "OPEN" | "IN_PROGRESS" | "WAITING" | "COMPLETED" | "CANCELLED"
+>;
 
 export type TaskListFilters = {
   query?: string;
@@ -87,7 +93,7 @@ export async function listTasks(user: SessionUser, filters: TaskListFilters = {}
   const now = new Date();
   const items = rows.map((row) => ({
     ...row,
-    derivedStatus: deriveTaskStatus(row.status, row.dueDate, now) as DerivedTaskStatus,
+    derivedStatus: deriveTaskStatus(row.status as TaskStatus, row.dueDate, now),
   }));
 
   return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };
@@ -115,7 +121,7 @@ export async function countTasksByStatus(user: SessionUser) {
     CANCELLED: 0,
     OVERDUE: overdue,
   };
-  for (const group of grouped) counts[group.status] = group._count._all;
+  for (const group of grouped) counts[group.status as TaskStatus] = group._count._all;
   return counts;
 }
 

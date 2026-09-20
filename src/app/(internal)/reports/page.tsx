@@ -11,6 +11,7 @@ import {
   getSupplierPerformance,
   type Slice,
 } from "@/server/services/analytics";
+import type { ProjectStatus } from "@/server/services/projects";
 import { PageHeader, SectionHeader } from "@/components/app/page-header";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
-import type { ProjectStatus, StageKey } from "@/generated/prisma";
+import type { StageKey } from "@/generated/prisma";
 
 export const metadata: Metadata = { title: "Relatórios" };
 

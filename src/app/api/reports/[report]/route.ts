@@ -4,7 +4,8 @@ import { roleHas } from "@/server/authz/permissions";
 import { isSupplierRole } from "@/types/auth";
 import { getPortfolioProgress } from "@/server/services/dashboard";
 import { listSuppliers } from "@/server/services/suppliers";
-import { listDocumentRequests } from "@/server/services/documents";
+import { listDocumentRequests, type RequestStatus } from "@/server/services/documents";
+import type { ProjectStatus } from "@/server/services/projects";
 import { CSV_BOM, toCsv } from "@/lib/csv";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
@@ -42,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ rep
         project.country,
         project.ownerName,
         label.stageKey(project.currentStage, dict),
-        meta.project(project.status, dict).label,
+        meta.project(project.status as ProjectStatus, dict).label,
         project.progress,
         formatDate(project.targetLaunchDate, locale),
       ]),
@@ -70,7 +71,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ rep
         request.supplier.name,
         request.requestedBy.name,
         formatDate(request.dueDate, locale),
-        meta.request(request.status, dict).label,
+        meta.request(request.status as RequestStatus, dict).label,
         formatDate(request.submittedAt, locale),
       ]),
     );

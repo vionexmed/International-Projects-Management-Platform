@@ -14,11 +14,11 @@ import {
   TR,
 } from "@/components/ui/table";
 import { formatDate, daysUntil } from "@/lib/format";
-import type { DerivedTaskStatus } from "@/lib/status";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import type { TaskStatus } from "@/server/services/tasks";
 
 export type TaskRow = {
   id: string;
@@ -26,7 +26,7 @@ export type TaskRow = {
   category: TaskCategory;
   priority: TaskPriority;
   dueDate: Date | null;
-  derivedStatus: DerivedTaskStatus;
+  derivedStatus: TaskStatus | "OVERDUE";
   project: { id: string; name: string; projectCode: string };
   assignedTo: { id: string; name: string } | null;
   supplier: { id: string; name: string } | null;

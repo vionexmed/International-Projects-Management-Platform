@@ -1,11 +1,22 @@
 import "server-only";
 import { startOfTodayUtc } from "@/lib/format";
 import type {
-  DocumentStatus,
+  DocumentCycleStatus,
   DocumentType,
   DocumentVisibility,
   Prisma,
 } from "@/generated/prisma";
+
+/** The six values `Document.status` actually holds — never `SUBMITTED` or `SUCCESS`-like extras that only `DocumentRequest`/`RegulatoryItem` use. */
+export type DocumentStatus = Extract<
+  DocumentCycleStatus,
+  "PENDING" | "REQUESTED" | "RECEIVED" | "IN_REVIEW" | "APPROVED" | "REJECTED"
+>;
+/** The six values `DocumentRequest.status` actually holds. */
+export type RequestStatus = Extract<
+  DocumentCycleStatus,
+  "PENDING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "CANCELLED"
+>;
 import { db } from "@/server/db";
 import { documentRequestScope, documentScope } from "@/server/authz/scopes";
 import { buildStorageKey, storage } from "@/lib/storage";

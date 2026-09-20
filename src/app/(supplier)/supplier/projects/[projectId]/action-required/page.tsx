@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, CircleCheck } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { requireSharedProjectAccess } from "@/server/authz/access";
-import { listDocumentRequests } from "@/server/services/documents";
+import { listDocumentRequests, type RequestStatus } from "@/server/services/documents";
 import { orNotFound } from "@/server/authz/rsc";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ export default async function SupplierProjectRequestsPage({
       ) : (
         <ul className="divide-y divide-line-soft">
           {requests.map((request) => {
-            const status = meta.request(request.status, dict);
+            const status = meta.request(request.status as RequestStatus, dict);
             const remaining = daysUntil(request.dueDate);
             const overdue = remaining !== null && remaining < 0 && request.status === "PENDING";
 

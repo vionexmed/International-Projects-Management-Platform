@@ -6,7 +6,9 @@ import {
   countDocumentRequestsByQueue,
   isRequestQueueFilter,
   pageDocumentRequests,
+  type DocumentStatus,
   type RequestQueueFilter,
+  type RequestStatus,
 } from "@/server/services/documents";
 import { db } from "@/server/db";
 import { projectScope } from "@/server/authz/scopes";
@@ -126,7 +128,7 @@ export default async function RegulatoryPage({
                 </THead>
                 <TBody>
                   {openRequests.map((request) => {
-                    const status = meta.request(request.status, dict);
+                    const status = meta.request(request.status as RequestStatus, dict);
                     const remaining = daysUntil(request.dueDate);
                     const late = remaining !== null && remaining < 0 && request.status === "PENDING";
 
@@ -201,7 +203,7 @@ export default async function RegulatoryPage({
                 </THead>
                 <TBody>
                   {items.map((item) => {
-                    const status = meta.regulatory(item.status, dict);
+                    const status = meta.regulatory(item.status as DocumentStatus, dict);
                     return (
                       <TR key={item.id} interactive>
                         <TD>
