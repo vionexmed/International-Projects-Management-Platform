@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -29,6 +30,14 @@ import type { SessionUser } from "@/types/auth";
  * The internal environment is desktop-first, but the team still opens it on a
  * phone or a narrow tablet. Below `lg` the navy rail is replaced by this
  * drawer so the content keeps the full width.
+ *
+ * The drawer goes through a portal to `document.body`, and it has to. Its
+ * trigger lives in the top bar, and that bar carries `backdrop-blur` —
+ * `backdrop-filter` makes an element a containing block for `position: fixed`
+ * descendants, exactly as `filter` does. Rendered in place, `fixed inset-0`
+ * was therefore measured against the bar's 56px box instead of the viewport:
+ * the drawer opened every time, clipped into an invisible strip. The portal
+ * is what puts it back on the screen.
  */
 export function InternalMobileNav({
   user,
@@ -59,13 +68,32 @@ export function InternalMobileNav({
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
+  /** Esc closes it, and the page behind it does not scroll while it is open. */
+  React.useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   return (
     <div className="lg:hidden">
       <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Abrir menu" aria-expanded={open}>
         <Menu />
       </Button>
 
-      {open ? (
+      {open
+        ? createPortal(
         <div className="fixed inset-0 z-50 flex">
           <button
             type="button"
@@ -140,8 +168,10 @@ export function InternalMobileNav({
               </form>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+          )
+        : null}
     </div>
   );
 }

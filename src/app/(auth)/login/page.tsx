@@ -25,11 +25,33 @@ export default async function LoginPage() {
   const dict = getDictionary(locale);
 
   return (
-    <main className="grid min-h-dvh bg-surface lg:grid-cols-2">
+    <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-surface lg:grid-cols-2 lg:grid-rows-[1fr]">
+      {/*
+        The navy half does not fit a phone — it would be a wall above the one
+        thing the person came to do — so on a phone it becomes a band: the
+        same mark, the same name, about a fifth of the height, and the form
+        still above the fold.
+      */}
+      <div className="relative overflow-hidden border-b border-navy-line bg-navy px-6 pt-9 pb-8 sm:px-10 lg:hidden">
+        <span aria-hidden className="pointer-events-none absolute -top-16 -right-10">
+          <VionexMark className="size-[230px] text-navy-line" />
+        </span>
+
+        <div className="relative">
+          <p className="text-[26px] leading-none font-semibold tracking-[0.06em] text-white">
+            VIONEX
+          </p>
+          <p className="mt-2.5 text-[10px] font-medium tracking-[0.28em] text-navy-ink uppercase">
+            International Projects
+          </p>
+        </div>
+      </div>
+
       {/* Form */}
       <div className="flex flex-col px-6 py-8 sm:px-10 lg:px-14">
         <div className="mx-auto flex w-full max-w-[400px] flex-1 flex-col">
-          <VionexLogo />
+          {/* On a phone the band above already carries the brand. */}
+          <VionexLogo className="hidden lg:inline-flex" />
 
           <div className="flex flex-1 flex-col justify-center py-12">
             <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.022em] text-ink">
