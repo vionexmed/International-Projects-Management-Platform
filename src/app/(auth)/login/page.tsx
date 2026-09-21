@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth/current-user";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { DEFAULT_INTERNAL_LOCALE } from "@/lib/i18n/config";
-import { VionexLogo } from "@/components/app/logo";
+import { VionexLogo, VionexMark } from "@/components/app/logo";
 import { isSupplierRole } from "@/types/auth";
 import { LoginForm } from "./login-form";
 
@@ -47,21 +47,37 @@ export default async function LoginPage() {
       </div>
 
       {/*
-        Deliberately almost empty: the brand at full voice, and one line
-        saying what it is. Nothing here argues for the product — the person
-        on this screen already works with it and is three seconds from being
-        inside.
-
-        The lockup is the official artwork, which already carries the mark,
-        so nothing else does: the oversized mark that used to sit behind
-        this was the same symbol printed twice.
+        Deliberately almost empty: the name set large in the middle of the
+        field, and one line at the foot saying what it is. Nothing here
+        argues for the product — the person on this screen already works
+        with it and is three seconds from being inside.
       */}
-      <aside className="hidden border-l border-navy-line bg-navy px-16 py-14 lg:flex lg:flex-col">
-        <div className="flex flex-1 items-center">
-          <div className="vx-rise">
-            <VionexLogo tone="light" width={380} subtitle={null} />
+      <aside className="relative hidden overflow-hidden border-l border-navy-line bg-navy px-16 py-14 lg:flex lg:flex-col">
+        {/*
+          The mark as structure, not decoration: oversized and cropped by the
+          panel edge, one step off the background — a shape in the field,
+          never a picture asking to be looked at. The title sits over it.
+        */}
+        <span
+          aria-hidden
+          className="vx-rise pointer-events-none absolute top-1/2 -right-28 -translate-y-1/2"
+          style={{ animationDelay: "120ms" }}
+        >
+          <VionexMark className="size-[480px] text-navy-line" />
+        </span>
+
+        <div className="relative flex flex-1 items-center">
+          <div>
+            {/*
+              Set as type, not as the logo file: the lockup would put the
+              mark on screen a second time, and the one behind is the one
+              doing the work.
+            */}
+            <p className="vx-rise text-[44px] leading-none font-semibold tracking-[0.06em] text-white">
+              VIONEX
+            </p>
             <p
-              className="vx-rise mt-6 text-[13px] font-medium tracking-[0.3em] text-navy-ink uppercase"
+              className="vx-rise mt-4 text-[12.5px] font-medium tracking-[0.32em] text-navy-ink uppercase"
               style={{ animationDelay: "140ms" }}
             >
               International Projects
@@ -70,7 +86,7 @@ export default async function LoginPage() {
         </div>
 
         <p
-          className="vx-rise border-t border-navy-line pt-5 text-[14px] leading-[1.6] text-navy-ink"
+          className="vx-rise relative border-t border-navy-line pt-5 text-[14px] leading-[1.6] text-navy-ink"
           style={{ animationDelay: "240ms" }}
         >
           Plataforma de gestão de projetos internacionais.
