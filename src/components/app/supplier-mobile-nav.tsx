@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -27,6 +28,14 @@ import { cn } from "@/lib/utils";
 /**
  * Suppliers reach the portal from many devices, so the narrow layout gets a
  * real menu rather than a squeezed sidebar.
+ *
+ * It goes through a portal to `document.body` even though the header above it
+ * carries no filter today. The internal drawer was written exactly like this
+ * one and opened invisibly for months, because its header had picked up a
+ * `backdrop-blur` — and `backdrop-filter` makes an element a containing block
+ * for `position: fixed` descendants. Nothing warns you when that happens; the
+ * portal is what makes this drawer independent of whatever the chrome above
+ * it grows later.
  */
 export function SupplierMobileNav({
   dict,
@@ -62,6 +71,24 @@ export function SupplierMobileNav({
       : []),
   ];
 
+  /** Esc closes it, and the page behind it does not scroll while it is open. */
+  React.useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   return (
     <div className="md:hidden">
       <Button
@@ -74,7 +101,8 @@ export function SupplierMobileNav({
         <Menu />
       </Button>
 
-      {open ? (
+      {open
+        ? createPortal(
         <div className="fixed inset-0 z-50 flex">
           <button
             type="button"
@@ -177,8 +205,10 @@ export function SupplierMobileNav({
               </form>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+          )
+        : null}
     </div>
   );
 }
