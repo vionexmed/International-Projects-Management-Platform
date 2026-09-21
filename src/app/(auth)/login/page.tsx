@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { getCurrentUser } from "@/server/auth/current-user";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { DEFAULT_INTERNAL_LOCALE } from "@/lib/i18n/config";
@@ -47,58 +46,37 @@ export default async function LoginPage() {
         </div>
       </div>
 
-      {/* What the person is signing into */}
-      <aside className="relative hidden overflow-hidden border-l border-navy-line bg-navy px-16 py-14 lg:flex lg:flex-col lg:justify-center">
+      {/*
+        Deliberately almost empty: the name at one corner, what it is at the
+        other, and the mark holding the field between them. Nothing here
+        argues for the product — the person on this screen already works
+        with it and is three seconds from being inside.
+      */}
+      <aside className="relative hidden overflow-hidden border-l border-navy-line bg-navy px-16 py-14 lg:flex lg:flex-col lg:justify-between">
         {/*
-          The mark as structure, not decoration: oversized, cropped by the
-          panel edge and one step off the background. Visible as a shape,
-          never as a picture competing with the text.
+          The mark as structure, not decoration: oversized and cropped by the
+          panel edge, one step off the background — a shape in the field,
+          never a picture asking to be looked at.
         */}
-        <span aria-hidden className="pointer-events-none absolute -right-24 -bottom-28">
-          <VionexMark className="size-[460px] text-navy-soft" />
+        <span
+          aria-hidden
+          className="vx-rise pointer-events-none absolute top-1/2 -right-28 -translate-y-1/2"
+          style={{ animationDelay: "120ms" }}
+        >
+          <VionexMark className="size-[480px] text-navy-line" />
         </span>
 
-        <div className="relative max-w-[460px]">
-          <p className="vx-rise text-[11px] font-medium tracking-[0.18em] text-navy-ink uppercase">
-            Vionex Projects
-          </p>
+        <p className="vx-rise relative text-[11px] font-medium tracking-[0.18em] text-navy-ink uppercase">
+          Vionex Projects
+        </p>
 
-          <h2
-            className="vx-rise mt-6 text-[31px] leading-[1.2] font-semibold tracking-[-0.022em] text-white"
-            style={{ animationDelay: "70ms" }}
-          >
-            Todo projeto internacional, do primeiro documento ao lançamento.
-          </h2>
-
-          <p
-            className="vx-rise mt-5 text-[14.5px] leading-[1.65] text-navy-ink"
-            style={{ animationDelay: "140ms" }}
-          >
-            Regulatório, importação, documentos e prazos dos fabricantes na China, Alemanha,
-            Estados Unidos e Itália — em um lugar só, com cada fornecedor enxergando apenas o
-            que é dele.
-          </p>
-
-          <div
-            className="vx-rise mt-11 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-navy-line pt-5 text-[11px] font-medium tracking-[0.1em] text-navy-ink uppercase"
-            style={{ animationDelay: "210ms" }}
-          >
-            <span>China</span>
-            <Separator />
-            <span>Alemanha</span>
-            <Separator />
-            <span>Estados Unidos</span>
-            <Separator />
-            <span>Itália</span>
-            <ArrowRight className="size-3.5 shrink-0 text-brand" aria-hidden />
-            <span className="text-brand">Brasil</span>
-          </div>
-        </div>
+        <p
+          className="vx-rise relative max-w-[300px] text-[15px] leading-[1.6] text-navy-ink"
+          style={{ animationDelay: "220ms" }}
+        >
+          Plataforma de gestão de projetos internacionais.
+        </p>
       </aside>
     </main>
   );
-}
-
-function Separator() {
-  return <span aria-hidden className="size-1 shrink-0 rounded-full bg-navy-line" />;
 }
