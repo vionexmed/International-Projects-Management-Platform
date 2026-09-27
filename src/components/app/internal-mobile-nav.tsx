@@ -117,7 +117,7 @@ export function InternalMobileNav({
 
           <div className="relative flex w-[264px] flex-col bg-navy">
             <div className="flex items-center justify-between px-4 py-5">
-              <VionexLogo tone="light" width={124} />
+              <VionexLogo tone="rail" width={124} />
               <button
                 type="button"
                 onClick={() => setOpen(false)}

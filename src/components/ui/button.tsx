@@ -9,7 +9,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-brand-strong text-white hover:bg-brand-deep active:bg-brand-deep shadow-[0_1px_2px_rgba(10,24,38,0.08)]",
+          // The logo turquoise with dark ink: white on it is only 3.04:1. The
+          // outline is the rail colour, since a turquoise ring would vanish.
+          "bg-brand text-on-brand font-semibold hover:bg-brand-hover active:bg-brand active:shadow-[inset_0_1px_2px_rgba(5,41,47,0.25)] shadow-[0_1px_2px_rgba(5,41,47,0.10)] focus-visible:outline-navy",
         secondary:
           "bg-surface text-ink border border-line hover:bg-raised hover:border-line-strong",
         ghost: "text-ink-soft hover:bg-raised hover:text-ink",
