@@ -60,11 +60,16 @@ export function TasksTable({
       <Table>
         <THead>
           <TR>
-            <TH>Tarefa</TH>
-            <TH>Responsável</TH>
-            <TH>Prazo</TH>
-            <TH>Status</TH>
-            <TH>Prioridade</TH>
+            {/*
+              The title column takes the slack; the rest are as wide as their
+              content. The due date closes the row, right-aligned, where every
+              list in the product puts its date.
+            */}
+            <TH className="min-w-64">Tarefa</TH>
+            <TH className="w-px">Responsável</TH>
+            <TH className="w-px">Status</TH>
+            <TH className="w-px">Prioridade</TH>
+            <TH className="w-px" align="right">Prazo</TH>
           </TR>
         </THead>
         <TBody>
@@ -93,21 +98,22 @@ export function TasksTable({
                     subtitle={task.supplier ? `Aguardando ${task.supplier.name}` : undefined}
                   />
                 </TD>
-                <TD
-                  label="Prazo"
-                  className={cn(overdue ? "font-medium text-risk" : undefined)}
-                >
-                  {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
-                  {overdue && remaining !== null ? (
-                    <span className="ml-1.5 text-meta">({Math.abs(remaining)}d)</span>
-                  ) : null}
-                </TD>
                 <TD label="Status">
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </TD>
                 <TD label="Prioridade">
                   {FLAGGED_PRIORITY.includes(task.priority) ? (
                     <span className="font-medium text-risk">{priority.label}</span>
+                  ) : null}
+                </TD>
+                <TD
+                  label="Prazo"
+                  align="right"
+                  className={cn(overdue ? "font-medium text-risk" : undefined)}
+                >
+                  {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
+                  {overdue && remaining !== null ? (
+                    <span className="ml-1.5 text-meta">({Math.abs(remaining)}d)</span>
                   ) : null}
                 </TD>
               </TR>

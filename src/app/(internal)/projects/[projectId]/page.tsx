@@ -4,7 +4,7 @@ import { can, requireInternalUser } from "@/server/auth/current-user";
 import { getProjectWorkspace } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { orNotFound } from "@/server/authz/rsc";
-import { Panel, PropertyList } from "@/components/ui/card";
+import { Panel } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { ProgressBar, type ProgressTone } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/ui/badge";
@@ -29,9 +29,9 @@ const STAGE_BAR_TONE: Partial<Record<StageProgress, ProgressTone>> = {
 /**
  * "How is this project right now?"
  *
- * One focal block — the health panel: overall progress, where the project is,
- * what comes next, and the blocker when there is one. Everything under it is
- * on the canvas. Identity (owner, dates, category) lives in the record header,
+ * One focal block — progress: the overall number, what comes next, the
+ * blocker when there is one, and the four stages beside them. Everything
+ * under it is on the canvas. Identity (owner, dates, category) lives in the record header,
  * and the full tables live in the other tabs; this page links to them rather
  * than reproducing them.
  */
@@ -61,7 +61,6 @@ export default async function ProjectOverviewPage({
     nextMilestone !== null &&
     (nextMilestone.status === "DELAYED" || (daysUntil(nextMilestone.dueDate) ?? 0) < 0);
 
-  const currentStage = stages.find((stage) => stage.key === project.currentStage) ?? null;
   const base = `/projects/${projectId}`;
 
   const canAddMilestone =
@@ -69,67 +68,39 @@ export default async function ProjectOverviewPage({
 
   return (
     <div className="space-y-10">
-      {/* Health — the one box on the page. */}
-      <Panel className="p-5 sm:p-6">
-        <div
-          className={cn(
-            "grid grid-cols-1 gap-6",
-            project.blockerNote && "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-8",
-          )}
-        >
-          <div className="min-w-0">
-            <p className="text-meta text-muted">Progresso geral</p>
-            <p className="mt-1 text-kpi text-ink tabular-nums">{progress}%</p>
-            <ProgressBar value={progress} label="Progresso geral" className="mt-3 max-w-md" />
+      {/*
+        Progress — the one box on the page. Overall number on the left, the
+        four stages on the right: one block that answers "how far along, and
+        where". The stage rows used to be a second, full-width section below a
+        half-empty health panel that also repeated the current stage's number.
+      */}
+      <Panel className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,8fr)]">
+        <div className="min-w-0 p-5 sm:p-6">
+          <p className="text-meta text-muted">Progresso geral</p>
+          <p className="mt-1 text-kpi text-ink tabular-nums">{progress}%</p>
+          <ProgressBar value={progress} label="Progresso geral" className="mt-3 max-w-xs" />
 
-            <PropertyList
-              className="mt-5"
-              items={[
-                {
-                  label: "Etapa atual",
-                  value: currentStage ? (
-                    <Link
-                      href={`${base}/${stageSegment(currentStage.key)}`}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {label.stageKey(currentStage.key, dict)}
-                      <span className="font-normal text-muted tabular-nums">
-                        {" "}
-                        · {currentStage.computedProgress}%
-                      </span>
-                    </Link>
-                  ) : null,
-                },
-                {
-                  label: "Próximo marco",
-                  value: nextMilestone ? (
-                    <>
-                      {nextMilestone.title}
-                      <span
-                        className={cn(
-                          "font-normal tabular-nums",
-                          nextLate ? "text-risk" : "text-muted",
-                        )}
-                      >
-                        {" "}
-                        · {formatDate(nextMilestone.dueDate, locale)}
-                        {nextLate ? " · atrasado" : ""}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="font-normal text-muted">Nenhum pendente</span>
-                  ),
-                },
-              ]}
-            />
+          <div className="mt-6">
+            <p className="text-meta text-muted">Próximo marco</p>
+            {nextMilestone ? (
+              <>
+                <p className="mt-0.5 text-body font-medium text-ink">{nextMilestone.title}</p>
+                <p className={cn("text-meta tabular-nums", nextLate ? "text-risk" : "text-muted")}>
+                  {formatDate(nextMilestone.dueDate, locale)}
+                  {nextLate ? " · atrasado" : ""}
+                </p>
+              </>
+            ) : (
+              <p className="mt-0.5 text-body text-muted">Nenhum pendente</p>
+            )}
           </div>
 
           {/*
             A blocker is an exception, so it appears only when there is one —
-            inside the health panel, next to the number it explains.
+            under the number it explains.
           */}
           {project.blockerNote ? (
-            <Panel variant="callout" tone="risk" role="alert" className="self-start">
+            <Panel variant="callout" tone="risk" role="alert" className="mt-6">
               <div className="flex items-start gap-3">
                 <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
                 <div className="min-w-0">
@@ -140,53 +111,66 @@ export default async function ProjectOverviewPage({
             </Panel>
           ) : null}
         </div>
-      </Panel>
 
-      <Section title="Etapas">
-        <ul className="divide-y divide-line border-y border-line">
-          {stages.map((stage) => {
-            const status = meta.stage(stage.status as StageProgress, dict);
-            const name = label.stageKey(stage.key, dict);
-            return (
-              <li key={stage.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                <Link
-                  href={`${base}/${stageSegment(stage.key)}`}
-                  className="min-w-0 flex-1 truncate text-body font-medium text-ink underline-offset-4 hover:underline sm:w-48 sm:flex-none"
+        <div className="min-w-0 border-t border-line px-5 pt-4 pb-2 sm:px-6 lg:border-t-0 lg:border-l lg:pt-5">
+          <h2 className="text-meta text-muted">Etapas</h2>
+          <ul className="mt-1 divide-y divide-line-soft">
+            {stages.map((stage) => {
+              const status = meta.stage(stage.status as StageProgress, dict);
+              const name = label.stageKey(stage.key, dict);
+              const current = stage.key === project.currentStage;
+              return (
+                /*
+                  Fixed tracks so name, bar, number and status line up across
+                  the four rows and read as one unit. On a phone it is two
+                  lines — name and status, then bar and number — so the name
+                  is not squeezed to a few letters.
+                */
+                <li
+                  key={stage.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_2rem] items-center gap-x-3 gap-y-1.5 py-3 sm:grid-cols-[11.5rem_minmax(0,1fr)_2.75rem_8.5rem_2rem] sm:gap-x-4"
                 >
-                  {name}
-                </Link>
-                {/* Full width on its own line on a phone; between name and number on desktop. */}
-                <ProgressBar
-                  value={stage.computedProgress}
-                  tone={STAGE_BAR_TONE[stage.status as StageProgress]}
-                  label={name}
-                  className="order-last basis-full sm:order-none sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-0"
-                />
-                <span className="w-10 text-right text-meta font-medium text-ink tabular-nums">
-                  {stage.computedProgress}%
-                </span>
-                <span className="sm:w-36">
-                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                </span>
-                <span className="flex w-8 justify-end">
-                  {can(user, STAGE_PERMISSION[stage.key]) ? (
-                    <EditStageDialog
-                      stage={{
-                        id: stage.id,
-                        projectId: project.id,
-                        name,
-                        status: stage.status,
-                        progress: stage.progress,
-                        notes: stage.notes,
-                      }}
-                    />
-                  ) : null}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </Section>
+                  <Link
+                    href={`${base}/${stageSegment(stage.key)}`}
+                    aria-current={current ? "step" : undefined}
+                    className="col-start-1 row-start-1 min-w-0 truncate text-body font-medium text-ink underline-offset-4 hover:underline"
+                  >
+                    {name}
+                    {/* Replaces the "Etapa atual" line the health panel used to repeat. */}
+                    {current ? <span className="ml-1.5 text-meta font-normal text-muted">atual</span> : null}
+                  </Link>
+                  <ProgressBar
+                    value={stage.computedProgress}
+                    tone={STAGE_BAR_TONE[stage.status as StageProgress]}
+                    label={name}
+                    className="col-start-1 row-start-2 sm:col-start-2 sm:row-start-1"
+                  />
+                  <span className="col-start-2 row-start-2 text-meta font-medium text-ink tabular-nums sm:col-start-3 sm:row-start-1 sm:text-right">
+                    {stage.computedProgress}%
+                  </span>
+                  <span className="col-start-2 row-start-1 min-w-0 sm:col-start-4">
+                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                  </span>
+                  <span className="col-start-3 row-span-2 row-start-1 flex justify-end sm:col-start-5 sm:row-span-1">
+                    {can(user, STAGE_PERMISSION[stage.key]) ? (
+                      <EditStageDialog
+                        stage={{
+                          id: stage.id,
+                          projectId: project.id,
+                          name,
+                          status: stage.status,
+                          progress: stage.progress,
+                          notes: stage.notes,
+                        }}
+                      />
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </Panel>
 
       <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
         <Section

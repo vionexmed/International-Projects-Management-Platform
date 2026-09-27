@@ -73,6 +73,7 @@ export default async function ProjectClinicalPage({
         {study ? (
           <Panel className="space-y-5 p-5">
             <PropertyList
+              layout="grid"
               items={[
                 {
                   label: "Status",
@@ -113,21 +114,24 @@ export default async function ProjectClinicalPage({
         )}
       </Section>
 
-      <Section
-        title="Tarefas clínicas"
-        count={pending.length > 0 ? `${pending.length} em aberto` : undefined}
-        action={{ label: "Ver todas", href: `/projects/${projectId}/tasks?category=CLINICAL` }}
-      >
-        <StageTaskList tasks={tasks} locale={locale} dict={dict} />
-      </Section>
+      {/* Side by side, like the import stage: two short lists, not two full-width strips. */}
+      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
+        <Section
+          title="Tarefas clínicas"
+          count={pending.length > 0 ? `${pending.length} em aberto` : undefined}
+          action={{ label: "Ver todas", href: `/projects/${projectId}/tasks?category=CLINICAL` }}
+        >
+          <StageTaskList tasks={tasks} locale={locale} dict={dict} />
+        </Section>
 
-      <Section
-        title="Documentos clínicos"
-        count={documents.length || undefined}
-        action={{ label: "Ver todos", href: `/projects/${projectId}/documents?type=CLINICAL` }}
-      >
-        <StageDocumentList documents={documents} locale={locale} dict={dict} />
-      </Section>
+        <Section
+          title="Documentos clínicos"
+          count={documents.length || undefined}
+          action={{ label: "Ver todos", href: `/projects/${projectId}/documents?type=CLINICAL` }}
+        >
+          <StageDocumentList documents={documents} locale={locale} dict={dict} />
+        </Section>
+      </div>
     </div>
   );
 }

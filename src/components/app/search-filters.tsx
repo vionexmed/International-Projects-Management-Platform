@@ -105,7 +105,14 @@ export function FilterSelect({
   );
 }
 
-/** Collapsible filter row — hidden by default so the page opens calm. */
+/**
+ * Collapsible filter row — hidden by default so the page opens calm.
+ *
+ * Pass `className="contents"` inside a `flex-wrap` toolbar and the button and
+ * the panel become toolbar items: the button stays beside the search, and the
+ * open panel (`basis-full`) takes a full-width line of its own instead of
+ * opening in a narrow column under the button.
+ */
 export function FilterBar({
   children,
   activeCount,
@@ -146,7 +153,7 @@ export function FilterBar({
       </Button>
 
       {open ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-subtle p-3">
+        <div className="mt-3 flex basis-full flex-wrap items-center gap-2 rounded-md border border-line bg-subtle p-3">
           {children}
           {activeCount > 0 ? (
             <Button variant="ghost" size="sm" onClick={clear} className="ml-auto">
