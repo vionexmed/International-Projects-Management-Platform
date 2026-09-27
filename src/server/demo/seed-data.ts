@@ -291,9 +291,14 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
   });
   await db.documentRequest.create({
     data: {
-      projectId: zeta, supplierId: manufacturerA.id, requestedById: stefany.id,
+      // Linked to its mirror task like the two requests above. Unlinked, the
+      // same pendency surfaced twice — as an overdue task and as a request
+      // awaiting review — because only a linked mirror is de-duplicated.
+      projectId: zeta, supplierId: manufacturerA.id, requestedById: stefany.id, taskId: tasks[8].id,
       title: "Clinical data package", type: "CLINICAL", status: "SUBMITTED",
-      dueDate: daysFromNow(-2), submittedAt: daysFromNow(-3),
+      // Requested before it was answered: `responseDays` in the reports is
+      // submittedAt − createdAt, and a default createdAt of "now" made it negative.
+      createdAt: daysFromNow(-14), dueDate: daysFromNow(-2), submittedAt: daysFromNow(-3),
       description: "Clinical data supporting the evaluation of Product Zeta.",
     },
   });
@@ -301,7 +306,7 @@ export async function seedDemoData(db: PrismaClient, options: SeedOptions) {
     data: {
       projectId: gamma, supplierId: manufacturerC.id, requestedById: joao.id,
       documentId: documentIds["Commercial Invoice"], title: "Commercial Invoice", type: "IMPORT",
-      status: "APPROVED", dueDate: daysFromNow(-20), submittedAt: daysFromNow(-22), reviewedAt: daysFromNow(-19),
+      status: "APPROVED", createdAt: daysFromNow(-30), dueDate: daysFromNow(-20), submittedAt: daysFromNow(-22), reviewedAt: daysFromNow(-19),
     },
   });
   await db.documentRequestReply.create({

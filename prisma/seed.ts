@@ -72,18 +72,16 @@ function storage(): StorageDriver {
 }
 
 async function reset() {
-  // Ordered so foreign keys never block the truncate.
-  await db.$executeRawUnsafe(`
-    TRUNCATE TABLE
-      "MessageRead", "Message", "MessageThread",
-      "DocumentRequestReply", "DocumentRequest",
-      "DocumentVersion", "Document",
-      "TaskComment", "Task",
-      "GtmItem", "ImportShipment", "RegulatoryItem", "ClinicalStudy",
-      "Milestone", "ProjectStage", "TimelineEvent", "Project",
-      "LoginAttempt", "Notification", "AuditLog", "User", "Supplier", "Organization"
-    RESTART IDENTITY CASCADE;
-  `);
+  // Read the table list from the database instead of hardcoding it: a
+  // hand-kept list drifts with every migration that adds, merges or drops a
+  // table, and a stale name makes the whole TRUNCATE fail.
+  const tables = await db.$queryRaw<{ tablename: string }[]>`
+    SELECT tablename FROM pg_tables
+    WHERE schemaname = current_schema() AND tablename <> '_prisma_migrations'
+  `;
+  if (tables.length === 0) return;
+  const list = tables.map((t) => `"${t.tablename.replaceAll('"', '""')}"`).join(", ");
+  await db.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE;`);
 }
 
 async function main() {
