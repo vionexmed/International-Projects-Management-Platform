@@ -27,8 +27,10 @@ export function toActionError(error: unknown): ActionState {
     if (code === "P2002") return { error: "Já existe um registro com estes dados." };
     if (code === "P2003") return { error: "Registro relacionado inválido." };
   }
-  // Errors thrown deliberately by services carry user-facing messages.
-  if (error instanceof Error && error.message && error.message.length < 200) {
+  // Errors thrown deliberately by services (`throw new Error("…")`) carry
+  // user-facing messages. Anything else — a TypeError from a bug, a Prisma or
+  // driver error — may name internals, so only a plain `Error` is relayed.
+  if (error instanceof Error && error.name === "Error" && error.message && error.message.length < 200) {
     return { error: error.message };
   }
   console.error("[action] unexpected error", error);

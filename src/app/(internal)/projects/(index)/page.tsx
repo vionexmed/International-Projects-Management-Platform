@@ -109,7 +109,6 @@ export default async function ProjectsPage({
     <>
       <PageHeader
         title="Projetos"
-        description="Gerencie e acompanhe todos os projetos do portfólio."
         actions={
           can(user, "project:create") ? (
             <NewProjectDialog suppliers={suppliers} owners={owners} suggestedCode={suggestedCode} />
@@ -117,43 +116,43 @@ export default async function ProjectsPage({
         }
       />
 
-      <TabsNav
-        className="mb-5"
-        items={TABS.map((tab) => ({
-          href: buildTabHref(tab.key),
-          label: tab.label,
-          count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
-          active: tab.key === activeTab.key,
-        }))}
-      />
-
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <SearchInput placeholder="Buscar projetos…" className="w-full sm:w-80" />
-        <FilterBar activeCount={activeFilters}>
-          <FilterSelect
-            paramKey="supplier"
-            label="Fornecedor"
-            options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
-          />
-          <FilterSelect
-            paramKey="owner"
-            label="Responsável"
-            options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
-          />
-          <FilterSelect
-            paramKey="stage"
-            label="Etapa"
-            options={OPTIONS.stageKey.map((stage) => ({
-              value: stage,
-              label: label.stageKey(stage, dict),
-            }))}
-          />
-          <FilterSelect
-            paramKey="country"
-            label="País"
-            options={countries.map((country) => ({ value: country, label: country }))}
-          />
-        </FilterBar>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <TabsNav
+          items={TABS.map((tab) => ({
+            href: buildTabHref(tab.key),
+            label: tab.label,
+            count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
+            active: tab.key === activeTab.key,
+          }))}
+        />
+        <div className="flex flex-wrap items-start gap-3">
+          <SearchInput placeholder="Buscar projetos…" className="w-56" />
+          <FilterBar activeCount={activeFilters}>
+            <FilterSelect
+              paramKey="supplier"
+              label="Fornecedor"
+              options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
+            />
+            <FilterSelect
+              paramKey="owner"
+              label="Responsável"
+              options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
+            />
+            <FilterSelect
+              paramKey="stage"
+              label="Etapa"
+              options={OPTIONS.stageKey.map((stage) => ({
+                value: stage,
+                label: label.stageKey(stage, dict),
+              }))}
+            />
+            <FilterSelect
+              paramKey="country"
+              label="País"
+              options={countries.map((country) => ({ value: country, label: country }))}
+            />
+          </FilterBar>
+        </div>
       </div>
 
       <TableShell>

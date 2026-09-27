@@ -346,6 +346,7 @@ model Project {
 
   @@unique([organizationId, projectCode])
   @@index([organizationId, status])
+  @@index([organizationId, updatedAt])
   @@index([supplierId])
   @@index([ownerId])
 }
@@ -438,7 +439,7 @@ model Task {
   comments TaskComment[]
   requests DocumentRequest[]
 
-  @@index([organizationId, status])
+  @@index([organizationId, status, dueDate])
   @@index([projectId])
   @@index([assignedToId])
   @@index([supplierId])
@@ -489,6 +490,7 @@ model Document {
   requests DocumentRequest[]
 
   @@index([organizationId, type])
+  @@index([organizationId, updatedAt])
   @@index([projectId])
   @@index([supplierId, visibility])
 }
@@ -760,6 +762,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 model AuditLog {

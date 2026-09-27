@@ -422,7 +422,7 @@ E, com dois logins de fornecedores diferentes, confirme que cada um só vê a pr
 | Boundary de último recurso para falhas no root layout | `src/app/global-error.tsx` |
 | Validação de ambiente que recusa configuração insegura | `src/lib/env.ts` |
 | Seed bloqueado em produção + bootstrap seguro de admin | `prisma/seed.ts`, `scripts/create-admin.ts` |
-| CI: lint, tipos, 85 testes e build a cada push | `.github/workflows/ci.yml` |
+| CI: lint, tipos, testes unitários e de integração, prova de migrations e build a cada push | `.github/workflows/ci.yml` |
 
 ### O que ainda falta para operar com tranquilidade
 

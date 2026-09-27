@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { FlaskConical } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
 import { orNotFound } from "@/server/authz/rsc";
-import { Field, Panel, PanelHeader } from "@/components/ui/card";
+import { Panel, PropertyList } from "@/components/ui/card";
+import { Section } from "@/components/ui/section";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ClinicalStudyDialog } from "@/features/projects/clinical-form";
@@ -47,93 +47,87 @@ export default async function ProjectClinicalPage({
   const pending = tasks.filter((task) => task.status !== "COMPLETED" && task.status !== "CANCELLED");
 
   return (
-    <div className="space-y-6">
-      <Panel>
-        <PanelHeader
-          title="Estudo clínico"
-          description="Dados do estudo associado a este projeto."
-          action={
-            editable ? (
-              <ClinicalStudyDialog
-                projectId={projectId}
-                hasStudy={Boolean(study)}
-                values={{
-                  institution: study?.institution ?? "",
-                  country: study?.country ?? "",
-                  protocol: study?.protocol ?? "",
-                  studyType: study?.studyType ?? "",
-                  status: (study?.status as ClinicalProgress) ?? "PLANNED",
-                  startDate: study?.startDate?.toISOString().slice(0, 10) ?? "",
-                  expectedCompletion: study?.expectedCompletion?.toISOString().slice(0, 10) ?? "",
-                  notes: study?.notes ?? "",
-                }}
-              />
-            ) : null
-          }
-        />
-
+    <div className="space-y-10">
+      {/* The study is this stage's own record, so it is the one box here. */}
+      <Section
+        title="Estudo clínico"
+        action={
+          editable ? (
+            <ClinicalStudyDialog
+              projectId={projectId}
+              hasStudy={Boolean(study)}
+              values={{
+                institution: study?.institution ?? "",
+                country: study?.country ?? "",
+                protocol: study?.protocol ?? "",
+                studyType: study?.studyType ?? "",
+                status: (study?.status as ClinicalProgress) ?? "PLANNED",
+                startDate: study?.startDate?.toISOString().slice(0, 10) ?? "",
+                expectedCompletion: study?.expectedCompletion?.toISOString().slice(0, 10) ?? "",
+                notes: study?.notes ?? "",
+              }}
+            />
+          ) : null
+        }
+      >
         {study ? (
-          <>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-3 lg:grid-cols-4">
-              <Field label="Instituição">{study.institution ?? "—"}</Field>
-              <Field label="País">{study.country ?? "—"}</Field>
-              <Field label="Protocolo">{study.protocol ?? "—"}</Field>
-              <Field label="Tipo de estudo">{study.studyType ?? "—"}</Field>
-              <Field label="Status">
-                {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : "—"}
-              </Field>
-              <Field label="Início">{formatDate(study.startDate, locale)}</Field>
-              <Field label="Conclusão prevista">{formatDate(study.expectedCompletion, locale)}</Field>
-            </dl>
+          <Panel className="space-y-5 p-5">
+            <PropertyList
+              items={[
+                {
+                  label: "Status",
+                  value: status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : null,
+                },
+                { label: "Instituição", value: study.institution },
+                { label: "País", value: study.country },
+                { label: "Protocolo", value: study.protocol },
+                { label: "Tipo de estudo", value: study.studyType },
+                {
+                  label: "Início",
+                  value: study.startDate ? formatDate(study.startDate, locale) : null,
+                },
+                {
+                  label: "Conclusão prevista",
+                  value: study.expectedCompletion
+                    ? formatDate(study.expectedCompletion, locale)
+                    : null,
+                },
+              ]}
+            />
             {study.notes ? (
-              <div className="border-t border-line px-5 py-4">
-                <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-                  Observações
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink">{study.notes}</p>
+              <div className="rounded-lg bg-raised/70 px-4 py-3">
+                <p className="text-meta text-muted">Observações</p>
+                <p className="mt-1 text-body text-ink-soft">{study.notes}</p>
               </div>
             ) : null}
-          </>
+          </Panel>
         ) : (
-          <EmptyState
-            icon={FlaskConical}
-            title="Nenhum estudo cadastrado."
-            description="Adicione o estudo clínico para acompanhar instituição, protocolo e prazos."
-            compact
-          />
+          <Panel>
+            <EmptyState
+              icon={FlaskConical}
+              title="Nenhum estudo cadastrado."
+              description="Adicione o estudo clínico para acompanhar instituição, protocolo e prazos."
+              compact
+            />
+          </Panel>
         )}
-      </Panel>
+      </Section>
 
-      <Panel>
-        <PanelHeader
-          title="Pendências clínicas"
-          description={`${pending.length} item(ns) em aberto nesta etapa.`}
-          action={
-            <Link
-              href={`/projects/${projectId}/tasks`}
-              className="text-[13px] font-medium text-brand-strong hover:underline"
-            >
-              Ver todas as tarefas
-            </Link>
-          }
-        />
+      <Section
+        title="Tarefas clínicas"
+        count={pending.length > 0 ? `${pending.length} em aberto` : undefined}
+        action={{ label: "Ver todas", href: `/projects/${projectId}/tasks?category=CLINICAL` }}
+      >
         <StageTaskList tasks={tasks} locale={locale} dict={dict} />
-      </Panel>
+      </Section>
 
-      <Panel>
-        <PanelHeader
-          title="Documentos clínicos"
-          action={
-            <Link
-              href={`/projects/${projectId}/documents`}
-              className="text-[13px] font-medium text-brand-strong hover:underline"
-            >
-              Ver todos os documentos
-            </Link>
-          }
-        />
+      <Section
+        title="Documentos clínicos"
+        count={documents.length || undefined}
+        action={{ label: "Ver todos", href: `/projects/${projectId}/documents?type=CLINICAL` }}
+      >
         <StageDocumentList documents={documents} locale={locale} dict={dict} />
-      </Panel>
+      </Section>
     </div>
   );
 }

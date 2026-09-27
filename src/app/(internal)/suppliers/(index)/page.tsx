@@ -41,7 +41,6 @@ export default async function SuppliersPage({
     <>
       <PageHeader
         title="Fornecedores"
-        description="Fabricantes e parceiros internacionais da Vionex."
         actions={can(user, "supplier:manage") ? <NewSupplierDialog /> : null}
       />
 
@@ -70,7 +69,6 @@ export default async function SuppliersPage({
                     <TH>País</TH>
                     <TH>Projetos</TH>
                     <TH>Pendências</TH>
-                    <TH>Atrasadas</TH>
                     <TH>Status</TH>
                     <TH className="w-10" />
                   </TR>
@@ -88,19 +86,21 @@ export default async function SuppliersPage({
                             <CellStack title={supplier.name} />
                           </Link>
                         </TD>
-                        <TD label="País" className="text-[13px] text-ink-soft">{supplier.country}</TD>
-                        <TD label="Projetos" className="text-[13px] text-ink-soft tabular-nums">
+                        <TD label="País">{supplier.country}</TD>
+                        <TD label="Projetos" className="tabular-nums">
                           {supplier.projectCount}
                         </TD>
-                        <TD label="Pendências" className="text-[13px] text-ink-soft tabular-nums">
-                          {supplier.openTaskCount}
-                        </TD>
-                        <TD label="Atrasadas" className="text-[13px] tabular-nums">
-                          {supplier.overdueTaskCount > 0 ? (
-                            <span className="font-medium text-risk">{supplier.overdueTaskCount}</span>
-                          ) : (
-                            <span className="text-muted">—</span>
-                          )}
+                        <TD label="Pendências" className="tabular-nums">
+                          {supplier.openTaskCount > 0 ? (
+                            <>
+                              {supplier.openTaskCount}
+                              {supplier.overdueTaskCount > 0 ? (
+                                <span className="ml-1 font-medium text-risk">
+                                  ({supplier.overdueTaskCount} atrasada{supplier.overdueTaskCount === 1 ? "" : "s"})
+                                </span>
+                              ) : null}
+                            </>
+                          ) : null}
                         </TD>
                         <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>

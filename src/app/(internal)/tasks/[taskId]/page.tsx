@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireTaskAccess } from "@/server/authz/access";
 import { orNotFound } from "@/server/authz/rsc";
 import { listTaskComments } from "@/server/services/tasks";
 import { listInternalUserOptions } from "@/server/services/users";
 import { db } from "@/server/db";
-import { Field, Panel, PanelHeader } from "@/components/ui/card";
+import { PageHeader } from "@/components/app/page-header";
+import { Section } from "@/components/ui/section";
+import { Panel, PanelHeader, PropertyList, type PropertyItem } from "@/components/ui/card";
 import { PriorityBadge, SolidBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { UserAvatar } from "@/components/ui/avatar";
@@ -17,7 +19,8 @@ import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { deriveTaskStatus } from "@/lib/status";
 import { label, meta } from "@/lib/labels";
-import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import { daysUntil, formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@/server/services/tasks";
 
 export async function generateMetadata({ params }: { params: Promise<{ taskId: string }> }) {
@@ -57,36 +60,58 @@ export default async function TaskDetailPage({
   const status = meta.task(derived, dict);
   const priority = meta.priority(task.priority, dict);
   const editable = can(user, "task:update");
+  const late = derived === "OVERDUE";
+  const remaining = daysUntil(task.dueDate);
+
+  const waiting = task.supplier
+    ? task.supplier.name
+    : project?.supplier.name
+      ? "Equipe interna"
+      : undefined;
+
+  const properties: PropertyItem[] = [
+    {
+      label: "Projeto",
+      value: (
+        <Link href={`/projects/${task.project.id}`} className="text-brand-strong hover:underline">
+          {task.project.name}
+        </Link>
+      ),
+    },
+    { label: "Categoria", value: label.taskCategory(task.category, dict) },
+    { label: "Responsável", value: task.assignedTo?.name },
+    { label: "Aguardando", value: waiting },
+    { label: "Prazo", value: formatDate(task.dueDate, locale) },
+    {
+      label: "Prioridade",
+      value: <PriorityBadge tone={priority.tone}>{priority.label}</PriorityBadge>,
+    },
+    {
+      label: "Criada por",
+      value: `${task.createdBy.name} · ${formatDateTime(task.createdAt, locale)}`,
+    },
+    {
+      label: "Concluída em",
+      value: task.completedAt ? formatDateTime(task.completedAt, locale) : undefined,
+    },
+  ];
 
   return (
     <>
-      <Link
-        href="/tasks"
-        className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft className="size-3.5" />
-        Tarefas
-      </Link>
-
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-              {task.title}
-            </h1>
-            <SolidBadge tone={status.tone}>{status.label}</SolidBadge>
-          </div>
-          <p className="mt-1.5 text-[14px] text-muted">
-            <Link href={`/projects/${task.project.id}`} className="hover:text-brand-strong hover:underline">
-              {task.project.name}
-            </Link>{" "}
-            · {task.project.projectCode} · {label.taskCategory(task.category, dict)}
-          </p>
-        </div>
-
-        {editable ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <TaskStatusControl taskId={task.id} status={task.status} />
+      <PageHeader
+        breadcrumb={[{ label: "Tarefas", href: "/tasks" }]}
+        title={task.title}
+        status={<SolidBadge tone={status.tone}>{status.label}</SolidBadge>}
+        meta={
+          task.dueDate ? (
+            <span className={cn(late && "font-medium text-risk")}>
+              Prazo: {formatDate(task.dueDate, locale)}
+              {late && remaining !== null ? ` · ${Math.abs(remaining)}d de atraso` : ""}
+            </span>
+          ) : undefined
+        }
+        actions={
+          editable ? (
             <EditTaskDialog
               task={{
                 id: task.id,
@@ -100,31 +125,26 @@ export default async function TaskDetailPage({
               }}
               owners={owners}
             />
-          </div>
-        ) : null}
-      </div>
+          ) : null
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Panel>
-            <PanelHeader title="Descrição" />
-            <div className="p-5">
-              {task.description ? (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap text-ink">
-                  {task.description}
-                </p>
-              ) : (
-                <p className="text-[13px] text-muted">Nenhuma descrição informada.</p>
-              )}
-            </div>
-          </Panel>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-8">
+          {editable ? (
+            <Panel variant="focal">
+              <PanelHeader title="Atualizar tarefa" />
+              <div className="space-y-4 p-5">
+                <div className="flex items-center gap-3">
+                  <span className="text-meta text-muted">Status</span>
+                  <TaskStatusControl taskId={task.id} status={task.status} />
+                </div>
+                <TaskCommentForm taskId={task.id} />
+              </div>
+            </Panel>
+          ) : null}
 
-          <Panel>
-            <PanelHeader
-              title="Comentários"
-              description="Visíveis apenas para a equipe Vionex."
-            />
-
+          <Section title="Comentários" count={comments.length}>
             {comments.length === 0 ? (
               <EmptyState
                 icon={MessageSquare}
@@ -133,16 +153,16 @@ export default async function TaskDetailPage({
                 compact
               />
             ) : (
-              <ul className="divide-y divide-line-soft">
+              <ul className="divide-y divide-line-soft rounded-lg border border-line bg-surface">
                 {comments.map((comment) => (
                   <li key={comment.id} className="flex gap-3 px-5 py-4">
                     <UserAvatar name={comment.author.name} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+                      <p className="flex flex-wrap items-baseline gap-x-2 text-meta">
                         <span className="font-medium text-ink">{comment.author.name}</span>
                         <span className="text-muted">{formatRelative(comment.createdAt, locale)}</span>
                       </p>
-                      <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-ink-soft">
+                      <p className="mt-1 text-body whitespace-pre-wrap text-ink-soft">
                         {comment.body}
                       </p>
                     </div>
@@ -150,52 +170,22 @@ export default async function TaskDetailPage({
                 ))}
               </ul>
             )}
-
-            {editable ? (
-              <div className="border-t border-line p-5">
-                <TaskCommentForm taskId={task.id} />
-              </div>
-            ) : null}
-          </Panel>
+          </Section>
         </div>
 
         <div className="space-y-6">
-          <Panel>
-            <PanelHeader title="Detalhes" />
-            <dl className="space-y-5 p-5">
-              <Field label="Projeto">
-                <Link
-                  href={`/projects/${task.project.id}`}
-                  className="text-brand-strong hover:underline"
-                >
-                  {task.project.name}
-                </Link>
-              </Field>
-              <Field label="Categoria">{label.taskCategory(task.category, dict)}</Field>
-              <Field label="Responsável">{task.assignedTo?.name ?? "—"}</Field>
-              <Field label="Aguardando">
-                {task.supplier?.name ?? project?.supplier.name ? (
-                  task.supplier ? (
-                    <span>{task.supplier.name}</span>
-                  ) : (
-                    <span className="text-muted">Equipe interna</span>
-                  )
-                ) : (
-                  "—"
-                )}
-              </Field>
-              <Field label="Prazo">{formatDate(task.dueDate, locale)}</Field>
-              <Field label="Prioridade">
-                <PriorityBadge tone={priority.tone}>{priority.label}</PriorityBadge>
-              </Field>
-              <Field label="Criada por">
-                {task.createdBy.name} · {formatDateTime(task.createdAt, locale)}
-              </Field>
-              {task.completedAt ? (
-                <Field label="Concluída em">{formatDateTime(task.completedAt, locale)}</Field>
-              ) : null}
-            </dl>
-          </Panel>
+          <PropertyList layout="stacked" items={properties} />
+
+          <div>
+            <p className="mb-2 text-meta text-muted">Descrição</p>
+            <div className="rounded-lg bg-raised/70 px-4 py-3">
+              {task.description ? (
+                <p className="text-body whitespace-pre-wrap text-ink">{task.description}</p>
+              ) : (
+                <p className="text-body text-muted">Nenhuma descrição informada.</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </>

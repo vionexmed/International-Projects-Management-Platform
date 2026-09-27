@@ -53,10 +53,23 @@ export function InternalMobileNav({
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
 
-  const items = [
+  const items: {
+    href: string;
+    match?: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: number;
+  }[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/projects", label: "Projetos", icon: FolderKanban },
-    { href: "/tasks", label: "Tarefas", icon: ListChecks, badge: taskCount },
+    // Same as the sidebar: the badge counts my open tasks, so it opens them.
+    {
+      href: `/tasks?assignee=${user.id}`,
+      match: "/tasks",
+      label: "Tarefas",
+      icon: ListChecks,
+      badge: taskCount,
+    },
     { href: "/documents", label: "Documentos", icon: FileText },
     { href: "/suppliers", label: "Fornecedores", icon: Building2 },
     { href: "/regulatory", label: "Regulatório", icon: ShieldCheck },
@@ -118,7 +131,7 @@ export function InternalMobileNav({
             <nav className="scroll-slim flex-1 overflow-y-auto px-2.5 pb-4">
               <ul className="space-y-0.5">
                 {items.map((item) => {
-                  const active = isActive(item.href);
+                  const active = isActive(item.match ?? item.href);
                   const Icon = item.icon;
                   return (
                     <li key={item.href}>

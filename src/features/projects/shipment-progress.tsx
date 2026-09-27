@@ -6,8 +6,9 @@ import { label } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 /**
- * Linear shipment tracker. Stages before the current one read as done, the
- * current one is marked, and the rest stay quiet.
+ * Linear shipment tracker. Stages before the current one read as done (in
+ * neutral ink — progress is not an exception), the current one carries the
+ * brand ring as the one "you are here" mark, and the rest stay quiet.
  */
 export function ShipmentProgress({ current, dict }: { current: ShipmentStage; dict: Dictionary }) {
   const currentIndex = SHIPMENT_STAGE_ORDER.indexOf(current);
@@ -23,9 +24,9 @@ export function ShipmentProgress({ current, dict }: { current: ShipmentStage; di
             <div className="flex min-w-24 flex-col items-center gap-2 px-1">
               <span
                 className={cn(
-                  "flex size-6 items-center justify-center rounded-full border text-[11px] font-semibold",
-                  done && "border-brand bg-brand text-white",
-                  active && "border-brand bg-brand-soft text-brand-deep",
+                  "flex size-6 items-center justify-center rounded-full border text-meta font-semibold",
+                  done && "border-ink-soft/60 bg-ink-soft/60 text-white",
+                  active && "border-brand-strong bg-surface text-ink ring-2 ring-brand-soft",
                   !done && !active && "border-line bg-surface text-faint",
                 )}
               >
@@ -33,7 +34,7 @@ export function ShipmentProgress({ current, dict }: { current: ShipmentStage; di
               </span>
               <span
                 className={cn(
-                  "text-center text-[12px] leading-tight",
+                  "text-center text-meta",
                   active ? "font-medium text-ink" : done ? "text-ink-soft" : "text-muted",
                 )}
               >
@@ -43,7 +44,7 @@ export function ShipmentProgress({ current, dict }: { current: ShipmentStage; di
 
             {index < SHIPMENT_STAGE_ORDER.length - 1 ? (
               <span
-                className={cn("mt-3 h-px min-w-4 flex-1", done ? "bg-brand" : "bg-line")}
+                className={cn("mt-3 h-px min-w-4 flex-1", done ? "bg-ink-soft/60" : "bg-line")}
                 aria-hidden
               />
             ) : null}

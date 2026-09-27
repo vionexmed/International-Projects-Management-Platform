@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { startOfTodayUtc } from "@/lib/format";
 import type { HealthStatus, Prisma } from "@/generated/prisma";
 
@@ -81,7 +82,7 @@ export async function listSuppliers(
   }));
 }
 
-export async function getSupplierProfile(user: SessionUser, supplierId: string) {
+export const getSupplierProfile = cache(async (user: SessionUser, supplierId: string) => {
   const supplier = await db.supplier.findFirst({
     where: { AND: [supplierScope(user), { id: supplierId }] },
     include: {
@@ -125,7 +126,7 @@ export async function getSupplierProfile(user: SessionUser, supplierId: string) 
   ]);
 
   return { supplier, projects, openTasks, overdueTasks, documentCount: documents };
-}
+});
 
 export async function createSupplier(
   user: SessionUser,

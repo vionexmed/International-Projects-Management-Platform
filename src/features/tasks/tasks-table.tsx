@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
 import type { TaskCategory, TaskPriority } from "@/generated/prisma";
-import { PriorityBadge, StatusBadge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   CellStack,
@@ -13,7 +13,7 @@ import {
   THead,
   TR,
 } from "@/components/ui/table";
-import { formatDate, daysUntil } from "@/lib/format";
+import { formatDateShort, daysUntil } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
@@ -32,16 +32,22 @@ export type TaskRow = {
   supplier: { id: string; name: string } | null;
 };
 
+/** Only these carry the "Alta"/"Urgente" flag — everything else stays blank. */
+const FLAGGED_PRIORITY: TaskPriority[] = ["HIGH", "URGENT"];
+
 export function TasksTable({
   tasks,
   locale,
   dict,
+  /** Drops the project name from the primary cell's secondary line: the page already scopes to one project. */
+  scope,
   emptyTitle,
   emptyDescription,
 }: {
   tasks: TaskRow[];
   locale: Locale;
   dict: Dictionary;
+  scope?: "project";
   emptyTitle: string;
   emptyDescription?: string;
 }) {
@@ -55,10 +61,7 @@ export function TasksTable({
         <THead>
           <TR>
             <TH>Tarefa</TH>
-            <TH>Projeto</TH>
-            <TH>Categoria</TH>
             <TH>Responsável</TH>
-            <TH>Aguardando</TH>
             <TH>Prazo</TH>
             <TH>Status</TH>
             <TH>Prioridade</TH>
@@ -70,6 +73,9 @@ export function TasksTable({
             const priority = meta.priority(task.priority, dict);
             const overdue = task.derivedStatus === "OVERDUE";
             const remaining = daysUntil(task.dueDate);
+            const category = label.taskCategory(task.category, dict);
+            const taskSubtitle =
+              scope === "project" ? category : `${task.project.name} · ${category}`;
 
             return (
               <TR key={task.id} interactive>
@@ -78,36 +84,31 @@ export function TasksTable({
                     href={`/tasks/${task.id}`}
                     className="block after:absolute after:inset-0 after:content-['']"
                   >
-                    <CellStack title={task.title} />
+                    <CellStack title={task.title} subtitle={taskSubtitle} />
                   </Link>
                 </TD>
-                <TD label="Projeto" className="text-[13px] text-ink-soft">
+                <TD label="Responsável">
                   <CellStack
-                    title={<span className="font-normal">{task.project.name}</span>}
-                    subtitle={task.project.projectCode}
+                    title={task.assignedTo?.name ?? ""}
+                    subtitle={task.supplier ? `Aguardando ${task.supplier.name}` : undefined}
                   />
                 </TD>
-                <TD label="Categoria" className="text-[13px] text-ink-soft">
-                  {label.taskCategory(task.category, dict)}
-                </TD>
-                <TD label="Responsável" className="text-[13px] text-ink-soft">{task.assignedTo?.name ?? "—"}</TD>
-                <TD label="Aguardando" className="text-[13px] text-ink-soft">{task.supplier?.name ?? "—"}</TD>
-                <TD label="Prazo"
-                  className={cn(
-                    "text-[13px] whitespace-nowrap",
-                    overdue ? "font-medium text-risk" : "text-ink-soft",
-                  )}
+                <TD
+                  label="Prazo"
+                  className={cn(overdue ? "font-medium text-risk" : undefined)}
                 >
-                  {formatDate(task.dueDate, locale)}
+                  {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
                   {overdue && remaining !== null ? (
-                    <span className="ml-1.5 text-[12px]">({Math.abs(remaining)}d)</span>
+                    <span className="ml-1.5 text-meta">({Math.abs(remaining)}d)</span>
                   ) : null}
                 </TD>
                 <TD label="Status">
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </TD>
                 <TD label="Prioridade">
-                  <PriorityBadge tone={priority.tone}>{priority.label}</PriorityBadge>
+                  {FLAGGED_PRIORITY.includes(task.priority) ? (
+                    <span className="font-medium text-risk">{priority.label}</span>
+                  ) : null}
                 </TD>
               </TR>
             );

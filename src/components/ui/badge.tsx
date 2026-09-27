@@ -10,8 +10,13 @@ const DOT_TONE: Record<Tone, string> = {
   neutral: "bg-faint",
 };
 
+/**
+ * Status colour is for exceptions. "Em dia" used to be as loud a green as
+ * "Bloqueado" was red; the ok dot stays green but its text is plain ink, so
+ * only the problems on a screen are coloured.
+ */
 const TEXT_TONE: Record<Tone, string> = {
-  ok: "text-ok",
+  ok: "text-ink-soft",
   warn: "text-warn",
   risk: "text-risk",
   info: "text-info",
@@ -25,6 +30,16 @@ const SOFT_TONE: Record<Tone, string> = {
   info: "bg-info-soft text-info",
   neutral: "bg-raised text-muted",
 };
+
+/** The bare dot, for places that carry a tone without a badge (summary lines, rows). */
+export function StatusDot({ tone, className }: { tone: Tone; className?: string }) {
+  return (
+    <span
+      className={cn("inline-block size-[7px] shrink-0 rounded-full", DOT_TONE[tone], className)}
+      aria-hidden
+    />
+  );
+}
 
 /**
  * The product's default status indicator: a small coloured dot plus plain
@@ -41,8 +56,8 @@ export function StatusBadge({
   className?: string;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 text-[13px] whitespace-nowrap", className)}>
-      <span className={cn("size-[7px] shrink-0 rounded-full", DOT_TONE[tone])} aria-hidden />
+    <span className={cn("inline-flex items-center gap-2 text-body whitespace-nowrap", className)}>
+      <StatusDot tone={tone} />
       <span className={TEXT_TONE[tone]}>{children}</span>
     </span>
   );

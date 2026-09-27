@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarClock } from "lucide-react";
 import { requireInternalUser } from "@/server/auth/current-user";
 import { getPortfolioSummary, listUpcomingDeadlines } from "@/server/services/dashboard";
 import { countAttentionItems, listAttentionItems } from "@/server/services/attention";
-import { getPortfolioBreakdown } from "@/server/services/analytics";
-import { PageHeader, SectionHeader } from "@/components/app/page-header";
+import { PageHeader } from "@/components/app/page-header";
 import { AttentionList } from "@/components/app/attention-list";
-import { Panel } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { Section } from "@/components/ui/section";
+import { SummaryLine, type SummaryItem } from "@/components/ui/stat";
+import { CanvasEmpty, CanvasList, CanvasRow } from "@/features/projects/canvas-list";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { label } from "@/lib/labels";
-import { formatDeadlineParts, daysUntil } from "@/lib/format";
+import { formatDateShort, daysUntil } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { StageKey } from "@/generated/prisma";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -29,247 +25,139 @@ function greeting(name: string) {
 /**
  * Triage. One question: what needs attention now?
  *
- * This page used to answer it with the portfolio table — the same columns,
- * the same query and the same actions as `/projects`, one filter apart. That
- * made two screens for one job and taught people that the dashboard is just a
- * shorter list of projects.
+ * Nothing here is a canonical list. The summary line links into `/projects`,
+ * the exceptions link to wherever each one is resolved, and the deadlines
+ * link to the task. Every block is a doorway; none of them is a destination.
  *
- * Now nothing here is a canonical list. The numbers link into `/projects`, the
- * exceptions link to wherever each one is resolved, and the deadlines link to
- * the task. Every block is a doorway; none of them is a destination.
+ * The page has one box on purpose — the exceptions. The portfolio numbers are
+ * a sentence, the deadlines sit on the canvas, and the distribution by stage
+ * lives on `/reports`, which owns it; a near-copy here competed with the one
+ * thing this page is for.
  */
 export default async function DashboardPage() {
   const user = await requireInternalUser();
   const locale = localeFromLanguage(user.language);
-  const dict = getDictionary(locale);
 
-  const [summary, attention, counts, deadlines, breakdown] = await Promise.all([
+  const [summary, attention, counts, deadlines] = await Promise.all([
     getPortfolioSummary(user),
     listAttentionItems(user, 6),
     countAttentionItems(user),
     listUpcomingDeadlines(user, 6),
-    getPortfolioBreakdown(user),
   ]);
 
   /** Only the kinds that actually have rows get a link — no empty promises. */
   const attentionLinks = [
     counts.tasks > 0
-      ? { label: `${counts.tasks} tarefas atrasadas`, href: "/tasks?tab=OVERDUE" }
+      ? { label: `${counts.tasks} ${counts.tasks === 1 ? "tarefa atrasada" : "tarefas atrasadas"}`, href: "/tasks?tab=OVERDUE" }
       : null,
     counts.requests > 0
-      ? { label: `${counts.requests} documentos atrasados`, href: "/regulatory?status=overdue" }
+      ? { label: `${counts.requests} ${counts.requests === 1 ? "documento atrasado" : "documentos atrasados"}`, href: "/regulatory?status=overdue" }
       : null,
     counts.reviews > 0
       ? { label: `${counts.reviews} aguardando análise`, href: "/regulatory?status=review" }
       : null,
     counts.projects > 0
-      ? { label: `${counts.projects} projetos bloqueados`, href: "/projects?tab=BLOCKED" }
+      ? { label: `${counts.projects} ${counts.projects === 1 ? "projeto bloqueado" : "projetos bloqueados"}`, href: "/projects?tab=BLOCKED" }
       : null,
     counts.milestones > 0
-      ? { label: `${counts.milestones} marcos atrasados`, href: "/projects?tab=ATTENTION" }
+      ? { label: `${counts.milestones} ${counts.milestones === 1 ? "marco atrasado" : "marcos atrasados"}`, href: "/projects?tab=ATTENTION" }
       : null,
   ].filter((link): link is { label: string; href: string } => link !== null);
 
+  // Colour only on the exceptions, and only when there is one.
+  const portfolio: SummaryItem[] = [
+    { label: summary.total === 1 ? "projeto" : "projetos", value: summary.total, href: "/projects" },
+    { label: "em dia", value: summary.onTrack, href: "/projects?tab=ON_TRACK" },
+    {
+      label: "em risco",
+      value: summary.atRisk,
+      tone: summary.atRisk > 0 ? "warn" : undefined,
+      href: "/projects?tab=AT_RISK",
+    },
+    {
+      label: summary.blocked === 1 ? "bloqueado" : "bloqueados",
+      value: summary.blocked,
+      tone: summary.blocked > 0 ? "risk" : undefined,
+      href: "/projects?tab=BLOCKED",
+    },
+  ];
+
   return (
     <>
-      <PageHeader
-        title={greeting(user.name)}
-        description="O que precisa da sua atenção agora."
-      />
-
-      {/* Portfolio — four numbers, each a way into the canonical list. */}
-      <Panel className="mb-8">
-        <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
-          <Stat label="Total de projetos" value={summary.total} href="/projects" />
-          <Stat label="Em dia" value={summary.onTrack} tone="ok" href="/projects?tab=ON_TRACK" />
-          <Stat label="Em risco" value={summary.atRisk} tone="warn" href="/projects?tab=AT_RISK" />
-          <Stat label="Bloqueados" value={summary.blocked} tone="risk" href="/projects?tab=BLOCKED" />
+      <PageHeader title={greeting(user.name)}>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <SummaryLine items={portfolio} />
+          <Link
+            href="/reports"
+            className="text-meta text-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
+          >
+            Ver relatórios
+          </Link>
         </div>
-      </Panel>
+      </PageHeader>
 
-      {/* Exceptions */}
-      <section className="mb-8">
-        <SectionHeader
+      <div className="space-y-10">
+        <Section
           title="Precisa da sua atenção"
-          description={
-            counts.total > 0
-              ? `${counts.total} pendências fora do previsto em todo o portfólio.`
-              : "Exceções do portfólio: atrasos, bloqueios e análises paradas."
-          }
-        />
-        <AttentionList
-          items={attention}
-          locale={locale}
-          links={attentionLinks}
-          emptyTitle="Nada fora do previsto."
-          emptyDescription="Nenhum atraso, bloqueio ou análise parada no portfólio."
-        />
-      </section>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Upcoming deadlines */}
-        <section>
-          <SectionHeader
-            title="Próximos prazos"
-            description="Tarefas com vencimento próximo."
-            action={
-              <Link
-                href="/tasks"
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-              >
-                Ver tarefas
-                <ArrowRight className="size-3.5" />
-              </Link>
-            }
+          count={counts.total > 0 ? counts.total : undefined}
+          description="Atrasos, bloqueios e análises paradas em todo o portfólio."
+        >
+          <AttentionList
+            items={attention}
+            locale={locale}
+            links={attentionLinks}
+            emptyTitle="Nada fora do previsto."
+            emptyDescription="Nenhum atraso, bloqueio ou análise parada no portfólio."
           />
-          <Panel>
-            {deadlines.length === 0 ? (
-              <EmptyState icon={CalendarClock} title="Nenhum prazo próximo." compact />
-            ) : (
-              <ul className="divide-y divide-line-soft">
-                {deadlines.map((item) => {
-                  const parts = formatDeadlineParts(item.dueDate, locale);
-                  const remaining = daysUntil(item.dueDate);
-                  const late = remaining !== null && remaining < 0;
+        </Section>
 
-                  return (
-                    <li key={item.id}>
-                      <Link
-                        href={`/tasks/${item.id}`}
-                        className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-subtle"
-                      >
-                        <div
+        <Section
+          title="Próximos prazos"
+          description="Tarefas em aberto com vencimento nas próximas semanas."
+          action={{ label: "Ver tarefas", href: "/tasks" }}
+        >
+          {deadlines.length === 0 ? (
+            <CanvasEmpty>Nenhum prazo próximo.</CanvasEmpty>
+          ) : (
+            <CanvasList>
+              {deadlines.map((item) => {
+                const remaining = daysUntil(item.dueDate);
+                const late = remaining !== null && remaining < 0;
+
+                return (
+                  <CanvasRow
+                    key={item.id}
+                    href={`/tasks/${item.id}`}
+                    title={item.title}
+                    subtitle={
+                      item.supplier
+                        ? `${item.project.name} · aguardando ${item.supplier.name}`
+                        : item.project.name
+                    }
+                    trailing={
+                      <span className="flex items-baseline gap-3 text-meta whitespace-nowrap tabular-nums">
+                        <span className="text-muted">{formatDateShort(item.dueDate, locale)}</span>
+                        <span
                           className={cn(
-                            "flex size-11 shrink-0 flex-col items-center justify-center rounded-sm border",
-                            late ? "border-risk/20 bg-risk-soft" : "border-line bg-subtle",
+                            "w-24 text-right",
+                            late ? "font-medium text-risk" : "text-muted",
                           )}
                         >
-                          <span
-                            className={cn(
-                              "text-[9px] font-semibold tracking-[0.08em]",
-                              late ? "text-risk" : "text-muted",
-                            )}
-                          >
-                            {parts.month}
-                          </span>
-                          <span
-                            className={cn(
-                              "text-[15px] leading-none font-semibold tabular-nums",
-                              late ? "text-risk" : "text-ink",
-                            )}
-                          >
-                            {parts.day}
-                          </span>
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink">{item.title}</p>
-                          <p className="mt-0.5 truncate text-[13px] text-muted">
-                            {item.project.name}
-                            {item.supplier ? ` · ${item.supplier.name}` : ""}
-                          </p>
-                        </div>
-
-                        {late ? (
-                          <span className="shrink-0 text-[12px] font-medium text-risk">
-                            {Math.abs(remaining)}d atrasado
-                          </span>
-                        ) : (
-                          <span className="shrink-0 text-[12px] text-muted">{remaining}d</span>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Panel>
-        </section>
-
-        {/*
-          Portfolio health — where the projects are, not which projects they
-          are. Counts and shares only; the names live one click away.
-        */}
-        <section>
-          <SectionHeader
-            title="Saúde do portfólio"
-            description="Distribuição por etapa."
-            action={
-              <Link
-                href="/reports"
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-              >
-                Ver relatórios
-                <ArrowRight className="size-3.5" />
-              </Link>
-            }
-          />
-          <Panel>
-            {breakdown.total === 0 ? (
-              <EmptyState title="Nenhum projeto no portfólio." compact />
-            ) : (
-              <ul className="divide-y divide-line-soft">
-                {breakdown.stage.map((slice) => {
-                  const share = Math.round((slice.count / breakdown.total) * 100);
-                  return (
-                    <li key={slice.key}>
-                      <Link
-                        href={slice.href}
-                        className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-subtle"
-                      >
-                        <span className="w-44 shrink-0 truncate text-[13px] text-ink">
-                          {label.stageKey(slice.key as StageKey, dict)}
+                          {late
+                            ? `${Math.abs(remaining)}d atrasado`
+                            : remaining === 0
+                              ? "hoje"
+                              : `em ${remaining}d`}
                         </span>
-                        <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-raised">
-                          <span
-                            className="block h-full rounded-full bg-brand"
-                            style={{ width: `${share}%` }}
-                          />
-                        </span>
-                        <span className="w-10 shrink-0 text-right text-[13px] font-semibold text-ink tabular-nums">
-                          {slice.count}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Panel>
-        </section>
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </CanvasList>
+          )}
+        </Section>
       </div>
     </>
-  );
-}
-
-function Stat({
-  label: statLabel,
-  value,
-  tone,
-  href,
-}: {
-  label: string;
-  value: number;
-  tone?: "ok" | "warn" | "risk";
-  href: string;
-}) {
-  const dot =
-    tone === "ok" ? "bg-ok-dot" : tone === "warn" ? "bg-warn-dot" : tone === "risk" ? "bg-risk-dot" : null;
-
-  return (
-    <Link
-      href={href}
-      className="group px-5 py-4 transition-colors hover:bg-subtle"
-    >
-      <div className="flex items-center gap-2">
-        {dot ? <span className={cn("size-[7px] rounded-full", dot)} aria-hidden /> : null}
-        <span className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-          {statLabel}
-        </span>
-      </div>
-      <div className="mt-2 text-[28px] leading-none font-semibold tracking-[-0.02em] text-ink tabular-nums">
-        {value}
-      </div>
-    </Link>
   );
 }

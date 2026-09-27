@@ -1,8 +1,8 @@
-import { Download, FileText } from "lucide-react";
+import { Download } from "lucide-react";
 import type { Document, DocumentCycleStatus, DocumentType, DocumentVersion } from "@/generated/prisma";
-import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/badge";
-import { formatDate, formatFileSize } from "@/lib/format";
+import { CanvasEmpty, CanvasList, CanvasRow } from "@/features/projects/canvas-list";
+import { formatDateShort, formatFileSize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
@@ -31,49 +31,43 @@ export function StageDocumentList({
   dict: Dictionary;
   emptyTitle?: string;
 }) {
-  if (documents.length === 0) {
-    return <EmptyState icon={FileText} title={emptyTitle} compact />;
-  }
+  if (documents.length === 0) return <CanvasEmpty>{emptyTitle}</CanvasEmpty>;
 
   return (
-    <ul className="divide-y divide-line-soft">
+    <CanvasList>
       {documents.map((document) => {
         const status = meta.document(document.status as DocumentStatus, dict);
+        const version = document.currentVersion;
         return (
-          <li
+          <CanvasRow
             key={document.id}
-            className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <FileText className="size-4 shrink-0 text-faint" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-ink">{document.name}</p>
-                <p className="mt-0.5 truncate text-[13px] text-muted">
-                  {label.documentType(document.type, dict)}
-                  {document.currentVersion ? ` · v${document.currentVersion.version}` : ""}
-                  {document.currentVersion
-                    ? ` · ${formatFileSize(document.currentVersion.fileSize)}`
-                    : ""}{" "}
-                  · {formatDate(document.updatedAt, locale)}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-4">
-              <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-              {document.currentVersion ? (
-                <a
-                  href={`/api/files/${document.currentVersion.id}`}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-                >
-                  <Download className="size-3.5" />
-                  Baixar
-                </a>
-              ) : null}
-            </div>
-          </li>
+            title={document.name}
+            subtitle={[
+              label.documentType(document.type, dict),
+              version ? `v${version.version}` : null,
+              version ? formatFileSize(version.fileSize) : null,
+              formatDateShort(document.updatedAt, locale),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            trailing={
+              <>
+                <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                {version ? (
+                  <a
+                    href={`/api/files/${version.id}`}
+                    aria-label={`Baixar ${document.name}`}
+                    title="Baixar"
+                    className="inline-flex size-8 items-center justify-center rounded-sm text-faint transition-colors hover:bg-raised hover:text-ink"
+                  >
+                    <Download className="size-4" aria-hidden />
+                  </a>
+                ) : null}
+              </>
+            }
+          />
         );
       })}
-    </ul>
+    </CanvasList>
   );
 }

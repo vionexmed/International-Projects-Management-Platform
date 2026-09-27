@@ -13,7 +13,6 @@ import {
   FolderKanban,
   LayoutDashboard,
   ListChecks,
-  LogOut,
   PieChart,
   Settings,
   ShieldCheck,
@@ -29,7 +28,7 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from "@/components/ui/dropdown";
-import { signOut } from "@/server/actions/auth";
+import { SignOutItem } from "@/components/app/sign-out-item";
 import {
   ChangePasswordDialog,
   PT_PASSWORD_LABELS,
@@ -39,6 +38,8 @@ import type { SessionUser } from "@/types/auth";
 
 type NavEntry = {
   href: string;
+  /** The section the entry stands for, when `href` carries a filter. */
+  match?: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
@@ -100,10 +101,21 @@ export function InternalSidebar({
     window.dispatchEvent(new Event("vionex:sidebar"));
   };
 
+  /*
+    The badge counts *my* open tasks, so the entry opens that same view —
+    landing on the portfolio-wide list made the number and the page answer
+    two different questions.
+  */
   const primary: NavEntry[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/projects", label: "Projetos", icon: FolderKanban },
-    { href: "/tasks", label: "Tarefas", icon: ListChecks, badge: taskCount },
+    {
+      href: `/tasks?assignee=${user.id}`,
+      match: "/tasks",
+      label: "Tarefas",
+      icon: ListChecks,
+      badge: taskCount,
+    },
     { href: "/documents", label: "Documentos", icon: FileText },
     { href: "/suppliers", label: "Fornecedores", icon: Building2 },
     { href: "/regulatory", label: "Regulatório", icon: ShieldCheck },
@@ -137,7 +149,12 @@ export function InternalSidebar({
       <nav className="scroll-slim flex-1 overflow-y-auto px-2.5 pb-3" aria-label="Navegação principal">
         <ul className="space-y-0.5">
           {primary.map((entry) => (
-            <NavLink key={entry.href} entry={entry} active={isActive(entry.href)} collapsed={collapsed} />
+            <NavLink
+              key={entry.href}
+              entry={entry}
+              active={isActive(entry.match ?? entry.href)}
+              collapsed={collapsed}
+            />
           ))}
         </ul>
 
@@ -145,7 +162,12 @@ export function InternalSidebar({
 
         <ul className="space-y-0.5">
           {secondary.map((entry) => (
-            <NavLink key={entry.href} entry={entry} active={isActive(entry.href)} collapsed={collapsed} />
+            <NavLink
+              key={entry.href}
+              entry={entry}
+              active={isActive(entry.match ?? entry.href)}
+              collapsed={collapsed}
+            />
           ))}
         </ul>
       </nav>
@@ -192,14 +214,7 @@ export function InternalSidebar({
               Alterar senha
             </DropdownItem>
             <DropdownSeparator />
-            <form action={signOut}>
-              <DropdownItem asChild destructive>
-                <button type="submit" className="w-full">
-                  <LogOut />
-                  Sair
-                </button>
-              </DropdownItem>
-            </form>
+            <SignOutItem label="Sair" />
           </DropdownContent>
         </Dropdown>
 
@@ -266,7 +281,7 @@ function NavLink({
           <>
             <span className="min-w-0 flex-1 truncate">{entry.label}</span>
             {entry.badge ? (
-              <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-navy-line px-1.5 text-[10px] font-semibold text-white tabular-nums">
+              <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-navy-line px-1.5 text-[11px] font-semibold text-white tabular-nums">
                 {entry.badge > 99 ? "99+" : entry.badge}
               </span>
             ) : null}

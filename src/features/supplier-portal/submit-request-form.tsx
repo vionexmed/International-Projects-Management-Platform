@@ -111,7 +111,7 @@ export function SubmitRequestForm({
       {uploadError ? (
         <div
           role="alert"
-          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-[13px] text-risk"
+          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-meta text-risk"
         >
           <AlertCircle className="mt-px size-4 shrink-0" />
           <span>{uploadError}</span>
@@ -120,7 +120,7 @@ export function SubmitRequestForm({
 
       {progress !== null ? (
         <div>
-          <p className="mb-1.5 text-[13px] text-muted">{progress}%</p>
+          <p className="mb-1.5 text-meta text-muted">{progress}%</p>
           <div className="h-1.5 overflow-hidden rounded-full bg-raised">
             <div
               className="h-full rounded-full bg-brand transition-[width]"
@@ -133,7 +133,7 @@ export function SubmitRequestForm({
       {state.error ? (
         <div
           role="alert"
-          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-[13px] text-risk"
+          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-meta text-risk"
         >
           <AlertCircle className="mt-px size-4 shrink-0" />
           <span>{state.error}</span>
@@ -179,7 +179,7 @@ export function SubmitRequestForm({
           <p
             role="status"
             aria-live="polite"
-            className="mr-auto flex items-center gap-2.5 text-[13px] text-muted"
+            className="mr-auto flex items-center gap-2.5 text-meta text-muted"
           >
             <span
               aria-hidden

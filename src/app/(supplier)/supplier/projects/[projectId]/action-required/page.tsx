@@ -51,8 +51,8 @@ export default async function SupplierProjectRequestsPage({
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{request.title}</p>
-                  <p className={cn("mt-0.5 text-[13px]", overdue ? "text-risk" : "text-muted")}>
+                  <p className="truncate text-body font-medium text-ink">{request.title}</p>
+                  <p className={cn("mt-0.5 text-meta", overdue ? "text-risk" : "text-muted")}>
                     {dict.portal.requests.due} {formatDate(request.dueDate, locale)}
                     {remaining !== null && request.status === "PENDING"
                       ? ` · ${

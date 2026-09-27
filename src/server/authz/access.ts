@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { db } from "@/server/db";
 import { NotFoundError } from "@/server/authz/errors";
 import {
@@ -13,6 +14,10 @@ import { isSupplierRole, type SessionUser } from "@/types/auth";
 import { SUPPLIER_PROJECT_SELECT, type SupplierProject } from "@/server/authz/projections";
 
 /**
+ * The guards a single render calls more than once (metadata, layout, page)
+ * are wrapped in React `cache`, so they share one lookup per request; outside
+ * a render — in a server action — `cache` is a plain call.
+ *
  * Guards for direct-identifier access (§40 "proteção contra acesso direto a IDs").
  *
  * Each guard re-runs the caller's scope as part of the lookup, so an
@@ -33,7 +38,7 @@ import { SUPPLIER_PROJECT_SELECT, type SupplierProject } from "@/server/authz/pr
  * rather than quietly narrowing means a new portal page cannot leak by
  * forgetting which function to use — it fails on the first request.
  */
-export async function requireProjectAccess(user: SessionUser, projectId: string) {
+export const requireProjectAccess = cache(async (user: SessionUser, projectId: string) => {
   if (isSupplierRole(user.role)) {
     throw new Error(
       "requireProjectAccess returns internal-only fields and cannot serve a supplier session. " +
@@ -50,7 +55,7 @@ export async function requireProjectAccess(user: SessionUser, projectId: string)
   });
   if (!project) throw new NotFoundError("Projeto não encontrado.");
   return project;
-}
+});
 
 /**
  * Project row reduced to what both audiences may see.
@@ -71,7 +76,7 @@ export async function requireSharedProjectAccess(
   return project;
 }
 
-export async function requireTaskAccess(user: SessionUser, taskId: string) {
+export const requireTaskAccess = cache(async (user: SessionUser, taskId: string) => {
   const task = await db.task.findFirst({
     where: { AND: [taskScope(user), { id: taskId }] },
     include: {
@@ -83,7 +88,7 @@ export async function requireTaskAccess(user: SessionUser, taskId: string) {
   });
   if (!task) throw new NotFoundError("Tarefa não encontrada.");
   return task;
-}
+});
 
 export async function requireDocumentAccess(user: SessionUser, documentId: string) {
   const document = await db.document.findFirst({
@@ -113,7 +118,7 @@ export async function requireDocumentVersionAccess(user: SessionUser, versionId:
   return version;
 }
 
-export async function requireDocumentRequestAccess(user: SessionUser, requestId: string) {
+export const requireDocumentRequestAccess = cache(async (user: SessionUser, requestId: string) => {
   const request = await db.documentRequest.findFirst({
     where: { AND: [documentRequestScope(user), { id: requestId }] },
     include: {
@@ -143,7 +148,7 @@ export async function requireDocumentRequestAccess(user: SessionUser, requestId:
   });
   if (!request) throw new NotFoundError("Solicitação não encontrada.");
   return request;
-}
+});
 
 export async function requireSupplierAccess(user: SessionUser, supplierId: string) {
   const supplier = await db.supplier.findFirst({

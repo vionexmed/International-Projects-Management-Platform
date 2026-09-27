@@ -56,10 +56,17 @@ export function AttentionList({
     );
   }
 
+  // The service already ranks this way; sorting again here keeps the promise
+  // ("the worst thing sits on top") for any caller that merges or slices.
+  // `sort` is stable, so the service's deadline order survives within a tier.
+  const ranked = [...items].sort(
+    (a, b) => Number(a.severity !== "risk") - Number(b.severity !== "risk"),
+  );
+
   return (
     <Panel>
       <ul className="divide-y divide-line-soft">
-        {items.map((item) => {
+        {ranked.map((item) => {
           const remaining = daysUntil(item.dueDate);
           const late = remaining !== null && remaining < 0;
 
@@ -67,7 +74,7 @@ export function AttentionList({
             <li key={item.id}>
               <Link
                 href={item.href}
-                className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3.5 transition-colors hover:bg-subtle"
+                className="flex items-center gap-x-4 px-5 py-3 transition-colors hover:bg-subtle"
               >
                 <span
                   className={cn(
@@ -78,10 +85,10 @@ export function AttentionList({
                 />
 
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-ink">
+                  <span className="block truncate text-body font-medium text-ink">
                     {item.description}
                   </span>
-                  <span className="mt-0.5 block truncate text-[12px] text-muted">
+                  <span className="mt-0.5 block truncate text-meta text-muted">
                     {KIND_LABEL[item.kind]} · {item.project.name}
                     {item.responsible ? ` · ${item.responsible}` : ""}
                   </span>
@@ -90,7 +97,7 @@ export function AttentionList({
                 {item.dueDate ? (
                   <span
                     className={cn(
-                      "shrink-0 text-[12px] whitespace-nowrap tabular-nums",
+                      "ml-auto shrink-0 text-right text-meta whitespace-nowrap tabular-nums",
                       late ? "font-medium text-risk" : "text-muted",
                     )}
                   >
@@ -109,7 +116,7 @@ export function AttentionList({
             <Link
               key={link.href}
               href={link.href}
-              className="inline-flex items-center gap-1.5 text-[13px] text-brand-strong hover:underline"
+              className="inline-flex items-center gap-1.5 text-meta text-brand-strong hover:underline"
             >
               {link.label}
               <ArrowRight className="size-3.5" />

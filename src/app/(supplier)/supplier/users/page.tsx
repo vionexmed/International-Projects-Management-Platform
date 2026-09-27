@@ -84,13 +84,13 @@ export default async function SupplierUsersPage() {
                           <CellStack title={member.name} subtitle={member.email} />
                         </div>
                       </TD>
-                      <TD label={dict.common.role} className="text-[13px] text-ink-soft">
+                      <TD label={dict.common.role} className="text-meta text-ink-soft">
                         {member.role === "SUPPLIER_ADMIN"
                           ? dict.portal.team.roleAdmin
                           : dict.portal.team.roleUser}
                       </TD>
-                      <TD label={dict.common.jobTitle} className="text-[13px] text-ink-soft">
-                        {member.jobTitle ?? "—"}
+                      <TD label={dict.common.jobTitle} className="text-meta text-ink-soft">
+                        {member.jobTitle}
                       </TD>
                       <TD label={dict.common.status}>
                         <StatusBadge tone={member.status === "ACTIVE" ? "ok" : "neutral"}>

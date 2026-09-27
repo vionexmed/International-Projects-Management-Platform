@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import type { DocumentType } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
-import { listDocuments, type DocumentStatus } from "@/server/services/documents";
+import { listDocuments } from "@/server/services/documents";
 import { listProjects } from "@/server/services/projects";
 import { listSupplierOptions } from "@/server/services/suppliers";
 import { listInternalUserOptions } from "@/server/services/users";
@@ -13,7 +12,7 @@ import { DocumentsTable } from "@/features/documents/documents-table";
 import { UploadDocumentDialog } from "@/features/documents/upload-document-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label } from "@/lib/labels";
+import { OPTIONS, label, oneOf } from "@/lib/labels";
 import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 
 export const metadata: Metadata = { title: "Documentos" };
@@ -34,8 +33,8 @@ export default async function DocumentsPage({
       query: params.q,
       projectId: params.project,
       supplierId: params.supplier,
-      type: params.type as DocumentType | undefined,
-      status: params.status as DocumentStatus | undefined,
+      type: oneOf(params.type, OPTIONS.documentType),
+      status: oneOf(params.status, OPTIONS.documentStatus),
       uploadedById: params.uploader,
       page,
     }),
@@ -52,7 +51,6 @@ export default async function DocumentsPage({
     <>
       <PageHeader
         title="Documentos"
-        description="Todos os documentos vinculados aos projetos do portfólio."
         actions={
           can(user, "document:upload") ? (
             <UploadDocumentDialog

@@ -80,15 +80,15 @@ export function SupplierDocumentsTable({
                   />
                 </TD>
                 {showProject ? (
-                  <TD label={dict.common.project} className="text-[13px] text-ink-soft">{document.project.name}</TD>
+                  <TD label={dict.common.project} className="text-meta text-ink-soft">{document.project.name}</TD>
                 ) : null}
-                <TD label={dict.common.type} className="text-[13px] text-ink-soft">
+                <TD label={dict.common.type} className="text-meta text-ink-soft">
                   {label.documentType(document.type, dict)}
                 </TD>
-                <TD label={dict.common.version} className="text-[13px] text-ink-soft">
-                  {document.currentVersion ? `v${document.currentVersion.version}` : "—"}
+                <TD label={dict.common.version} className="text-meta text-ink-soft">
+                  {document.currentVersion ? `v${document.currentVersion.version}` : null}
                 </TD>
-                <TD label={dict.common.date} className="text-[13px] whitespace-nowrap text-ink-soft">
+                <TD label={dict.common.date} className="text-meta whitespace-nowrap text-ink-soft">
                   {formatDate(document.updatedAt, locale)}
                 </TD>
                 <TD label={dict.common.status}>
@@ -98,7 +98,7 @@ export function SupplierDocumentsTable({
                   {document.currentVersion ? (
                     <a
                       href={`/api/files/${document.currentVersion.id}`}
-                      className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
+                      className="inline-flex items-center gap-1.5 text-meta font-medium text-brand-strong hover:underline"
                     >
                       <Download className="size-3.5" />
                       {dict.common.download}

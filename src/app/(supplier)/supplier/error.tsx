@@ -20,7 +20,7 @@ export default function SupplierError({
   return (
     <Panel className="mx-auto max-w-lg p-8 text-center">
       <h1 className="text-base font-semibold text-ink">Something went wrong.</h1>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+      <p className="mt-1.5 text-meta leading-relaxed text-muted">
         This page could not be loaded. Please try again, or go back to the home page.
       </p>
       {error.digest ? (
