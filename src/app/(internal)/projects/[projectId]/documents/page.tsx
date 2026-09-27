@@ -8,25 +8,33 @@ import { UploadDocumentDialog } from "@/features/documents/upload-document-dialo
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
+import { OPTIONS, oneOf } from "@/lib/labels";
 
 export default async function ProjectDocumentsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ type?: string }>;
 }) {
   const { projectId } = await params;
+  const { type } = await searchParams;
   const user = await requireInternalUser();
   await orNotFound(requireProjectAccess(user, projectId));
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
-  const result = await listDocuments(user, { projectId, perPage: 100 });
+  const result = await listDocuments(user, {
+    projectId,
+    type: oneOf(type, OPTIONS.documentType),
+    perPage: 100,
+  });
 
   return (
     <Panel>
       <PanelHeader
         title="Documentos"
-        description={`${result.total} documento(s) vinculado(s) a este projeto.`}
+        count={result.total}
         action={
           can(user, "document:upload") ? (
             <UploadDocumentDialog

@@ -8,13 +8,17 @@ import { TasksTable } from "@/features/tasks/tasks-table";
 import { NewTaskDialog } from "@/features/tasks/new-task-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
+import { OPTIONS, oneOf } from "@/lib/labels";
 
 export default async function ProjectTasksPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ category?: string }>;
 }) {
   const { projectId } = await params;
+  const { category } = await searchParams;
   const user = await requireInternalUser();
   const project = await orNotFound(requireProjectAccess(user, projectId));
 
@@ -22,7 +26,7 @@ export default async function ProjectTasksPage({
   const dict = getDictionary(locale);
 
   const [result, owners] = await Promise.all([
-    listTasks(user, { projectId, perPage: 100 }),
+    listTasks(user, { projectId, category: oneOf(category, OPTIONS.taskCategory), perPage: 100 }),
     listInternalUserOptions(user),
   ]);
 
@@ -30,7 +34,7 @@ export default async function ProjectTasksPage({
     <Panel>
       <PanelHeader
         title="Tarefas"
-        description={`${result.total} tarefa(s) neste projeto.`}
+        count={result.total}
         action={
           can(user, "task:create") ? (
             <NewTaskDialog
@@ -46,6 +50,7 @@ export default async function ProjectTasksPage({
         tasks={result.items}
         locale={locale}
         dict={dict}
+        scope="project"
         emptyTitle="Nenhuma tarefa neste projeto."
         emptyDescription="Crie uma tarefa para registrar o próximo passo."
       />

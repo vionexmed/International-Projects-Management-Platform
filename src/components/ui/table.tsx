@@ -6,10 +6,14 @@ import { cn } from "@/lib/utils";
  * the server (search params), so the client ships no table runtime.
  */
 
+/** Same radius and shadow as `Panel`, so a table and a panel side by side match. */
 export function TableShell({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("overflow-hidden rounded-md border border-line bg-surface", className)}
+      className={cn(
+        "overflow-hidden rounded-lg border border-line bg-surface shadow-panel",
+        className,
+      )}
       {...props}
     />
   );
@@ -36,14 +40,15 @@ export function Table({
 }: React.TableHTMLAttributes<HTMLTableElement> & { stacked?: boolean }) {
   return (
     <table
-      className={cn("w-full border-collapse text-sm", stacked && "table-stacked", className)}
+      className={cn("w-full border-collapse text-body", stacked && "table-stacked", className)}
       {...props}
     />
   );
 }
 
+/** No tinted header band — the overline labels are enough to mark the row. */
 export function THead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("bg-subtle", className)} {...props} />;
+  return <thead className={cn("bg-transparent", className)} {...props} />;
 }
 
 export function TBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -77,7 +82,7 @@ export function TH({
     <th
       scope="col"
       className={cn(
-        "table-label border-b border-line px-5 py-3 font-semibold whitespace-nowrap",
+        "table-label h-9 border-b border-line bg-transparent px-4 whitespace-nowrap",
         align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left",
         className,
       )}
@@ -87,6 +92,10 @@ export function TH({
 }
 
 /**
+ * Rows are 48px and single-line: every labelled (non-primary) cell is
+ * `nowrap`, so a name or a stage never breaks onto a second line. The primary
+ * cell — the one without a `label` — is the only one allowed to wrap.
+ *
  * `label` is the column name this cell belongs to. It is invisible on a
  * desktop — the header row already says it — and becomes the cell's own label
  * once the table stacks on a phone. Leave it off the primary cell, which
@@ -100,7 +109,15 @@ export function TD({
   return (
     <td
       data-label={label}
-      className={cn("px-5 py-3.5 align-middle text-ink", className)}
+      className={cn(
+        "h-12 px-4 py-2 align-middle text-body text-ink-soft",
+        label !== undefined && "whitespace-nowrap",
+        // Once stacked into a card the row has room to wrap and owns the
+        // padding. Utilities, not the `.table-stacked` rules in globals.css,
+        // because those sit in the components layer and lose to utilities.
+        "max-md:in-[.table-stacked]:h-auto max-md:in-[.table-stacked]:p-0 max-md:in-[.table-stacked]:whitespace-normal",
+        className,
+      )}
       {...props}
     />
   );
@@ -111,7 +128,7 @@ export function TableFooter({ className, ...props }: React.HTMLAttributes<HTMLDi
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-[13px] text-muted",
+        "flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-meta text-muted",
         className,
       )}
       {...props}
@@ -131,8 +148,8 @@ export function CellStack({
 }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <div className="truncate font-semibold text-ink">{title}</div>
-      {subtitle ? <div className="mt-0.5 truncate text-[13px] text-muted">{subtitle}</div> : null}
+      <div className="truncate text-title font-medium text-ink">{title}</div>
+      {subtitle ? <div className="mt-0.5 truncate text-meta text-muted">{subtitle}</div> : null}
     </div>
   );
 }

@@ -15,49 +15,79 @@ export type TabItem = {
  * Link-based tabs. Because filtering happens on the server, each tab is a real
  * URL — shareable, bookmarkable, and correct on a hard refresh.
  *
- * On a phone the strip usually does not fit — a project page alone has nine
- * of these — and every fresh navigation starts scrolled to the left. Opening
- * a tab near the end (e.g. "Histórico") landed on a bar that *looked* stuck
- * on "Visão geral", with no hint that the active tab was off-screen to the
- * right until someone happened to swipe. The active tab now scrolls itself
- * into view; `"nearest"` so a tab already visible never jumps.
+ * Pass `items` for one flat strip, or `groups` to set related tabs apart with
+ * a thin divider (e.g. the record's own tabs vs. the cross-cutting ones).
+ * A count of 0 is not shown — a row of zeros is noise, not information.
+ *
+ * On a phone the strip usually does not fit, and every fresh navigation
+ * starts scrolled to the left. Opening a tab near the end landed on a bar
+ * that *looked* stuck on the first tab, with no hint that the active tab was
+ * off-screen to the right until someone happened to swipe. The active tab
+ * now scrolls itself into view; `"nearest"` so a tab already visible never
+ * jumps.
  */
-export function TabsNav({ items, className }: { items: TabItem[]; className?: string }) {
+export function TabsNav({
+  items,
+  groups,
+  className,
+}: (
+  | { items: TabItem[]; groups?: never }
+  | { groups: TabItem[][]; items?: never }
+) & { className?: string }) {
+  const sets = groups ?? [items ?? []];
   const activeRef = React.useRef<HTMLAnchorElement>(null);
-  const activeHref = items.find((item) => item.active)?.href;
+  const activeHref = sets.flat().find((item) => item.active)?.href;
 
   React.useEffect(() => {
     activeRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, [activeHref]);
 
   return (
-    <div className={cn("border-b border-line", className)}>
-      <nav className="scroll-slim -mb-px flex items-center gap-1 overflow-x-auto" aria-label="Abas">
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            ref={item.active ? activeRef : undefined}
-            href={item.href}
-            aria-current={item.active ? "page" : undefined}
-            className={cn(
-              "inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors",
-              item.active
-                ? "border-brand text-ink"
-                : "border-transparent text-muted hover:border-line-strong hover:text-ink-soft",
-            )}
-          >
-            {item.label}
-            {typeof item.count === "number" ? (
-              <span
+    <div className={cn("relative border-b border-line", className)}>
+      {/*
+        On a phone the tabs are wider than the screen. The fade says "there is
+        more this way"; the trailing padding lets the last tab scroll clear of it.
+      */}
+      <span
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-canvas sm:hidden"
+        aria-hidden
+      />
+      <nav
+        className="scroll-slim -mb-px flex items-center gap-0.5 overflow-x-auto pr-10 sm:gap-1 sm:pr-0"
+        aria-label="Abas"
+      >
+        {sets.map((set, index) => (
+          <React.Fragment key={set[0]?.href ?? index}>
+            {index > 0 && set.length > 0 ? (
+              <span className="mx-2 h-4 w-px shrink-0 bg-line" aria-hidden />
+            ) : null}
+            {set.map((item) => (
+              <Link
+                key={item.href}
+                ref={item.active ? activeRef : undefined}
+                href={item.href}
+                aria-current={item.active ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
-                  item.active ? "bg-brand-soft text-brand-deep" : "bg-raised text-muted",
+                  "inline-flex items-center gap-2 border-b-2 px-2.5 py-3 text-body sm:px-3 font-medium whitespace-nowrap transition-colors",
+                  item.active
+                    ? "border-brand-strong text-ink"
+                    : "border-transparent text-muted hover:border-line-strong hover:text-ink-soft",
                 )}
               >
-                {item.count}
-              </span>
-            ) : null}
-          </Link>
+                {item.label}
+                {item.count ? (
+                  <span
+                    className={cn(
+                      "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
+                      item.active ? "bg-brand-soft text-brand-deep" : "bg-raised text-muted",
+                    )}
+                  >
+                    {item.count}
+                  </span>
+                ) : null}
+              </Link>
+            ))}
+          </React.Fragment>
         ))}
       </nav>
     </div>

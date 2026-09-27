@@ -1,42 +1,90 @@
 import * as React from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { PropertyList, type PropertyItem } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+export type BreadcrumbItem = { label: string; href?: string };
 
 /**
  * Every screen opens the same way: title, one line of context, actions on the
  * right. Consistency here is what makes the product feel like one system.
+ *
+ * Records use the optional slots: `breadcrumb` above the title, `status` (one
+ * SolidBadge) beside it, `meta` for a due date or similar right under it, and
+ * `properties` as a single unboxed row — the record header that used to be a
+ * back link, a title, a meta line and a boxed Field strip.
  */
 export function PageHeader({
   title,
   description,
+  status,
+  meta,
+  properties,
+  breadcrumb,
   actions,
   className,
   children,
 }: {
-  title: string;
-  description?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  status?: React.ReactNode;
+  meta?: React.ReactNode;
+  properties?: PropertyItem[];
+  breadcrumb?: BreadcrumbItem[];
   actions?: React.ReactNode;
   className?: string;
   children?: React.ReactNode;
 }) {
   return (
-    <div className={cn("mb-7", className)}>
+    <div className={cn("mb-8", className)}>
+      {breadcrumb && breadcrumb.length > 0 ? <Breadcrumb items={breadcrumb} /> : null}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-            {title}
-          </h1>
-          {description ? (
-            <p className="mt-1.5 text-[14px] text-muted">{description}</p>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h1 className="text-page text-ink">{title}</h1>
+            {status ? <div className="shrink-0">{status}</div> : null}
+          </div>
+          {description ? <p className="mt-1 text-body text-muted">{description}</p> : null}
+          {meta ? <div className="mt-1 text-meta text-muted">{meta}</div> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
+      {properties ? <PropertyList items={properties} layout="inline" className="mt-4" /> : null}
       {children}
     </div>
   );
 }
 
-/** Section heading used inside a page, one level below the page title. */
+/** Where a record sits. The last item is the current page unless it has an href. */
+function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <nav aria-label="Navegação estrutural" className="mb-2">
+      <ol className="flex flex-wrap items-center gap-1 text-meta text-muted">
+        {items.map((item, index) => (
+          <li key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
+            {index > 0 ? <ChevronRight className="size-3.5 text-faint" aria-hidden /> : null}
+            {item.href ? (
+              <Link href={item.href} className="transition-colors hover:text-ink">
+                {item.label}
+              </Link>
+            ) : (
+              <span aria-current="page" className="text-ink-soft">
+                {item.label}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+/**
+ * Section heading used inside a page, one level below the page title. Kept
+ * for pages not yet on `Section` (components/ui/section.tsx), which also owns
+ * the block's spacing and a count.
+ */
 export function SectionHeader({
   title,
   description,
@@ -51,8 +99,8 @@ export function SectionHeader({
   return (
     <div className={cn("mb-3 flex flex-wrap items-end justify-between gap-3", className)}>
       <div className="min-w-0">
-        <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-        {description ? <p className="mt-0.5 text-[13px] text-muted">{description}</p> : null}
+        <h2 className="text-section text-ink">{title}</h2>
+        {description ? <p className="mt-0.5 text-meta text-muted">{description}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>

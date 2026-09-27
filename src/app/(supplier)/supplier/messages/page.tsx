@@ -65,7 +65,7 @@ export default async function SupplierMessagesPage({
                       <div className="flex items-center justify-between gap-2">
                         <p
                           className={cn(
-                            "truncate text-sm",
+                            "truncate text-body",
                             active ? "font-semibold text-brand-deep" : "font-medium text-ink",
                           )}
                         >
@@ -77,10 +77,10 @@ export default async function SupplierMessagesPage({
                       </div>
                       {thread.lastMessage ? (
                         <>
-                          <p className="mt-0.5 truncate text-[13px] text-muted">
+                          <p className="mt-0.5 truncate text-meta text-muted">
                             {thread.lastMessage.sender.name}: {thread.lastMessage.body}
                           </p>
-                          <p className="mt-1 text-[12px] text-faint">
+                          <p className="mt-1 text-meta text-faint">
                             {formatRelative(thread.lastMessage.createdAt, locale)}
                           </p>
                         </>
@@ -96,10 +96,10 @@ export default async function SupplierMessagesPage({
             {conversation ? (
               <>
                 <div className="border-b border-line px-5 py-3.5">
-                  <h2 className="text-[15px] font-semibold text-ink">
+                  <h2 className="text-title font-semibold text-ink">
                     {conversation.thread.project.name}
                   </h2>
-                  <p className="mt-0.5 text-[13px] text-muted">Vionex</p>
+                  <p className="mt-0.5 text-meta text-muted">Vionex</p>
                 </div>
                 <ThreadView
                   threadId={conversation.thread.id}

@@ -1,6 +1,5 @@
 import { requireInternalUser } from "@/server/auth/current-user";
 import { countUnread } from "@/server/services/notifications";
-import { countUnreadMessages } from "@/server/services/messages";
 import { db } from "@/server/db";
 import { taskScope } from "@/server/authz/scopes";
 import { InternalSidebar } from "@/components/app/internal-sidebar";
@@ -21,9 +20,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const user = await requireInternalUser();
   const dict = getDictionary(localeFromLanguage(user.language));
 
-  const [notificationCount, messageCount, openTasks] = await Promise.all([
+  const [notificationCount, openTasks] = await Promise.all([
     countUnread(user.id),
-    countUnreadMessages(user),
     db.task.count({
       where: {
         AND: [taskScope(user), { assignedToId: user.id, status: { notIn: ["COMPLETED", "CANCELLED"] } }],
@@ -45,7 +43,6 @@ export default async function InternalLayout({ children }: { children: React.Rea
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           notificationCount={notificationCount}
-          messageCount={messageCount}
           leading={
             <>
               <InternalMobileNav

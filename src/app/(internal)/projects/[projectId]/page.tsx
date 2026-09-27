@@ -1,27 +1,38 @@
 import Link from "next/link";
-import { AlertOctagon, Flag } from "lucide-react";
+import { AlertOctagon } from "lucide-react";
 import { can, requireInternalUser } from "@/server/auth/current-user";
 import { getProjectWorkspace } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { orNotFound } from "@/server/authz/rsc";
-import { Field, Panel, PanelHeader } from "@/components/ui/card";
-import { ProgressBar } from "@/components/ui/progress";
+import { Panel, PropertyList } from "@/components/ui/card";
+import { Section } from "@/components/ui/section";
+import { ProgressBar, type ProgressTone } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
 import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
+import { CanvasEmpty, CanvasList, CanvasRow } from "@/features/projects/canvas-list";
+import { stageSegment } from "@/features/projects/stage-routes";
 import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta, type MilestoneProgress, type StageProgress } from "@/lib/labels";
-import { formatDate } from "@/lib/format";
+import { daysUntil, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+/** A bar is neutral unless it has something to say: done, or held up. */
+const STAGE_BAR_TONE: Partial<Record<StageProgress, ProgressTone>> = {
+  COMPLETED: "ok",
+  BLOCKED: "risk",
+};
 
 /**
  * "How is this project right now?"
  *
- * Current state only. The full tables — tasks, documents, regulatory items,
- * the complete history — live in the tabs, and this page links to them rather
+ * One focal block — the health panel: overall progress, where the project is,
+ * what comes next, and the blocker when there is one. Everything under it is
+ * on the canvas. Identity (owner, dates, category) lives in the record header,
+ * and the full tables live in the other tabs; this page links to them rather
  * than reproducing them.
  */
 export default async function ProjectOverviewPage({
@@ -37,147 +48,188 @@ export default async function ProjectOverviewPage({
   const [{ project, stages, milestones, progress }, timeline] = await Promise.all([
     orNotFound(getProjectWorkspace(user, projectId)),
     /**
-     * Three, not eight. This block is a preview of the Timeline tab, which is
-     * the canonical history of the project; a longer list here would be the
+     * Three, not eight. This block is a preview of the full history, which is
+     * the canonical record of the project; a longer list here would be the
      * same information twice, and the second copy is the one nobody trusts.
      */
     listProjectTimeline(user, projectId, 3),
   ]);
 
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");
+  const nextMilestone = upcomingMilestones[0] ?? null;
+  const nextLate =
+    nextMilestone !== null &&
+    (nextMilestone.status === "DELAYED" || (daysUntil(nextMilestone.dueDate) ?? 0) < 0);
+
+  const currentStage = stages.find((stage) => stage.key === project.currentStage) ?? null;
+  const base = `/projects/${projectId}`;
+
+  const canAddMilestone =
+    can(user, "project:update") || OPTIONS.stageKey.some((key) => can(user, STAGE_PERMISSION[key]));
 
   return (
-    <div className="space-y-6">
-      {/* Identity */}
-      <Panel>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-3 lg:grid-cols-6">
-          <Field label="Responsável">{project.owner.name}</Field>
-          <Field label="Início">{formatDate(project.startDate, locale)}</Field>
-          <Field label="Lançamento previsto">{formatDate(project.targetLaunchDate, locale)}</Field>
-          <Field label="Categoria">{project.category ?? "—"}</Field>
-          <Field label="Tipo de produto">{project.productType ?? "—"}</Field>
-          <Field label="Etapa atual">{label.stageKey(project.currentStage, dict)}</Field>
-        </dl>
-      </Panel>
+    <div className="space-y-10">
+      {/* Health — the one box on the page. */}
+      <Panel className="p-5 sm:p-6">
+        <div
+          className={cn(
+            "grid grid-cols-1 gap-6",
+            project.blockerNote && "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-8",
+          )}
+        >
+          <div className="min-w-0">
+            <p className="text-meta text-muted">Progresso geral</p>
+            <p className="mt-1 text-kpi text-ink tabular-nums">{progress}%</p>
+            <ProgressBar value={progress} label="Progresso geral" className="mt-3 max-w-md" />
 
-      {/* Progress */}
-      <Panel>
-        <PanelHeader
-          title="Progresso"
-          description="Percentual concluído em cada etapa do projeto."
-          action={
-            <span className="text-[13px] text-muted">
-              Geral <span className="ml-1 font-semibold text-ink tabular-nums">{progress}%</span>
-            </span>
-          }
-        />
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
-          {stages.map((stage) => {
-            const status = meta.stage(stage.status as StageProgress, dict);
-            return (
-              <div key={stage.id}>
-                <div className="mb-2 flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] font-medium text-ink">
-                    {label.stageKey(stage.key, dict)}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                    <span className="text-[13px] font-semibold text-ink tabular-nums">
-                      {stage.computedProgress}%
-                    </span>
-                    {can(user, STAGE_PERMISSION[stage.key]) ? (
-                      <EditStageDialog
-                        stage={{
-                          id: stage.id,
-                          projectId: project.id,
-                          name: label.stageKey(stage.key, dict),
-                          status: stage.status,
-                          progress: stage.progress,
-                          notes: stage.notes,
-                        }}
-                      />
-                    ) : null}
-                  </span>
+            <PropertyList
+              className="mt-5"
+              items={[
+                {
+                  label: "Etapa atual",
+                  value: currentStage ? (
+                    <Link
+                      href={`${base}/${stageSegment(currentStage.key)}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {label.stageKey(currentStage.key, dict)}
+                      <span className="font-normal text-muted tabular-nums">
+                        {" "}
+                        · {currentStage.computedProgress}%
+                      </span>
+                    </Link>
+                  ) : null,
+                },
+                {
+                  label: "Próximo marco",
+                  value: nextMilestone ? (
+                    <>
+                      {nextMilestone.title}
+                      <span
+                        className={cn(
+                          "font-normal tabular-nums",
+                          nextLate ? "text-risk" : "text-muted",
+                        )}
+                      >
+                        {" "}
+                        · {formatDate(nextMilestone.dueDate, locale)}
+                        {nextLate ? " · atrasado" : ""}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-normal text-muted">Nenhum pendente</span>
+                  ),
+                },
+              ]}
+            />
+          </div>
+
+          {/*
+            A blocker is an exception, so it appears only when there is one —
+            inside the health panel, next to the number it explains.
+          */}
+          {project.blockerNote ? (
+            <Panel variant="callout" tone="risk" role="alert" className="self-start">
+              <div className="flex items-start gap-3">
+                <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-title text-risk">Bloqueio atual</p>
+                  <p className="mt-1 text-body text-ink">{project.blockerNote}</p>
                 </div>
-                <ProgressBar value={stage.computedProgress} label={label.stageKey(stage.key, dict)} />
               </div>
-            );
-          })}
+            </Panel>
+          ) : null}
         </div>
       </Panel>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Blockers */}
-        <Panel>
-          <PanelHeader title="Bloqueios atuais" />
-          {project.blockerNote ? (
-            <div className="flex items-start gap-3 p-5">
-              <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" />
-              <p className="text-sm leading-relaxed text-ink">{project.blockerNote}</p>
-            </div>
-          ) : (
-            <EmptyState title="Nenhum bloqueio registrado." compact />
-          )}
-        </Panel>
+      <Section title="Etapas">
+        <ul className="divide-y divide-line border-y border-line">
+          {stages.map((stage) => {
+            const status = meta.stage(stage.status as StageProgress, dict);
+            const name = label.stageKey(stage.key, dict);
+            return (
+              <li key={stage.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                <Link
+                  href={`${base}/${stageSegment(stage.key)}`}
+                  className="min-w-0 flex-1 truncate text-body font-medium text-ink underline-offset-4 hover:underline sm:w-48 sm:flex-none"
+                >
+                  {name}
+                </Link>
+                {/* Full width on its own line on a phone; between name and number on desktop. */}
+                <ProgressBar
+                  value={stage.computedProgress}
+                  tone={STAGE_BAR_TONE[stage.status as StageProgress]}
+                  label={name}
+                  className="order-last basis-full sm:order-none sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-0"
+                />
+                <span className="w-10 text-right text-meta font-medium text-ink tabular-nums">
+                  {stage.computedProgress}%
+                </span>
+                <span className="sm:w-36">
+                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                </span>
+                <span className="flex w-8 justify-end">
+                  {can(user, STAGE_PERMISSION[stage.key]) ? (
+                    <EditStageDialog
+                      stage={{
+                        id: stage.id,
+                        projectId: project.id,
+                        name,
+                        status: stage.status,
+                        progress: stage.progress,
+                        notes: stage.notes,
+                      }}
+                    />
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Section>
 
-        {/* Milestones */}
-        <Panel>
-          <PanelHeader
-            title="Próximos marcos"
-            action={
-              /*
-                A stage owner adds milestones to their own stage; the general
-                project capability covers the ones that span the project. The
-                action re-checks both — this only decides whether offering it
-                makes sense.
-              */
-              can(user, "project:update") ||
-              OPTIONS.stageKey.some((key) => can(user, STAGE_PERMISSION[key])) ? (
-                <NewMilestoneDialog projectId={project.id} />
-              ) : null
-            }
-          />
+      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
+        <Section
+          title="Próximos marcos"
+          count={upcomingMilestones.length || undefined}
+          action={
+            /*
+              A stage owner adds milestones to their own stage; the general
+              project capability covers the ones that span the project. The
+              action re-checks both — this only decides whether offering it
+              makes sense.
+            */
+            canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null
+          }
+        >
           {upcomingMilestones.length === 0 ? (
-            <EmptyState icon={Flag} title="Nenhum marco pendente." compact />
+            <CanvasEmpty>Nenhum marco pendente.</CanvasEmpty>
           ) : (
-            <ul className="divide-y divide-line-soft">
+            <CanvasList>
               {upcomingMilestones.map((milestone) => {
                 const status = meta.milestone(milestone.status as MilestoneProgress, dict);
                 return (
-                  <li
+                  <CanvasRow
                     key={milestone.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-ink">{milestone.title}</p>
-                      <p className="mt-0.5 text-[13px] text-muted">
-                        {milestone.stage ? label.stageKey(milestone.stage, dict) : "—"} ·{" "}
-                        {formatDate(milestone.dueDate, locale)}
-                      </p>
-                    </div>
-                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                  </li>
+                    title={milestone.title}
+                    subtitle={[
+                      milestone.stage ? label.stageKey(milestone.stage, dict) : null,
+                      milestone.dueDate ? formatDate(milestone.dueDate, locale) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    trailing={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>}
+                  />
                 );
               })}
-            </ul>
+            </CanvasList>
           )}
-        </Panel>
-      </div>
+        </Section>
 
-      {/* Recent activity */}
-      <Panel>
-        <PanelHeader
+        <Section
           title="Atividade recente"
-          action={
-            <Link
-              href={`/projects/${projectId}/timeline`}
-              className="text-[13px] font-medium text-brand-strong hover:underline"
-            >
-              Ver histórico completo
-            </Link>
-          }
-        />
-        <div className="p-5">
+          action={{ label: "Ver histórico completo", href: `${base}/timeline` }}
+        >
           <Timeline
             locale={locale}
             emptyTitle="Nenhuma atividade ainda."
@@ -188,8 +240,8 @@ export default async function ProjectOverviewPage({
               actorName: event.actor?.name ?? null,
             }))}
           />
-        </div>
-      </Panel>
+        </Section>
+      </div>
     </div>
   );
 }

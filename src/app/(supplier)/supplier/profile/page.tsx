@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { db } from "@/server/db";
 import { PageHeader } from "@/components/app/page-header";
-import { Field, Panel, PanelHeader } from "@/components/ui/card";
+import { Panel, PropertyList } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/avatar";
 import { ProfileForm } from "@/features/account/profile-form";
 import { ChangePasswordButton } from "@/features/account/change-password-button";
@@ -37,38 +37,52 @@ export default async function SupplierProfilePage() {
     <>
       <PageHeader title={dict.portal.profile.title} description={dict.portal.profile.subtitle} />
 
-      <Panel className="mb-6">
-        <PanelHeader
-          title={account.name}
-          description={account.email}
-          action={
-            <ProfileForm dict={dict} name={account.name} jobTitle={account.jobTitle} />
-          }
-        />
-        <div className="flex items-start gap-5 px-5 pb-5">
-          <UserAvatar name={account.name} size="lg" tone="brand" />
-          <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
-            <Field label={dict.common.jobTitle}>{account.jobTitle ?? "—"}</Field>
-            <Field label={dict.portal.profile.company}>{user.supplierName ?? "—"}</Field>
-            <Field label={dict.common.role}>
-              {account.role === "SUPPLIER_ADMIN"
-                ? dict.portal.team.roleAdmin
-                : dict.portal.team.roleUser}
-            </Field>
-            <Field label={dict.nav.account}>
-              {account.lastLoginAt ? formatRelative(account.lastLoginAt, locale) : "—"}
-            </Field>
-          </dl>
-        </div>
-      </Panel>
+      <div className="max-w-3xl space-y-10">
+        <div className="grid gap-4 md:grid-cols-[240px_1fr] md:gap-8">
+          <div>
+            <h2 className="text-section text-ink">{account.name}</h2>
+            <p className="mt-1 text-meta text-muted">{account.email}</p>
+          </div>
 
-      <Panel>
-        <PanelHeader
-          title={dict.account.changePassword}
-          description={dict.account.changePasswordHint}
-          action={<ChangePasswordButton dict={dict} />}
-        />
-      </Panel>
+          <Panel className="p-5">
+            <div className="flex items-start gap-5">
+              <UserAvatar name={account.name} size="lg" tone="brand" />
+              <PropertyList
+                className="flex-1 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3"
+                items={[
+                  { label: dict.common.jobTitle, value: account.jobTitle },
+                  { label: dict.portal.profile.company, value: user.supplierName },
+                  {
+                    label: dict.common.role,
+                    value:
+                      account.role === "SUPPLIER_ADMIN"
+                        ? dict.portal.team.roleAdmin
+                        : dict.portal.team.roleUser,
+                  },
+                  {
+                    label: dict.nav.account,
+                    value: account.lastLoginAt ? formatRelative(account.lastLoginAt, locale) : null,
+                  },
+                ]}
+              />
+            </div>
+            <div className="mt-5 flex justify-end border-t border-line pt-4">
+              <ProfileForm dict={dict} name={account.name} jobTitle={account.jobTitle} />
+            </div>
+          </Panel>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[240px_1fr] md:gap-8">
+          <div>
+            <h2 className="text-section text-ink">{dict.account.changePassword}</h2>
+            <p className="mt-1 text-meta text-muted">{dict.account.changePasswordHint}</p>
+          </div>
+
+          <Panel className="flex items-center justify-end p-5">
+            <ChangePasswordButton dict={dict} />
+          </Panel>
+        </div>
+      </div>
     </>
   );
 }

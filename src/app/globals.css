@@ -5,12 +5,15 @@
 
    The palette is deliberately narrow: white and near-white surfaces, a navy
    ink, a grey scale for structure, and turquoise reserved for identity and
-   state. Depth comes from hairline borders, not shadows.
+   state. Depth comes from a canvas a step darker than the cards, a border
+   dark enough to find (≈1.5:1 on white) and one faint shadow on panels —
+   the earlier near-white canvas and #dee5e9 hairline made separate panels
+   read as one continuous sheet.
 --------------------------------------------------------------------------- */
 
 @theme {
   /* Surfaces */
-  --color-canvas: #f7f9fa;
+  --color-canvas: #eef2f5;
   --color-surface: #ffffff;
   --color-subtle: #fbfcfd;
   --color-raised: #f2f5f7;
@@ -22,9 +25,9 @@
   --color-faint: #8b98a3;
 
   /* Structure */
-  --color-line: #dee5e9;
+  --color-line: #d3dce2;
   --color-line-soft: #eaeff2;
-  --color-line-strong: #cbd5db;
+  --color-line-strong: #b9c5cd;
 
   /* Brand — turquoise */
   --color-brand: #00a4b5;
@@ -58,6 +61,37 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
+
+  /* Panel elevation — one faint shadow, shared by Panel and TableShell. */
+  --shadow-panel: 0 1px 2px rgba(10, 24, 38, 0.05);
+
+  /*
+    Type scale — role names, not sizes, so a page cannot drift into a tenth
+    size/weight combination. Nearly every run used to sit between 11 and 15px
+    with nothing between 15px and the title, so sections, rows and captions
+    all read the same. Seven roles, each a clear step from its neighbours.
+  */
+  --text-page: 24px;
+  --text-page--line-height: 32px;
+  --text-page--font-weight: 600;
+  --text-page--letter-spacing: -0.02em;
+  --text-section: 16px;
+  --text-section--line-height: 24px;
+  --text-section--font-weight: 600;
+  --text-title: 14px;
+  --text-title--line-height: 20px;
+  --text-title--font-weight: 600;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-meta: 12.5px;
+  --text-meta--line-height: 18px;
+  --text-kpi: 32px;
+  --text-kpi--line-height: 36px;
+  --text-kpi--font-weight: 600;
+  --text-kpi--letter-spacing: -0.02em;
+  --text-kpi-sm: 20px;
+  --text-kpi-sm--line-height: 28px;
+  --text-kpi-sm--font-weight: 600;
 
   /* Type */
   --font-sans: var(--font-inter), ui-sans-serif, -apple-system, BlinkMacSystemFont,
@@ -136,13 +170,17 @@
     animation: vx-rise 520ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
   }
 
-  /* Column labels in every data table. */
+  /*
+    Column labels in every data table — the only overline left in the product.
+    Field and stat labels are sentence case now; at 600/muted these headers
+    competed with the data under them.
+  */
   .table-label {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--color-muted);
+    color: var(--color-faint);
   }
 
   /* Thin scrollbars that do not fight the minimal chrome. */
@@ -234,11 +272,11 @@
     .table-stacked > tbody > tr > td[data-label]::before {
       content: attr(data-label);
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 500;
       letter-spacing: 0.06em;
       line-height: 1.45;
       text-transform: uppercase;
-      color: var(--color-muted);
+      color: var(--color-faint);
     }
 
     /* Larguras pensadas para a coluna do desktop não valem no cartão. */

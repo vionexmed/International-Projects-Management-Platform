@@ -5,7 +5,8 @@ import { requireSupplierUser } from "@/server/auth/current-user";
 import { listSupplierQueue, type QueueItem } from "@/server/services/supplier-queue";
 import { PageHeader } from "@/components/app/page-header";
 import { TabsNav } from "@/components/app/tabs-nav";
-import { Panel, PanelHeader } from "@/components/ui/card";
+import { Panel } from "@/components/ui/card";
+import { Section } from "@/components/ui/section";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getDictionary, plural, type Dictionary } from "@/lib/i18n/dictionary";
@@ -97,36 +98,31 @@ export default async function ActionRequiredPage({
       )}
 
       {visibleWaiting.length > 0 ? (
-        <section className="mt-8">
-          <Panel>
-            <PanelHeader
-              title={dict.portal.requests.underReview}
-              description={dict.portal.requests.underReviewHint}
-            />
-            <ul className="divide-y divide-line-soft">
-              {visibleWaiting.map((item) => (
-                <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
-              ))}
-            </ul>
-          </Panel>
-        </section>
+        <Section
+          title={dict.portal.requests.underReview}
+          description={dict.portal.requests.underReviewHint}
+          className="mt-8"
+        >
+          <ul className="divide-y divide-line-soft">
+            {visibleWaiting.map((item) => (
+              <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
+            ))}
+          </ul>
+        </Section>
       ) : null}
 
       {visibleDone.length > 0 ? (
-        <section className="mt-8">
-          <Panel>
-            <PanelHeader title={dict.portal.requests.done} />
-            <ul className="divide-y divide-line-soft">
-              {visibleDone.map((item) => (
-                <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
-              ))}
-            </ul>
-          </Panel>
-        </section>
+        <Section title={dict.portal.requests.done} className="mt-8">
+          <ul className="divide-y divide-line-soft">
+            {visibleDone.map((item) => (
+              <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
+            ))}
+          </ul>
+        </Section>
       ) : null}
 
       {active.key === "task" ? (
-        <p className="mt-4 text-[13px] text-muted">{dict.portal.requests.taskHint}</p>
+        <p className="mt-4 text-meta text-muted">{dict.portal.requests.taskHint}</p>
       ) : null}
     </>
   );
@@ -156,7 +152,10 @@ function QueueRow({
     <li>
       <Link
         href={item.href}
-        className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-subtle"
+        className={cn(
+          "flex flex-wrap items-center gap-x-4 gap-y-2 py-4 transition-colors hover:bg-subtle",
+          muted ? "-mx-2 rounded-sm px-2" : "px-5",
+        )}
       >
         <span
           className={cn(
@@ -168,8 +167,8 @@ function QueueRow({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-ink">{item.title}</span>
-          <span className="mt-0.5 block truncate text-[13px] text-muted">
+          <span className="block truncate text-body font-medium text-ink">{item.title}</span>
+          <span className="mt-0.5 block truncate text-meta text-muted">
             {item.type === "DOCUMENT"
               ? dict.portal.requests.typeDocument
               : dict.portal.requests.typeTask}{" "}
@@ -180,7 +179,7 @@ function QueueRow({
         {item.dueDate ? (
           <span
             className={cn(
-              "shrink-0 text-[13px] whitespace-nowrap",
+              "shrink-0 text-meta whitespace-nowrap",
               overdue ? "font-medium text-risk" : "text-muted",
             )}
           >

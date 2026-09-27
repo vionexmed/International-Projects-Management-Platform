@@ -119,6 +119,15 @@ export const label = {
   shipmentStage: (v: ShipmentStage, d: Dictionary) => d.status.shipment[v],
 };
 
+/**
+ * Narrows a query-string value to one of the allowed enum values. A filter
+ * read from the URL is user input: an unknown value reaching Prisma is a
+ * validation error and a crashed page, where "no filter" is the right answer.
+ */
+export function oneOf<T extends string>(value: string | undefined, allowed: readonly T[]) {
+  return allowed.includes(value as T) ? (value as T) : undefined;
+}
+
 /** Enum values in the order they should appear in filters and forms. */
 export const OPTIONS = {
   projectStatus: ["ON_TRACK", "AT_RISK", "BLOCKED", "COMPLETED"] as ProjectHealth[],

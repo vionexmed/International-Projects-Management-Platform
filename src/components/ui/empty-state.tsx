@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Every list surface renders this instead of an empty container, so a screen
- * always explains itself rather than looking broken.
+ * always explains itself rather than looking broken. The icon sits bare —
+ * boxed, it read as one more card on a page that already had too many.
  */
 export function EmptyState({
   icon: Icon,
@@ -13,7 +14,7 @@ export function EmptyState({
   className,
   compact = false,
 }: {
-  icon?: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   title: string;
   description?: string;
   action?: React.ReactNode;
@@ -29,13 +30,11 @@ export function EmptyState({
       )}
     >
       {Icon ? (
-        <div className="mb-3 flex size-9 items-center justify-center rounded-md border border-line bg-subtle">
-          <Icon className="size-4 text-muted" />
-        </div>
+        <Icon className="mb-2.5 size-5 text-faint" aria-hidden />
       ) : null}
-      <p className="text-sm font-medium text-ink">{title}</p>
+      <p className="text-body font-medium text-ink">{title}</p>
       {description ? (
-        <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">{description}</p>
+        <p className="mt-1 max-w-sm text-meta text-muted">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>

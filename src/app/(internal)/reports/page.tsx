@@ -12,11 +12,14 @@ import {
   type Slice,
 } from "@/server/services/analytics";
 import type { ProjectStatus } from "@/server/services/projects";
-import { PageHeader, SectionHeader } from "@/components/app/page-header";
+import { PageHeader } from "@/components/app/page-header";
+import { Section } from "@/components/ui/section";
 import { Panel, PanelHeader } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  CellStack,
   Table,
   TableScroll,
   TableShell,
@@ -30,6 +33,7 @@ import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { StageKey } from "@/generated/prisma";
 
 export const metadata: Metadata = { title: "Relatórios" };
@@ -82,11 +86,7 @@ export default async function ReportsPage() {
       />
 
       {/* Portfolio health */}
-      <section className="mb-8">
-        <SectionHeader
-          title="Saúde do portfólio"
-          description={`${portfolio.total} projeto(s) ativos.`}
-        />
+      <Section title="Saúde do portfólio" count={portfolio.total} className="mb-10">
         {portfolio.total === 0 ? (
           <Panel>
             <EmptyState title="Nenhum projeto no portfólio." compact />
@@ -116,116 +116,95 @@ export default async function ReportsPage() {
             />
           </div>
         )}
-      </section>
+      </Section>
 
       {/* Deadlines */}
-      <section className="mb-8">
-        <SectionHeader
-          title="Prazos"
-          description={`${deadlines.openTotal} tarefa(s) em aberto.`}
-        />
-        <Panel>
-          <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
-            <MetricLink
-              label="Atrasadas"
-              value={deadlines.overdue}
-              tone="risk"
-              href="/tasks?tab=OVERDUE"
-            />
-            {/*
-              No link on these three: `/tasks` has no filter that reproduces
-              them, and a link that lands on a different set is worse than no
-              link — it quietly contradicts the number it came from.
-            */}
-            <MetricLink label="Próximos 7 dias" value={deadlines.thisWeek} />
-            <MetricLink label="Próximos 30 dias" value={deadlines.thisMonth} />
-            <MetricLink label="Sem prazo" value={deadlines.undated} />
-          </div>
-        </Panel>
-      </section>
+      <Section title="Prazos" count={deadlines.openTotal} className="mb-10">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCard
+            label="Atrasadas"
+            value={deadlines.overdue}
+            href="/tasks?tab=OVERDUE"
+            delta={deadlines.overdue > 0 ? "Ação necessária" : undefined}
+            deltaTone="risk"
+          />
+          {/*
+            No link on these three: `/tasks` has no filter that reproduces
+            them, and a link that lands on a different set is worse than no
+            link — it quietly contradicts the number it came from.
+          */}
+          <StatCard label="Próximos 7 dias" value={deadlines.thisWeek} />
+          <StatCard label="Próximos 30 dias" value={deadlines.thisMonth} />
+          <StatCard label="Sem prazo" value={deadlines.undated} />
+        </div>
+      </Section>
 
       {/* Regulatory performance */}
-      <section className="mb-8">
-        <SectionHeader
-          title="Desempenho regulatório"
-          description={`${regulatory.total} solicitação(ões) registradas.`}
-        />
-        <Panel>
-          <div className="stat-grid grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
-            <MetricLink
-              label="Aguardando fornecedor"
-              value={queue.supplier}
-              href="/regulatory?status=supplier"
-            />
-            <MetricLink
-              label="Aguardando análise"
-              value={queue.review}
-              href="/regulatory?status=review"
-            />
-            <MetricLink
-              label="Aprovadas"
-              value={queue.approved}
-              tone="ok"
-              href="/regulatory?status=approved"
-            />
-            <MetricLink
-              label="Atrasadas"
-              value={queue.overdue}
-              tone="risk"
-              href="/regulatory?status=overdue"
-            />
-          </div>
+      <Section title="Desempenho regulatório" count={regulatory.total} className="mb-10">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatCard
+            label="Aguardando fornecedor"
+            value={queue.supplier}
+            href="/regulatory?status=supplier"
+          />
+          <StatCard
+            label="Aguardando análise"
+            value={queue.review}
+            href="/regulatory?status=review"
+          />
+          <StatCard label="Aprovadas" value={queue.approved} href="/regulatory?status=approved" />
+          <StatCard
+            label="Atrasadas"
+            value={queue.overdue}
+            href="/regulatory?status=overdue"
+            delta={queue.overdue > 0 ? "Ação necessária" : undefined}
+            deltaTone="risk"
+          />
+        </div>
 
-          <div className="border-t border-line px-5 py-4">
-            <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-              Rodadas de análise
+        <div className="mt-4 rounded-lg bg-raised/70 px-4 py-3">
+          <p className="text-meta font-medium text-muted">Rodadas de análise</p>
+          {regulatory.review.rounds === 0 ? (
+            <p className="mt-1.5 text-body text-muted">
+              Nenhuma análise registrada ainda. O histórico estruturado começa a ser gravado a
+              partir da primeira decisão — rodadas anteriores a ele não foram reconstruídas.
             </p>
-            {regulatory.review.rounds === 0 ? (
-              <p className="mt-1.5 text-[13px] text-muted">
-                Nenhuma análise registrada ainda. O histórico estruturado começa a ser gravado a
-                partir da primeira decisão — rodadas anteriores a ele não foram reconstruídas.
-              </p>
-            ) : (
-              <p className="mt-1.5 text-[13px] text-ink-soft">
-                <span className="font-semibold text-ink tabular-nums">
-                  {regulatory.review.rounds}
-                </span>{" "}
-                decisões registradas ·{" "}
-                <span className="font-semibold text-ink tabular-nums">
-                  {regulatory.review.approvals}
-                </span>{" "}
-                aprovações ·{" "}
-                <span className="font-semibold text-ink tabular-nums">
-                  {regulatory.review.changesRequested}
-                </span>{" "}
-                pedidos de correção
-                {regulatory.review.since ? (
-                  <span className="text-muted">
-                    {" "}
-                    · desde {formatDate(regulatory.review.since, locale)}
-                  </span>
-                ) : null}
-              </p>
-            )}
-          </div>
-        </Panel>
-      </section>
+          ) : (
+            <p className="mt-1.5 text-body text-ink-soft">
+              <span className="font-semibold text-ink tabular-nums">
+                {regulatory.review.rounds}
+              </span>{" "}
+              decisões registradas ·{" "}
+              <span className="font-semibold text-ink tabular-nums">
+                {regulatory.review.approvals}
+              </span>{" "}
+              aprovações ·{" "}
+              <span className="font-semibold text-ink tabular-nums">
+                {regulatory.review.changesRequested}
+              </span>{" "}
+              pedidos de correção
+              {regulatory.review.since ? (
+                <span className="text-muted"> · desde {formatDate(regulatory.review.since, locale)}</span>
+              ) : null}
+            </p>
+          )}
+        </div>
+      </Section>
 
       {/* Supplier performance */}
-      <section className="mb-8">
-        <SectionHeader
-          title="Desempenho dos fornecedores"
-          description="Solicitações abertas, atrasos e tempo médio de resposta."
-          action={
-            <Link
-              href="/suppliers"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-strong hover:underline"
-            >
-              Ver fornecedores
-              <ArrowRight className="size-3.5" />
-            </Link>
-          }
-        />
+      <Section
+        title="Desempenho dos fornecedores"
+        className="mb-10"
+        action={
+          <Link
+            href="/suppliers"
+            className="inline-flex items-center gap-1.5 text-body font-medium text-brand-strong hover:underline"
+          >
+            Ver fornecedores
+            <ArrowRight className="size-3.5" />
+          </Link>
+        }
+      >
         <TableShell>
           {suppliers.length === 0 ? (
             <EmptyState title="Nenhuma solicitação registrada." compact />
@@ -246,43 +225,26 @@ export default async function ReportsPage() {
                   {suppliers.map((supplier) => (
                     <TR key={supplier.id} interactive>
                       <TD>
-                        <Link
-                          href={`/suppliers/${supplier.id}`}
-                          className="block font-medium text-ink after:absolute after:inset-0 after:content-['']"
-                        >
-                          {supplier.name}
-                          <span className="mt-0.5 block text-[13px] font-normal text-muted">
-                            {supplier.country}
-                          </span>
-                        </Link>
+                        <CellStack title={supplier.name} subtitle={supplier.country} />
                       </TD>
-                      <TD label="Em aberto" className="text-[13px] text-ink-soft tabular-nums">
+                      <TD label="Em aberto" className="tabular-nums">
                         {supplier.open}
                       </TD>
                       <TD
                         label="Atrasadas"
-                        className={
-                          supplier.overdue > 0
-                            ? "text-[13px] font-medium text-risk tabular-nums"
-                            : "text-[13px] text-ink-soft tabular-nums"
-                        }
+                        className={cn("tabular-nums", supplier.overdue > 0 && "font-medium text-risk")}
                       >
                         {supplier.overdue}
                       </TD>
-                      <TD label="Aprovadas" className="text-[13px] text-ink-soft tabular-nums">
+                      <TD label="Aprovadas" className="tabular-nums">
                         {supplier.approved}
                       </TD>
-                      <TD
-                        label="Correções pedidas"
-                        className="text-[13px] text-ink-soft tabular-nums"
-                      >
+                      <TD label="Correções pedidas" className="tabular-nums">
                         {supplier.changesRequested}
                       </TD>
-                      <TD label="Resposta média" className="text-[13px] text-ink-soft tabular-nums">
+                      <TD label="Resposta média" className="tabular-nums">
                         {/* An average of nothing is not zero. */}
-                        {supplier.responseDays === null
-                          ? "—"
-                          : `${supplier.responseDays.toFixed(1)} dias`}
+                        {supplier.responseDays === null ? "" : `${supplier.responseDays.toFixed(1)} dias`}
                       </TD>
                     </TR>
                   ))}
@@ -291,17 +253,16 @@ export default async function ReportsPage() {
             </TableScroll>
           )}
         </TableShell>
-      </section>
+      </Section>
 
       {/* Exports */}
-      <section>
-        <SectionHeader title="Exportações" description="Os mesmos dados em CSV, linha a linha." />
+      <Section title="Exportações" description="Os mesmos dados em CSV, linha a linha.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {EXPORTS.map((report) => (
             <Panel key={report.key} className="flex flex-col justify-between p-5">
               <div>
-                <p className="text-sm font-semibold text-ink">{report.title}</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-muted">{report.description}</p>
+                <p className="text-title font-semibold text-ink">{report.title}</p>
+                <p className="mt-1 text-meta leading-relaxed text-muted">{report.description}</p>
               </div>
               <Button variant="secondary" size="sm" className="mt-4 self-start" asChild>
                 <a href={`/api/reports/${report.key}`} download>
@@ -312,7 +273,7 @@ export default async function ReportsPage() {
             </Panel>
           ))}
         </div>
-      </section>
+      </Section>
     </>
   );
 }
@@ -339,14 +300,14 @@ function Distribution({
                 href={slice.href}
                 className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-subtle"
               >
-                <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{slice.label}</span>
+                <span className="min-w-0 flex-1 truncate text-body text-ink">{slice.label}</span>
                 <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-raised">
                   <span
                     className="block h-full rounded-full bg-brand"
                     style={{ width: `${share}%` }}
                   />
                 </span>
-                <span className="w-9 shrink-0 text-right text-[13px] font-semibold text-ink tabular-nums">
+                <span className="w-9 shrink-0 text-right text-body font-semibold text-ink tabular-nums">
                   {slice.count}
                 </span>
               </Link>
@@ -355,45 +316,5 @@ function Distribution({
         })}
       </ul>
     </Panel>
-  );
-}
-
-function MetricLink({
-  label: metricLabel,
-  value,
-  tone,
-  href,
-}: {
-  label: string;
-  value: number;
-  tone?: "ok" | "risk";
-  /** Absent when no canonical list reproduces exactly this number. */
-  href?: string;
-}) {
-  const body = (
-    <>
-      <div className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-        {metricLabel}
-      </div>
-      <div
-        className={
-          tone === "risk" && value > 0
-            ? "mt-2 text-[24px] leading-none font-semibold text-risk tabular-nums"
-            : tone === "ok" && value > 0
-              ? "mt-2 text-[24px] leading-none font-semibold text-ok tabular-nums"
-              : "mt-2 text-[24px] leading-none font-semibold text-ink tabular-nums"
-        }
-      >
-        {value}
-      </div>
-    </>
-  );
-
-  if (!href) return <div className="px-5 py-4">{body}</div>;
-
-  return (
-    <Link href={href} className="block px-5 py-4 transition-colors hover:bg-subtle">
-      {body}
-    </Link>
   );
 }

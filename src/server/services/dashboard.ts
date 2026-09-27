@@ -1,4 +1,5 @@
 import "server-only";
+import { startOfTodayUtc } from "@/lib/format";
 import { db } from "@/server/db";
 import { projectScope, taskScope } from "@/server/authz/scopes";
 import {
@@ -38,7 +39,11 @@ export async function getPortfolioSummary(user: SessionUser) {
   return summary;
 }
 
-/** Upcoming and already-late deadlines, nearest first. */
+/**
+ * Deadlines still ahead, nearest first. Late ones are left out on purpose:
+ * they are exceptions, and the attention list beside this one already shows
+ * each of them — listing them here too put the same task on screen twice.
+ */
 export async function listUpcomingDeadlines(user: SessionUser, take = 6) {
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + 45);
@@ -49,7 +54,7 @@ export async function listUpcomingDeadlines(user: SessionUser, take = 6) {
         taskScope(user),
         {
           status: { notIn: ["COMPLETED", "CANCELLED"] },
-          dueDate: { not: null, lte: horizon },
+          dueDate: { not: null, gte: startOfTodayUtc(), lte: horizon },
         },
       ],
     },

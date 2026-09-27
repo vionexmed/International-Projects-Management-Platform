@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { Ship } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
 import { orNotFound } from "@/server/authz/rsc";
-import { Field, Panel, PanelHeader } from "@/components/ui/card";
+import { Panel, PropertyList } from "@/components/ui/card";
+import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShipmentDialog } from "@/features/projects/shipment-dialog";
 import { ShipmentProgress } from "@/features/projects/shipment-progress";
@@ -12,7 +12,6 @@ import { StageTaskList } from "@/features/projects/stage-task-list";
 import { StageDocumentList } from "@/features/projects/stage-document-list";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { label } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 
 const toInput = (value: Date | null) => value?.toISOString().slice(0, 10) ?? "";
@@ -44,132 +43,129 @@ export default async function ProjectImportPage({
     }),
   ]);
 
+  const openTasks = tasks.filter(
+    (task) => task.status !== "COMPLETED" && task.status !== "CANCELLED",
+  ).length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {/*
-        A project with parcelled production has more than one shipment. The
-        button to add one used to live only in the empty state, so the first
-        shipment was also the last: once a project had one, the control that
-        created it disappeared.
+        A project with parcelled production has more than one shipment, so the
+        button to add one stays in the section header — once a project had a
+        shipment, an add button that lived only in the empty state vanished.
       */}
-      {shipments.length > 0 && editable ? (
-        <div className="flex justify-end">
-          <ShipmentDialog projectId={projectId} />
-        </div>
-      ) : null}
-
-      {shipments.length === 0 ? (
-        <Panel>
-          <PanelHeader
-            title="Embarques"
-            action={editable ? <ShipmentDialog projectId={projectId} /> : null}
-          />
-          <EmptyState
-            icon={Ship}
-            title="Nenhum embarque cadastrado."
-            description="Adicione um embarque para acompanhar produção, trânsito e desembaraço."
-            compact
-          />
-        </Panel>
-      ) : (
-        shipments.map((shipment) => (
-          <Panel key={shipment.id}>
-            <PanelHeader
-              title={shipment.reference ?? "Embarque"}
-              description={`Status atual: ${label.shipmentStage(shipment.stage, dict)}`}
-              action={
-                editable ? (
-                  <ShipmentDialog
-                    projectId={projectId}
-                    values={{
-                      id: shipment.id,
-                      reference: shipment.reference ?? "",
-                      stage: shipment.stage,
-                      shippingMethod: shipment.shippingMethod ?? "",
-                      carrier: shipment.carrier ?? "",
-                      trackingNumber: shipment.trackingNumber ?? "",
-                      portOfOrigin: shipment.portOfOrigin ?? "",
-                      portOfArrival: shipment.portOfArrival ?? "",
-                      etd: toInput(shipment.etd),
-                      eta: toInput(shipment.eta),
-                      productionNote: shipment.productionNote ?? "",
-                      documentsNote: shipment.documentsNote ?? "",
-                    }}
-                  />
-                ) : null
-              }
+      <Section
+        title="Embarques"
+        count={shipments.length || undefined}
+        action={editable ? <ShipmentDialog projectId={projectId} /> : null}
+      >
+        {shipments.length === 0 ? (
+          <Panel>
+            <EmptyState
+              icon={Ship}
+              title="Nenhum embarque cadastrado."
+              description="Adicione um embarque para acompanhar produção, trânsito e desembaraço."
+              compact
             />
-
-            <div className="border-b border-line">
-              <ShipmentProgress current={shipment.stage} dict={dict} />
-            </div>
-
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:grid-cols-3 lg:grid-cols-4">
-              <Field label="Modal">{shipment.shippingMethod ?? "—"}</Field>
-              <Field label="Transportadora">{shipment.carrier ?? "—"}</Field>
-              <Field label="Rastreio">
-                {shipment.trackingNumber ? (
-                  <span className="font-mono text-[13px]">{shipment.trackingNumber}</span>
-                ) : (
-                  "—"
-                )}
-              </Field>
-              <Field label="Porto de origem">{shipment.portOfOrigin ?? "—"}</Field>
-              <Field label="Porto de chegada">{shipment.portOfArrival ?? "—"}</Field>
-              <Field label="ETD">{formatDate(shipment.etd, locale)}</Field>
-              <Field label="ETA">{formatDate(shipment.eta, locale)}</Field>
-              <Field label="Chegada efetiva">{formatDate(shipment.arrivedAt, locale)}</Field>
-            </dl>
-
-            {shipment.productionNote || shipment.documentsNote ? (
-              <div className="grid grid-cols-1 gap-5 border-t border-line px-5 py-4 sm:grid-cols-2">
-                {shipment.productionNote ? (
-                  <div>
-                    <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-                      Status da produção
-                    </p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink">
-                      {shipment.productionNote}
-                    </p>
-                  </div>
-                ) : null}
-                {shipment.documentsNote ? (
-                  <div>
-                    <p className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-                      Status da documentação
-                    </p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink">
-                      {shipment.documentsNote}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </Panel>
-        ))
-      )}
+        ) : (
+          <div className="space-y-6">
+            {shipments.map((shipment) => (
+              <Panel key={shipment.id}>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+                  {/* The current step is marked on the tracker below, not repeated here. */}
+                  <h3 className="min-w-0 truncate text-title text-ink">
+                    {shipment.reference ?? "Embarque"}
+                  </h3>
+                  {editable ? (
+                    <ShipmentDialog
+                      projectId={projectId}
+                      values={{
+                        id: shipment.id,
+                        reference: shipment.reference ?? "",
+                        stage: shipment.stage,
+                        shippingMethod: shipment.shippingMethod ?? "",
+                        carrier: shipment.carrier ?? "",
+                        trackingNumber: shipment.trackingNumber ?? "",
+                        portOfOrigin: shipment.portOfOrigin ?? "",
+                        portOfArrival: shipment.portOfArrival ?? "",
+                        etd: toInput(shipment.etd),
+                        eta: toInput(shipment.eta),
+                        productionNote: shipment.productionNote ?? "",
+                        documentsNote: shipment.documentsNote ?? "",
+                      }}
+                    />
+                  ) : null}
+                </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel>
-          <PanelHeader
-            title="Tarefas de importação"
-            action={
-              <Link
-                href={`/projects/${projectId}/tasks`}
-                className="text-[13px] font-medium text-brand-strong hover:underline"
-              >
-                Ver todas
-              </Link>
-            }
-          />
+                <ShipmentProgress current={shipment.stage} dict={dict} />
+
+                <div className="space-y-5 border-t border-line p-5">
+                  <PropertyList
+                    items={[
+                      { label: "Modal", value: shipment.shippingMethod },
+                      { label: "Transportadora", value: shipment.carrier },
+                      {
+                        label: "Rastreio",
+                        value: shipment.trackingNumber ? (
+                          <span className="font-mono">{shipment.trackingNumber}</span>
+                        ) : null,
+                      },
+                      { label: "Porto de origem", value: shipment.portOfOrigin },
+                      { label: "Porto de chegada", value: shipment.portOfArrival },
+                      { label: "ETD", value: shipment.etd ? formatDate(shipment.etd, locale) : null },
+                      { label: "ETA", value: shipment.eta ? formatDate(shipment.eta, locale) : null },
+                      {
+                        label: "Chegada efetiva",
+                        value: shipment.arrivedAt ? formatDate(shipment.arrivedAt, locale) : null,
+                      },
+                    ]}
+                  />
+
+                  {shipment.productionNote || shipment.documentsNote ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {shipment.productionNote ? (
+                        <Note label="Produção">{shipment.productionNote}</Note>
+                      ) : null}
+                      {shipment.documentsNote ? (
+                        <Note label="Documentação">{shipment.documentsNote}</Note>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
+        <Section
+          title="Tarefas de importação"
+          count={openTasks > 0 ? `${openTasks} em aberto` : undefined}
+          action={{ label: "Ver todas", href: `/projects/${projectId}/tasks?category=IMPORT` }}
+        >
           <StageTaskList tasks={tasks} locale={locale} dict={dict} />
-        </Panel>
+        </Section>
 
-        <Panel>
-          <PanelHeader title="Documentos de importação" />
+        <Section
+          title="Documentos de importação"
+          count={documents.length || undefined}
+          action={{ label: "Ver todos", href: `/projects/${projectId}/documents?type=IMPORT` }}
+        >
           <StageDocumentList documents={documents} locale={locale} dict={dict} />
-        </Panel>
+        </Section>
       </div>
+    </div>
+  );
+}
+
+/** A free-text status note, in a well rather than another bordered box. */
+function Note({ label: noteLabel, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg bg-raised/70 px-4 py-3">
+      <p className="text-meta text-muted">{noteLabel}</p>
+      <p className="mt-1 text-body text-ink-soft">{children}</p>
     </div>
   );
 }

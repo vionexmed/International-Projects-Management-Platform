@@ -106,14 +106,14 @@ export default async function SupplierProjectsPage({
                           </Link>
                         </TD>
                         <TD label={dict.portal.projects.currentStage}>
-                          <span className="inline-flex items-center gap-2 text-[13px] text-ink-soft">
+                          <span className="inline-flex items-center gap-2 text-meta text-ink-soft">
                             <span className="size-[7px] rounded-full bg-brand" aria-hidden />
                             {label.stageKey(project.currentStage, dict)}
                           </span>
                         </TD>
                         <TD label={dict.common.progress}>
                           <div className="w-32">
-                            <div className="mb-1 text-[13px] font-semibold text-ink tabular-nums">
+                            <div className="mb-1 text-meta font-semibold text-ink tabular-nums">
                               {project.progress}%
                             </div>
                             <ProgressBar value={project.progress} />
@@ -123,7 +123,7 @@ export default async function SupplierProjectsPage({
                           {project.nextMilestone ? (
                             <CellStack
                               title={
-                                <span className="text-[13px] font-normal text-ink">
+                                <span className="text-meta font-normal text-ink">
                                   {project.nextMilestone.title}
                                 </span>
                               }
@@ -132,11 +132,9 @@ export default async function SupplierProjectsPage({
                                 locale,
                               )}
                             />
-                          ) : (
-                            <span className="text-[13px] text-muted">—</span>
-                          )}
+                          ) : null}
                         </TD>
-                        <TD label={dict.common.targetLaunch} className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label={dict.common.targetLaunch} className="text-meta whitespace-nowrap text-ink-soft">
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
                         <TD label={dict.common.status}>

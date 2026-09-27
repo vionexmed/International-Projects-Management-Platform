@@ -36,11 +36,7 @@ export default async function TeamPage() {
 
   return (
     <>
-      <PageHeader
-        title="Equipe"
-        description="Membros da equipe Vionex e sua carga de trabalho atual."
-        actions={manageable ? <InviteMemberDialog /> : null}
-      />
+      <PageHeader title="Equipe" actions={manageable ? <InviteMemberDialog /> : null} />
 
       <TableShell>
         {members.length === 0 ? (
@@ -70,12 +66,12 @@ export default async function TeamPage() {
                           <CellStack title={member.name} subtitle={member.email} />
                         </div>
                       </TD>
-                      <TD label="Papel" className="text-[13px] text-ink-soft">{label.role(member.role, dict)}</TD>
-                      <TD label="Departamento" className="text-[13px] text-ink-soft">{member.department ?? "—"}</TD>
-                      <TD label="Projetos" className="text-[13px] text-ink-soft tabular-nums">{member.projectCount}</TD>
-                      <TD label="Tarefas abertas" className="text-[13px] text-ink-soft tabular-nums">{member.openTaskCount}</TD>
-                      <TD label="Último acesso" className="text-[13px] text-ink-soft">
-                        {member.lastLoginAt ? formatRelative(member.lastLoginAt, locale) : "—"}
+                      <TD label="Papel">{label.role(member.role, dict)}</TD>
+                      <TD label="Departamento">{member.department ?? ""}</TD>
+                      <TD label="Projetos" className="tabular-nums">{member.projectCount}</TD>
+                      <TD label="Tarefas abertas" className="tabular-nums">{member.openTaskCount}</TD>
+                      <TD label="Último acesso">
+                        {member.lastLoginAt ? formatRelative(member.lastLoginAt, locale) : ""}
                       </TD>
                       <TD label="Status">
                         <StatusBadge tone={member.status === "ACTIVE" ? "ok" : "neutral"}>

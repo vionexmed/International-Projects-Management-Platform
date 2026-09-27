@@ -78,16 +78,16 @@ export default async function SupplierNotificationsPage() {
                   <div className="min-w-0 flex-1">
                     <p
                       className={cn(
-                        "text-sm",
+                        "text-body",
                         notification.readAt ? "text-ink-soft" : "font-medium text-ink",
                       )}
                     >
                       {notification.title}
                     </p>
                     {notification.description ? (
-                      <p className="mt-0.5 text-[13px] text-muted">{notification.description}</p>
+                      <p className="mt-0.5 text-meta text-muted">{notification.description}</p>
                     ) : null}
-                    <p className="mt-1 text-[12px] text-faint">
+                    <p className="mt-1 text-meta text-faint">
                       {formatRelative(notification.createdAt, locale)}
                     </p>
                   </div>

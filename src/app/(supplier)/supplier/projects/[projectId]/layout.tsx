@@ -1,13 +1,13 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { requireSharedProjectAccess } from "@/server/authz/access";
 import { orNotFound } from "@/server/authz/rsc";
+import { PageHeader } from "@/components/app/page-header";
 import { SolidBadge } from "@/components/ui/badge";
 import { SupplierProjectTabs } from "@/features/supplier-portal/supplier-project-tabs";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
+import { formatDate } from "@/lib/format";
 import type { ProjectStatus } from "@/server/services/projects";
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
@@ -38,30 +38,22 @@ export default async function SupplierProjectLayout({
 
   const project = await orNotFound(requireSharedProjectAccess(user, projectId));
 
-  const dict = getDictionary(localeFromLanguage(user.language));
+  const locale = localeFromLanguage(user.language);
+  const dict = getDictionary(locale);
   const status = meta.project(project.status as ProjectStatus, dict);
 
   return (
     <>
-      <Link
-        href="/supplier/projects"
-        className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft className="size-3.5" />
-        {dict.nav.projects}
-      </Link>
-
-      <div className="mb-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-            {project.name}
-          </h1>
-          <SolidBadge tone={status.tone}>{status.label}</SolidBadge>
-        </div>
-        <p className="mt-1.5 text-[14px] text-muted">
-          {label.stageKey(project.currentStage, dict)}
-        </p>
-      </div>
+      <PageHeader
+        breadcrumb={[{ label: dict.nav.projects, href: "/supplier/projects" }]}
+        title={project.name}
+        status={<SolidBadge tone={status.tone}>{status.label}</SolidBadge>}
+        properties={[
+          { label: dict.common.stage, value: label.stageKey(project.currentStage, dict) },
+          { label: dict.common.targetLaunch, value: formatDate(project.targetLaunchDate, locale) },
+        ]}
+        className="mb-6"
+      />
 
       <SupplierProjectTabs projectId={project.id} dict={dict} className="mb-6" />
 

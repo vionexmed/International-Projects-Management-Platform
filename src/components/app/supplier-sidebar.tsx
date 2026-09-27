@@ -26,6 +26,7 @@ import {
   DropdownSeparator,
   DropdownTrigger,
 } from "@/components/ui/dropdown";
+import { SignOutItem } from "@/components/app/sign-out-item";
 import { signOut } from "@/server/actions/auth";
 import { setLanguageAction } from "@/server/actions/preferences";
 import { ChangePasswordDialog } from "@/features/account/change-password-dialog";
@@ -133,8 +134,8 @@ export function SupplierSidebar({
             >
               <UserAvatar name={user.name} size="md" />
               <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-[13px] font-medium text-ink">{user.name}</span>
-                <span className="block truncate text-[12px] text-muted">{user.supplierName}</span>
+                <span className="block truncate text-meta font-medium text-ink">{user.name}</span>
+                <span className="block truncate text-meta text-muted">{user.supplierName}</span>
               </span>
               <ChevronDown className="size-4 shrink-0 text-muted" />
             </button>
@@ -167,14 +168,7 @@ export function SupplierSidebar({
               </DropdownItem>
             ) : null}
             <DropdownSeparator />
-            <form action={signOut}>
-              <DropdownItem asChild destructive>
-                <button type="submit" className="w-full">
-                  <LogOut />
-                  {dict.nav.logOut}
-                </button>
-              </DropdownItem>
-            </form>
+            <SignOutItem label={dict.nav.logOut} />
           </DropdownContent>
         </Dropdown>
 
@@ -194,7 +188,7 @@ export function SupplierSidebar({
           }}
         />
 
-        <div className="px-1.5 text-[12px]">
+        <div className="px-1.5 text-meta">
           <p className="text-muted">{dict.nav.needHelp}</p>
           <a
             href="mailto:projects@vionex.com"
@@ -209,7 +203,7 @@ export function SupplierSidebar({
         <form action={signOut}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-sm px-1.5 py-2 text-[13px] text-ink-soft transition-colors hover:text-ink"
+            className="flex w-full items-center gap-3 rounded-sm px-1.5 py-2 text-meta text-ink-soft transition-colors hover:text-ink"
           >
             <LogOut className="size-4 text-muted" />
             {dict.nav.logOut}
@@ -227,7 +221,7 @@ function LanguagePicker({ locale, label }: { locale: Locale; label: string }) {
         <button
           type="button"
           aria-label={label}
-          className="flex w-full items-center gap-2.5 rounded-sm border border-line bg-surface px-3 py-2.5 text-[13px] text-ink transition-colors hover:bg-raised"
+          className="flex w-full items-center gap-2.5 rounded-sm border border-line bg-surface px-3 py-2.5 text-meta text-ink transition-colors hover:bg-raised"
         >
           <Globe className="size-4 shrink-0 text-muted" />
           <span className="min-w-0 flex-1 truncate text-left">{LOCALE_LABELS[locale]}</span>

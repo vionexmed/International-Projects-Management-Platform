@@ -1,21 +1,25 @@
 import Link from "next/link";
-import { Bell, MessageSquare } from "lucide-react";
+import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * Thin top strip. It holds only what must be reachable from anywhere —
  * everything else lives in the page body.
+ *
+ * The bell shows only below `lg`, where the sidebar (and its Notificações
+ * badge) is hidden: on desktop two indicators for the same unread count were
+ * one too many. There is no messages icon — conversations live in each
+ * project, and an icon that led to the project list promised an inbox that
+ * does not exist.
  */
 export function Topbar({
   breadcrumb,
   notificationCount,
-  messageCount,
   leading,
   className,
 }: {
   breadcrumb?: React.ReactNode;
   notificationCount: number;
-  messageCount?: number;
   /** Rendered before the breadcrumb — used for the mobile menu trigger. */
   leading?: React.ReactNode;
   className?: string;
@@ -27,22 +31,12 @@ export function Topbar({
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-2 text-[13px] text-muted">
+      <div className="flex min-w-0 items-center gap-2 text-meta text-muted">
         {leading}
         {breadcrumb}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
-        {typeof messageCount === "number" ? (
-          <IconLink
-            href="/projects"
-            label={`Mensagens${messageCount ? ` (${messageCount} não lidas)` : ""}`}
-            count={messageCount}
-          >
-            <MessageSquare className="size-[18px]" />
-          </IconLink>
-        ) : null}
-
+      <div className="flex shrink-0 items-center gap-1 lg:hidden">
         <IconLink
           href="/notifications"
           label={`Notificações${notificationCount ? ` (${notificationCount} não lidas)` : ""}`}

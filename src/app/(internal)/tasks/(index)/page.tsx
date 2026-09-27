@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { TaskCategory, TaskPriority } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { countTasksByStatus, listTasks, type TaskStatus } from "@/server/services/tasks";
 import { listProjects } from "@/server/services/projects";
@@ -14,6 +13,7 @@ import { TasksTable } from "@/features/tasks/tasks-table";
 import { NewTaskDialog, TASK_CATEGORIES, TASK_PRIORITIES } from "@/features/tasks/new-task-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
+import { OPTIONS, oneOf } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Tarefas" };
 
@@ -46,8 +46,8 @@ export default async function TasksPage({
       projectId: params.project,
       assignedToId: params.assignee,
       supplierId: params.waiting,
-      category: params.category as TaskCategory | undefined,
-      priority: params.priority as TaskPriority | undefined,
+      category: oneOf(params.category, OPTIONS.taskCategory),
+      priority: oneOf(params.priority, OPTIONS.priority),
       page,
     }),
     countTasksByStatus(user),
@@ -74,7 +74,6 @@ export default async function TasksPage({
     <>
       <PageHeader
         title="Tarefas"
-        description="Gerencie e acompanhe as tarefas de todos os projetos."
         actions={
           can(user, "task:create") ? (
             <NewTaskDialog
@@ -85,37 +84,37 @@ export default async function TasksPage({
         }
       />
 
-      <TabsNav
-        className="mb-5"
-        items={TABS.map((tab) => ({
-          href: buildTabHref(tab.key),
-          label: tab.label,
-          count: tab.status ? counts[tab.status] : counts.ALL,
-          active: tab.key === activeTab.key,
-        }))}
-      />
-
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <SearchInput placeholder="Buscar tarefas…" className="w-full sm:w-80" />
-        <FilterBar activeCount={activeFilters}>
-          <FilterSelect
-            paramKey="project"
-            label="Projeto"
-            options={projects.items.map((project) => ({ value: project.id, label: project.name }))}
-          />
-          <FilterSelect
-            paramKey="assignee"
-            label="Responsável"
-            options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
-          />
-          <FilterSelect
-            paramKey="waiting"
-            label="Aguardando"
-            options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
-          />
-          <FilterSelect paramKey="category" label="Categoria" options={TASK_CATEGORIES} />
-          <FilterSelect paramKey="priority" label="Prioridade" options={TASK_PRIORITIES} />
-        </FilterBar>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <TabsNav
+          items={TABS.map((tab) => ({
+            href: buildTabHref(tab.key),
+            label: tab.label,
+            count: tab.status ? counts[tab.status] : counts.ALL,
+            active: tab.key === activeTab.key,
+          }))}
+        />
+        <div className="flex flex-wrap items-start gap-3">
+          <SearchInput placeholder="Buscar tarefas…" className="w-56" />
+          <FilterBar activeCount={activeFilters}>
+            <FilterSelect
+              paramKey="project"
+              label="Projeto"
+              options={projects.items.map((project) => ({ value: project.id, label: project.name }))}
+            />
+            <FilterSelect
+              paramKey="assignee"
+              label="Responsável"
+              options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
+            />
+            <FilterSelect
+              paramKey="waiting"
+              label="Aguardando"
+              options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
+            />
+            <FilterSelect paramKey="category" label="Categoria" options={TASK_CATEGORIES} />
+            <FilterSelect paramKey="priority" label="Prioridade" options={TASK_PRIORITIES} />
+          </FilterBar>
+        </div>
       </div>
 
       <TableShell>
