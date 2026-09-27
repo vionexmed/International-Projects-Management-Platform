@@ -94,7 +94,7 @@ export async function saveClinicalStudyAction(
     await recordAudit({
       organizationId: user.organizationId,
       actorId: user.id,
-      action: "project.update",
+      action: "clinical.update",
       entity: "ClinicalStudy",
       entityId: projectId,
     });
@@ -151,6 +151,14 @@ export async function createRegulatoryItemAction(
       description: `Item regulatório "${task.title}" adicionado.`,
       // Vionex's submission tracking with the health authority.
       internal: true,
+    });
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "task.create",
+      entity: "Task",
+      entityId: task.id,
+      metadata: { category: "REGULATORY" },
     });
 
     await notifyAboutDeadline({
@@ -268,15 +276,26 @@ export async function saveShipmentAction(
     const { projectId, shipmentId, ...input } = parseForm(shipmentSchema, formData);
     await requireProjectAccess(user, projectId);
 
+    let savedId: string;
     if (shipmentId) {
       const updated = await db.importShipment.updateMany({
         where: { id: shipmentId, projectId },
         data: input,
       });
       if (updated.count === 0) throw new Error("Embarque não encontrado.");
+      savedId = shipmentId;
     } else {
-      await db.importShipment.create({ data: { projectId, ...input } });
+      savedId = (await db.importShipment.create({ data: { projectId, ...input } })).id;
     }
+
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "shipment.save",
+      entity: "ImportShipment",
+      entityId: savedId,
+      metadata: { projectId, created: !shipmentId, stage: input.stage },
+    });
 
     await recordTimelineEvent({
       projectId,
@@ -344,6 +363,14 @@ export async function createGtmItemAction(
       type: "TASK_CREATED",
       description: `Item de Go-to-Market "${task.title}" adicionado.`,
       internal: true,
+    });
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "task.create",
+      entity: "Task",
+      entityId: task.id,
+      metadata: { category: "GO_TO_MARKET" },
     });
 
     await notifyAboutDeadline({
@@ -452,6 +479,14 @@ export async function createMilestoneAction(
       actorId: user.id,
       type: "MILESTONE_REACHED",
       description: `Marco "${milestone.title}" adicionado.`,
+    });
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "milestone.create",
+      entity: "Milestone",
+      entityId: milestone.id,
+      metadata: { projectId: input.projectId },
     });
 
     await recalculateProject(input.projectId, user.id);

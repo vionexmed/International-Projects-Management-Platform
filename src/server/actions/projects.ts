@@ -203,6 +203,14 @@ export async function updateStageAction(
       // Stage status, progress and notes are how Vionex tracks its own work.
       internal: true,
     });
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "stage.update",
+      entity: "ProjectStage",
+      entityId: stage.id,
+      metadata: { projectId: input.projectId, status: input.status, progress: input.progress },
+    });
 
     await recalculateProject(input.projectId, user.id);
     revalidatePath(`/projects/${input.projectId}`);

@@ -217,10 +217,9 @@ export async function updateUser(
    * scope cannot express: that the *outcome* also has to stay inside the
    * boundary.
    *
-   * Assigning SUPPLIER_ADMIN is refused for now. Nothing in the product says
-   * whether a supplier administrator may appoint another one, and the
-   * conservative reading is the one that cannot be exploited — a decision to
-   * revisit, not a limitation of the architecture.
+   * A supplier administrator may appoint another one: the portal already lets
+   * them invite a SUPPLIER_ADMIN directly, and promotion stays inside their
+   * own company. What they may never assign is an internal role.
    */
   if (isSupplierRole(actor.role)) {
     /**
