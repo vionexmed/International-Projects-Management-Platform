@@ -119,7 +119,10 @@ export type PropertyItem = {
 /**
  * Record properties without a box around them. `inline` is the one row under
  * a record title (owner, start, launch…); `stacked` is the context rail next
- * to a workflow form. Empty values are left out rather than printed as "—".
+ * to a workflow form; `grid` is for a record with seven or eight fields (a
+ * study, a shipment), where an inline row wraps into a ragged second line and
+ * the labels stop lining up. Empty values are left out rather than printed
+ * as "—".
  */
 export function PropertyList({
   items,
@@ -127,7 +130,7 @@ export function PropertyList({
   className,
 }: {
   items: PropertyItem[];
-  layout?: "inline" | "stacked";
+  layout?: "inline" | "stacked" | "grid";
   className?: string;
 }) {
   const visible = items.filter(
@@ -138,7 +141,11 @@ export function PropertyList({
   return (
     <dl
       className={cn(
-        layout === "inline" ? "flex flex-wrap gap-x-8 gap-y-2" : "space-y-3",
+        layout === "inline"
+          ? "flex flex-wrap gap-x-8 gap-y-2"
+          : layout === "grid"
+            ? "grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-4"
+            : "space-y-3",
         className,
       )}
     >

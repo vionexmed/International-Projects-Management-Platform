@@ -100,18 +100,26 @@ export function TH({
  * desktop — the header row already says it — and becomes the cell's own label
  * once the table stacks on a phone. Leave it off the primary cell, which
  * carries the row's title and reads fine on its own.
+ *
+ * `align="right"` is for dates and numbers, matching a right-aligned `TH`.
+ * Once stacked the value goes back to the left, next to its label.
  */
 export function TD({
   className,
   label,
+  align = "left",
   ...props
-}: React.TdHTMLAttributes<HTMLTableCellElement> & { label?: string }) {
+}: Omit<React.TdHTMLAttributes<HTMLTableCellElement>, "align"> & {
+  label?: string;
+  align?: "left" | "right";
+}) {
   return (
     <td
       data-label={label}
       className={cn(
         "h-12 px-4 py-2 align-middle text-body text-ink-soft",
         label !== undefined && "whitespace-nowrap",
+        align === "right" && "text-right tabular-nums max-md:in-[.table-stacked]:text-left",
         // Once stacked into a card the row has room to wrap and owns the
         // padding. Utilities, not the `.table-stacked` rules in globals.css,
         // because those sit in the components layer and lose to utilities.

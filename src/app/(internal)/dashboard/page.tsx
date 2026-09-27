@@ -26,8 +26,9 @@ function greeting(name: string) {
  * Triage. One question: what needs attention now?
  *
  * Nothing here is a canonical list. The summary line links into `/projects`,
- * the exceptions link to wherever each one is resolved, and the deadlines
- * link to the task. Every block is a doorway; none of them is a destination.
+ * the exceptions link to wherever each one is resolved (their counts, in the
+ * section header, to the filtered list of each kind), and the deadlines link
+ * to the task. Every block is a doorway; none of them is a destination.
  *
  * The page has one box on purpose — the exceptions. The portfolio numbers are
  * a sentence, the deadlines sit on the canvas, and the distribution by stage
@@ -45,8 +46,12 @@ export default async function DashboardPage() {
     listUpcomingDeadlines(user, 6),
   ]);
 
-  /** Only the kinds that actually have rows get a link — no empty promises. */
-  const attentionLinks = [
+  /**
+   * The attention list shows six rows of mixed kinds; these counts are the
+   * way to the rest. They sit in the section header as one quiet line — as a
+   * footer under the rows they read as the same items a second time.
+   */
+  const attentionKinds = [
     counts.tasks > 0
       ? { label: `${counts.tasks} ${counts.tasks === 1 ? "tarefa atrasada" : "tarefas atrasadas"}`, href: "/tasks?tab=OVERDUE" }
       : null,
@@ -96,16 +101,44 @@ export default async function DashboardPage() {
         </div>
       </PageHeader>
 
-      <div className="space-y-10">
+      {/*
+        Two columns on a desktop: the exceptions are the page's subject and
+        take two thirds; the deadlines are a compact rail beside them. One
+        full-width column put titles on the far left and dates on the far
+        right, with 800px of nothing in between.
+      */}
+      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
         <Section
           title="Precisa da sua atenção"
           count={counts.total > 0 ? counts.total : undefined}
-          description="Atrasos, bloqueios e análises paradas em todo o portfólio."
+          description={
+            attentionKinds.length > 0 ? (
+              <span className="flex flex-wrap gap-x-1.5">
+                {attentionKinds.map((kind, index) => (
+                  <span key={kind.href} className="whitespace-nowrap">
+                    <Link
+                      href={kind.href}
+                      className="underline-offset-4 transition-colors hover:text-ink hover:underline"
+                    >
+                      {kind.label}
+                    </Link>
+                    {/* Trailing, so a wrapped line never opens with a separator. */}
+                    {index < attentionKinds.length - 1 ? (
+                      <span className="ml-1.5 text-faint" aria-hidden>
+                        ·
+                      </span>
+                    ) : null}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              "Atrasos, bloqueios e análises paradas em todo o portfólio."
+            )
+          }
         >
           <AttentionList
             items={attention}
             locale={locale}
-            links={attentionLinks}
             emptyTitle="Nada fora do previsto."
             emptyDescription="Nenhum atraso, bloqueio ou análise parada no portfólio."
           />
@@ -113,7 +146,7 @@ export default async function DashboardPage() {
 
         <Section
           title="Próximos prazos"
-          description="Tarefas em aberto com vencimento nas próximas semanas."
+          description="Tarefas em aberto, por vencimento."
           action={{ label: "Ver tarefas", href: "/tasks" }}
         >
           {deadlines.length === 0 ? (
@@ -134,12 +167,16 @@ export default async function DashboardPage() {
                         ? `${item.project.name} · aguardando ${item.supplier.name}`
                         : item.project.name
                     }
+                    // Stacked to mirror title/subtitle: the date lines up with
+                    // the title, how far away it is with the project.
                     trailing={
-                      <span className="flex items-baseline gap-3 text-meta whitespace-nowrap tabular-nums">
-                        <span className="text-muted">{formatDateShort(item.dueDate, locale)}</span>
+                      <span className="text-right text-meta whitespace-nowrap tabular-nums">
+                        <span className="block text-ink-soft">
+                          {formatDateShort(item.dueDate, locale)}
+                        </span>
                         <span
                           className={cn(
-                            "w-24 text-right",
+                            "mt-0.5 block",
                             late ? "font-medium text-risk" : "text-muted",
                           )}
                         >

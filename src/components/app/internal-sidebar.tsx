@@ -142,7 +142,7 @@ export function InternalSidebar({
         {collapsed ? (
           <VionexMark className="size-7 shrink-0 text-brand" />
         ) : (
-          <VionexLogo tone="light" width={124} />
+          <VionexLogo tone="rail" width={124} />
         )}
       </div>
 

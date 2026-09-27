@@ -64,11 +64,16 @@ export function DocumentsTable({
       <Table>
         <THead>
           <TR>
-            <TH>Documento</TH>
-            {showProject ? <TH>Projeto</TH> : null}
-            <TH>Tipo</TH>
-            <TH>Enviado</TH>
-            <TH>Status</TH>
+            {/*
+              The name column takes the slack (file names are long); the rest
+              are as wide as their content, and who-and-when closes the row,
+              right-aligned like every date column.
+            */}
+            <TH className="min-w-64">Documento</TH>
+            {showProject ? <TH className="w-px">Projeto</TH> : null}
+            <TH className="w-px">Tipo</TH>
+            <TH className="w-px">Status</TH>
+            <TH className="w-px" align="right">Enviado</TH>
             <TH className="w-px" />
           </TR>
         </THead>
@@ -116,11 +121,14 @@ export function DocumentsTable({
                 ) : null}
 
                 <TD label="Tipo">{label.documentType(document.type, dict)}</TD>
-                <TD label="Enviado">
-                  <CellStack title={document.createdBy.name} subtitle={formatDateShort(document.updatedAt, locale)} />
-                </TD>
                 <TD label="Status">
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                </TD>
+                <TD label="Enviado" align="right">
+                  <CellStack
+                    title={<span className="font-normal text-ink-soft">{document.createdBy.name}</span>}
+                    subtitle={formatDateShort(document.updatedAt, locale)}
+                  />
                 </TD>
                 <TD className="text-right max-md:mt-3">
                   {document.currentVersion ? (

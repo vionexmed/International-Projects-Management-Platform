@@ -84,37 +84,37 @@ export default async function TasksPage({
         }
       />
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <TabsNav
-          items={TABS.map((tab) => ({
-            href: buildTabHref(tab.key),
-            label: tab.label,
-            count: tab.status ? counts[tab.status] : counts.ALL,
-            active: tab.key === activeTab.key,
-          }))}
-        />
-        <div className="flex flex-wrap items-start gap-3">
-          <SearchInput placeholder="Buscar tarefas…" className="w-56" />
-          <FilterBar activeCount={activeFilters}>
-            <FilterSelect
-              paramKey="project"
-              label="Projeto"
-              options={projects.items.map((project) => ({ value: project.id, label: project.name }))}
-            />
-            <FilterSelect
-              paramKey="assignee"
-              label="Responsável"
-              options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
-            />
-            <FilterSelect
-              paramKey="waiting"
-              label="Aguardando"
-              options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
-            />
-            <FilterSelect paramKey="category" label="Categoria" options={TASK_CATEGORIES} />
-            <FilterSelect paramKey="priority" label="Prioridade" options={TASK_PRIORITIES} />
-          </FilterBar>
-        </div>
+      {/* Same toolbar as `/projects`: tabs on one line, search and filters under them. */}
+      <TabsNav
+        className="mb-4"
+        items={TABS.map((tab) => ({
+          href: buildTabHref(tab.key),
+          label: tab.label,
+          count: tab.status ? counts[tab.status] : counts.ALL,
+          active: tab.key === activeTab.key,
+        }))}
+      />
+      <div className="mb-5 flex flex-wrap items-center gap-x-2">
+        <SearchInput placeholder="Buscar tarefas…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
+        <FilterBar activeCount={activeFilters} className="contents">
+          <FilterSelect
+            paramKey="project"
+            label="Projeto"
+            options={projects.items.map((project) => ({ value: project.id, label: project.name }))}
+          />
+          <FilterSelect
+            paramKey="assignee"
+            label="Responsável"
+            options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
+          />
+          <FilterSelect
+            paramKey="waiting"
+            label="Aguardando"
+            options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
+          />
+          <FilterSelect paramKey="category" label="Categoria" options={TASK_CATEGORIES} />
+          <FilterSelect paramKey="priority" label="Prioridade" options={TASK_PRIORITIES} />
+        </FilterBar>
       </div>
 
       <TableShell>

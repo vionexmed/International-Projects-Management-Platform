@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CircleCheck } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Panel } from "@/components/ui/card";
 import type { AttentionItem } from "@/server/services/attention";
@@ -22,24 +22,19 @@ const KIND_LABEL: Record<AttentionItem["kind"], string> = {
  * A table invites reading every row and comparing columns, which is the
  * behaviour `/projects` and `/tasks` are for. This is a triage strip: read the
  * top few, click the one that is yours, leave. The shape is the argument.
+ *
+ * The per-kind "view all" counts belong to the caller's section header: the
+ * items are of mixed kinds, so one link would pick a destination wrong for
+ * most of them, and a footer of counts under the rows repeated the rows.
  */
 export function AttentionList({
   items,
   locale,
-  links,
   emptyTitle,
   emptyDescription,
 }: {
   items: AttentionItem[];
   locale: Locale;
-  /**
-   * One "view all" per kind rather than one for the list.
-   *
-   * The items are of mixed kinds, and a single link would have to pick a
-   * destination that is wrong for most of them. Each count instead leads to
-   * the canonical page that lists exactly those rows, already filtered.
-   */
-  links: { label: string; href: string }[];
   emptyTitle: string;
   emptyDescription?: string;
 }) {
@@ -109,21 +104,6 @@ export function AttentionList({
           );
         })}
       </ul>
-
-      {links.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-line px-5 py-3">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="inline-flex items-center gap-1.5 text-meta text-brand-strong hover:underline"
-            >
-              {link.label}
-              <ArrowRight className="size-3.5" />
-            </Link>
-          ))}
-        </div>
-      ) : null}
     </Panel>
   );
 }

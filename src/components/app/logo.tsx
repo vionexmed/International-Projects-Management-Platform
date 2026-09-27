@@ -38,8 +38,10 @@ export function VionexMark({ className }: { className?: string }) {
  * The full brand lockup — the official artwork, not a reproduction — with the
  * product name set beneath it.
  *
- * `tone="light"` swaps in the white artwork for the navy sidebar; the
- * turquoise original would sit too close to that background.
+ * `tone="rail"` keeps the full-colour artwork on the deep-teal sidebar — the
+ * turquoise mark reads at 5.06:1 there, the brand at its best — with the
+ * subtitle in the rail's own ink. `tone="light"` is the white artwork, for
+ * backgrounds the turquoise would sit too close to.
  */
 export function VionexLogo({
   className,
@@ -48,7 +50,7 @@ export function VionexLogo({
   width = 132,
 }: {
   className?: string;
-  tone?: "brand" | "light";
+  tone?: "brand" | "light" | "rail";
   /** Set to null to show the logo on its own. */
   subtitle?: string | null;
   width?: number;
@@ -69,7 +71,7 @@ export function VionexLogo({
         <span
           className={cn(
             "text-[10px] leading-none font-medium tracking-[0.16em]",
-            light ? "text-navy-ink" : "text-muted",
+            light || tone === "rail" ? "text-navy-ink" : "text-muted",
           )}
         >
           {subtitle}

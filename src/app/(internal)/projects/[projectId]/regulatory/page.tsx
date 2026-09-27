@@ -108,11 +108,12 @@ export default async function ProjectRegulatoryPage({
             <TableScroll>
               <Table>
                 <THead>
+                  {/* Same distribution as the list pages: the name takes the slack, dates close the row. */}
                   <TR>
-                    <TH>Documento</TH>
-                    <TH>Solicitado por</TH>
-                    <TH>Prazo</TH>
-                    <TH>Status</TH>
+                    <TH className="min-w-64">Documento</TH>
+                    <TH className="w-px">Solicitado por</TH>
+                    <TH className="w-px">Status</TH>
+                    <TH className="w-px" align="right">Prazo</TH>
                     <TH className="w-px" />
                   </TR>
                 </THead>
@@ -131,12 +132,12 @@ export default async function ProjectRegulatoryPage({
                           <CellStack title={request.title} subtitle={request.document?.name} />
                         </TD>
                         <TD label="Solicitado por">{request.requestedBy.name}</TD>
-                        <TD label="Prazo" className={cn(late && "font-medium text-risk")}>
-                          {request.dueDate ? formatDateShort(request.dueDate, locale) : null}
-                          {late ? " · atrasado" : ""}
-                        </TD>
                         <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                        </TD>
+                        <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
+                          {request.dueDate ? formatDateShort(request.dueDate, locale) : null}
+                          {late ? " · atrasado" : ""}
                         </TD>
                         <TD className="text-right whitespace-nowrap max-md:mt-3">
                           {canReviewDocumentType(user.role, request.type) &&
@@ -211,11 +212,11 @@ export default async function ProjectRegulatoryPage({
               <Table>
                 <THead>
                   <TR>
-                    <TH>Item</TH>
-                    <TH>Solicitado a</TH>
-                    <TH>Responsável</TH>
-                    <TH>Prazo</TH>
-                    <TH>Status</TH>
+                    <TH className="min-w-64">Item</TH>
+                    <TH className="w-px">Solicitado a</TH>
+                    <TH className="w-px">Responsável</TH>
+                    <TH className="w-px">Status</TH>
+                    <TH className="w-px" align="right">Prazo</TH>
                   </TR>
                 </THead>
                 <TBody>
@@ -233,9 +234,6 @@ export default async function ProjectRegulatoryPage({
                       </TD>
                       <TD label="Solicitado a">{item.requestedFrom}</TD>
                       <TD label="Responsável">{item.assignedTo?.name}</TD>
-                      <TD label="Prazo">
-                        {item.dueDate ? formatDateShort(item.dueDate, locale) : null}
-                      </TD>
                       <TD label="Status">
                         <StatusMenu
                           action={updateRegulatoryItemAction}
@@ -246,6 +244,9 @@ export default async function ProjectRegulatoryPage({
                           ariaLabel={`Status de ${item.title}`}
                           readOnly={!canManage}
                         />
+                      </TD>
+                      <TD label="Prazo" align="right">
+                        {item.dueDate ? formatDateShort(item.dueDate, locale) : null}
                       </TD>
                     </TR>
                   ))}

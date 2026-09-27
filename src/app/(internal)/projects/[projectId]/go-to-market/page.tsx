@@ -76,7 +76,11 @@ export default async function ProjectGoToMarketPage({
             className="mb-8 max-w-md"
           />
 
-          <div className="space-y-8">
+          {/*
+            Two columns of groups on a desktop: each group is a short list,
+            and at full width its titles and status menus sat 1000px apart.
+          */}
+          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
             {grouped.map((group) => (
               <div key={group.category}>
                 <h3 className="mb-2 text-title text-ink-soft">

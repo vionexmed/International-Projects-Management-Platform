@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, FolderKanban } from "lucide-react";
+import { FolderKanban } from "lucide-react";
 import type { StageKey } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import {
@@ -116,43 +116,47 @@ export default async function ProjectsPage({
         }
       />
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <TabsNav
-          items={TABS.map((tab) => ({
-            href: buildTabHref(tab.key),
-            label: tab.label,
-            count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
-            active: tab.key === activeTab.key,
-          }))}
-        />
-        <div className="flex flex-wrap items-start gap-3">
-          <SearchInput placeholder="Buscar projetos…" className="w-56" />
-          <FilterBar activeCount={activeFilters}>
-            <FilterSelect
-              paramKey="supplier"
-              label="Fornecedor"
-              options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
-            />
-            <FilterSelect
-              paramKey="owner"
-              label="Responsável"
-              options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
-            />
-            <FilterSelect
-              paramKey="stage"
-              label="Etapa"
-              options={OPTIONS.stageKey.map((stage) => ({
-                value: stage,
-                label: label.stageKey(stage, dict),
-              }))}
-            />
-            <FilterSelect
-              paramKey="country"
-              label="País"
-              options={countries.map((country) => ({ value: country, label: country }))}
-            />
-          </FilterBar>
-        </div>
+      {/*
+        Tabs on their own line, search and filters under them. Seven tabs plus
+        a search box and a button did not fit one row at 1440px without the
+        tabs butting into the search; stacked, neither has to shrink.
+      */}
+      <TabsNav
+        className="mb-4"
+        items={TABS.map((tab) => ({
+          href: buildTabHref(tab.key),
+          label: tab.label,
+          count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
+          active: tab.key === activeTab.key,
+        }))}
+      />
+      <div className="mb-5 flex flex-wrap items-center gap-x-2">
+        <SearchInput placeholder="Buscar projetos…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
+        <FilterBar activeCount={activeFilters} className="contents">
+          <FilterSelect
+            paramKey="supplier"
+            label="Fornecedor"
+            options={suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))}
+          />
+          <FilterSelect
+            paramKey="owner"
+            label="Responsável"
+            options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
+          />
+          <FilterSelect
+            paramKey="stage"
+            label="Etapa"
+            options={OPTIONS.stageKey.map((stage) => ({
+              value: stage,
+              label: label.stageKey(stage, dict),
+            }))}
+          />
+          <FilterSelect
+            paramKey="country"
+            label="País"
+            options={countries.map((country) => ({ value: country, label: country }))}
+          />
+        </FilterBar>
       </div>
 
       <TableShell>
@@ -172,14 +176,18 @@ export default async function ProjectsPage({
               <Table>
                 <THead>
                   <TR>
-                    <TH>Projeto</TH>
-                    <TH>Fornecedor</TH>
-                    <TH>Etapa</TH>
-                    <TH>Responsável</TH>
-                    <TH>Status</TH>
-                    <TH className="w-40">Progresso</TH>
-                    <TH>Lançamento</TH>
-                    <TH className="w-10" />
+                    {/*
+                      The name column takes the slack; every other column is
+                      as wide as its content. Six columns — the supplier moved
+                      under the project name, which it qualifies.
+                    */}
+                    <TH className="min-w-64">Projeto</TH>
+                    <TH className="w-px">Etapa</TH>
+                    <TH className="w-px">Responsável</TH>
+                    <TH className="w-px">Status</TH>
+                    <TH className="w-px">Progresso</TH>
+                    <TH className="w-px" align="right">Lançamento</TH>
+                    {activeTab.archived && canArchive ? <TH className="w-px" /> : null}
                   </TR>
                 </THead>
                 <TBody>
@@ -192,46 +200,36 @@ export default async function ProjectsPage({
                             href={`/projects/${project.id}`}
                             className="block after:absolute after:inset-0 after:content-['']"
                           >
-                            <CellStack title={project.name} subtitle={project.projectCode} />
+                            <CellStack
+                              title={project.name}
+                              subtitle={`${project.projectCode} · ${project.supplier.name}, ${project.supplier.country}`}
+                            />
                           </Link>
                         </TD>
-                        <TD label="Fornecedor" className="text-[13px] text-ink-soft">
-                          <CellStack
-                            title={<span className="font-normal">{project.supplier.name}</span>}
-                            subtitle={project.supplier.country}
-                          />
-                        </TD>
-                        <TD label="Etapa" className="text-[13px] text-ink-soft">
-                          {label.stageKey(project.currentStage, dict)}
-                        </TD>
-                        <TD label="Responsável" className="text-[13px] text-ink-soft">{project.owner.name}</TD>
+                        <TD label="Etapa">{label.stageKey(project.currentStage, dict)}</TD>
+                        <TD label="Responsável">{project.owner.name}</TD>
                         <TD label="Status">
                           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                         </TD>
                         <TD label="Progresso">
-                          <div className="w-32">
-                            <div className="mb-1 text-[13px] font-semibold text-ink tabular-nums">
+                          {/* Number beside the bar, not above it: one line, like every other cell. */}
+                          <div className="flex w-36 items-center gap-2.5 max-md:w-full">
+                            <ProgressBar value={project.progress} label={`Progresso de ${project.name}`} />
+                            <span className="w-9 shrink-0 text-right text-meta font-medium text-ink tabular-nums">
                               {project.progress}%
-                            </div>
-                            <ProgressBar value={project.progress} />
+                            </span>
                           </div>
                         </TD>
-                        <TD label="Lançamento" className="text-[13px] whitespace-nowrap text-ink-soft">
+                        <TD label="Lançamento" align="right">
                           {formatDate(project.targetLaunchDate, locale)}
                         </TD>
-                        <TD className="text-right max-md:hidden">
-                          {activeTab.archived && canArchive ? (
+                        {activeTab.archived && canArchive ? (
+                          <TD className="text-right max-md:hidden">
                             <span className="relative z-10 inline-flex">
-                              <ProjectActionsMenu
-                                projectId={project.id}
-                                archived
-                                canArchive
-                              />
+                              <ProjectActionsMenu projectId={project.id} archived canArchive />
                             </span>
-                          ) : (
-                            <ChevronRight className="inline size-4 text-faint" />
-                          )}
-                        </TD>
+                          </TD>
+                        ) : null}
                       </TR>
                     );
                   })}

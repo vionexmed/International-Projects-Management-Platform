@@ -102,6 +102,7 @@ export default async function ProjectImportPage({
 
                 <div className="space-y-5 border-t border-line p-5">
                   <PropertyList
+                    layout="grid"
                     items={[
                       { label: "Modal", value: shipment.shippingMethod },
                       { label: "Transportadora", value: shipment.carrier },
