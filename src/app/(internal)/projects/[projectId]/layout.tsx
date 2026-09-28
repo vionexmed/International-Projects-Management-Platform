@@ -9,6 +9,7 @@ import { AvatarStack } from "@/components/ui/avatar";
 import { SolidBadge } from "@/components/ui/badge";
 import { ProjectTabs } from "@/features/projects/project-tabs";
 import { EditProjectDialog } from "@/features/projects/edit-project-dialog";
+import { RequestDocumentDialog } from "@/features/documents/request-document-dialog";
 import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { StageSwitcher } from "@/features/projects/stage-switcher";
 import { PROJECT_GUTTER } from "@/features/projects/project-frame";
@@ -105,6 +106,14 @@ export default async function ProjectLayout({
               size={24}
               className={cn("mr-1 hidden md:inline-flex")}
             />
+            {/*
+              The project's primary action, in the header so it is one click
+              away from every tab. It used to live only on the regulatory
+              stage page, three levels down, where nobody looked for it.
+            */}
+            {can(user, "document:request") ? (
+              <RequestDocumentDialog projectId={project.id} supplierName={project.supplier.name} />
+            ) : null}
             {editable ? (
               <>
                 <EditProjectDialog

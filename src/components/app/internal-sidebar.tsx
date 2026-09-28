@@ -130,8 +130,12 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
     { href: "/regulatory", label: "Regulatório", icon: ShieldCheck },
     { href: "/reports", label: "Relatórios", icon: PieChart },
   ];
-  const team: NavEntry = { href: "/team", label: "Equipe", icon: Users };
-  const settings: NavEntry = { href: "/settings", label: "Configurações", icon: Settings };
+  /*
+    Only the seven work areas live in the navigation. Equipe and
+    Configurações are about the organisation, not the work, and Configurações
+    was listed twice (here and in the account menu) — both now live in the
+    account menu alone.
+  */
   const notifications: NavEntry = {
     href: "/notifications",
     label: "Notificações",
@@ -154,10 +158,10 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
       {pinned ? (
         <ExpandedSidebar
           {...{ user, roleLabel, primary, isActive }}
-          secondary={[team, notifications, settings]}
+          secondary={[notifications]}
         />
       ) : (
-        <Rail {...{ user, primary, isActive, notifications }} secondary={[team, settings]} />
+        <Rail {...{ user, primary, isActive, notifications }} />
       )}
     </aside>
   );
@@ -168,13 +172,11 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
 function Rail({
   user,
   primary,
-  secondary,
   notifications,
   isActive,
 }: {
   user: SessionUser;
   primary: NavEntry[];
-  secondary: NavEntry[];
   notifications: NavEntry;
   isActive: (entry: NavEntry) => boolean;
 }) {
@@ -191,10 +193,6 @@ function Rail({
         aria-label="Navegação principal"
       >
         {primary.map((entry) => (
-          <RailLink key={entry.href} entry={entry} active={isActive(entry)} />
-        ))}
-        <span className="my-2 h-px w-6 shrink-0 bg-navy-line" aria-hidden />
-        {secondary.map((entry) => (
           <RailLink key={entry.href} entry={entry} active={isActive(entry)} />
         ))}
       </nav>
@@ -397,6 +395,12 @@ function AccountMenu({
           </div>
           <DropdownLabel className="pt-0 normal-case tracking-normal">{user.email}</DropdownLabel>
           <DropdownSeparator />
+          <DropdownItem asChild>
+            <Link href="/team">
+              <Users />
+              Equipe
+            </Link>
+          </DropdownItem>
           <DropdownItem asChild>
             <Link href="/settings">
               <Settings />

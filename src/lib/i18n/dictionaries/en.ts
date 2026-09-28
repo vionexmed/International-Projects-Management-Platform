@@ -217,8 +217,6 @@ export const en: Dictionary = {
       noDueDate: "No deadline set",
       activeProjects: "Your projects",
       viewProjects: "View projects",
-      yourTasksTitle: "Your tasks",
-      viewAllTasks: "View all",
     },
     projects: {
       title: "Projects",

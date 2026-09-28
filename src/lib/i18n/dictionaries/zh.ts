@@ -120,8 +120,6 @@ export const zh: PartialDictionary = {
       noDueDate: "未设置截止日期",
       activeProjects: "您的项目",
       viewProjects: "查看项目",
-      yourTasksTitle: "您的任务",
-      viewAllTasks: "查看全部",
     },
     projects: {
       title: "项目",

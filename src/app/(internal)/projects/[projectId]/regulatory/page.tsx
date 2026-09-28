@@ -8,7 +8,6 @@ import { WorkBlock } from "@/features/projects/work-block";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CellStack, Table, TableScroll, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { RequestDocumentDialog } from "@/features/documents/request-document-dialog";
 import { ReviewRequestDialog } from "@/features/documents/review-request-dialog";
 import { RegulatoryItemDialog } from "@/features/projects/regulatory-item-dialog";
 import { StatusMenu, type StatusOption } from "@/components/app/status-menu";
@@ -70,7 +69,6 @@ export default async function ProjectRegulatoryPage({
   });
   const reviewsByRequest = Map.groupBy(reviews, (review) => review.requestId);
 
-  const canRequest = can(user, "document:request");
   const canManage = can(user, "regulatory:manage");
   const approved = items.filter((item) => item.status === "COMPLETED").length;
   const openRequests = requests.filter((request) => request.status === "PENDING").length;
@@ -89,17 +87,12 @@ export default async function ProjectRegulatoryPage({
         title="Solicitações ao fornecedor"
         count={openRequests > 0 ? `${openRequests} ${openRequests === 1 ? "aberta" : "abertas"}` : undefined}
         description={`Documentos pedidos a ${project.supplier.name} pelo portal.`}
-        action={
-          canRequest ? (
-            <RequestDocumentDialog projectId={projectId} supplierName={project.supplier.name} />
-          ) : null
-        }
       >
         {requests.length === 0 ? (
           <EmptyState
             icon={Inbox}
             title="Nenhuma solicitação enviada."
-            description="Solicite um documento para que ele apareça no portal do fornecedor."
+            description="Use “Solicitar documento”, no topo do projeto, para pedir um arquivo ao fornecedor pelo portal."
             compact
           />
         ) : (
