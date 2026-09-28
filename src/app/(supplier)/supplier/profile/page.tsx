@@ -60,7 +60,7 @@ export default async function SupplierProfilePage() {
                         : dict.portal.team.roleUser,
                   },
                   {
-                    label: dict.nav.account,
+                    label: dict.portal.profile.lastSignIn,
                     value: account.lastLoginAt ? formatRelative(account.lastLoginAt, locale) : null,
                   },
                 ]}

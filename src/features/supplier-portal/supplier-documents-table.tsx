@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatFileSize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import type { Dictionary } from "@/lib/i18n/dictionary";
+import { interpolate, type Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
 import type { DocumentStatus } from "@/server/services/documents";
 
@@ -55,7 +55,7 @@ export function SupplierDocumentsTable({
       <Table>
         <THead>
           <TR>
-            <TH>{dict.portal.documents.title}</TH>
+            <TH>{dict.portal.documents.nameLabel}</TH>
             {showProject ? <TH>{dict.common.project}</TH> : null}
             <TH>{dict.common.type}</TH>
             <TH>{dict.common.version}</TH>
@@ -98,9 +98,12 @@ export function SupplierDocumentsTable({
                   {document.currentVersion ? (
                     <a
                       href={`/api/files/${document.currentVersion.id}`}
-                      className="inline-flex items-center gap-1.5 text-meta font-medium text-brand-strong hover:underline"
+                      aria-label={interpolate(dict.portal.documents.downloadFile, {
+                        name: document.currentVersion.fileName,
+                      })}
+                      className="-my-2 inline-flex min-h-10 items-center gap-1.5 rounded-sm px-2 text-meta font-medium whitespace-nowrap text-brand-strong hover:bg-brand-soft/60 hover:underline max-md:-mx-2"
                     >
-                      <Download className="size-3.5" />
+                      <Download className="size-3.5" aria-hidden />
                       {dict.common.download}
                     </a>
                   ) : null}

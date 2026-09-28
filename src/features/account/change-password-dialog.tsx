@@ -15,6 +15,9 @@ export type PasswordLabels = {
   hint: string;
   submit: string;
   success: string;
+  /** Cancel / Saving… in the viewer's language; the dialog defaults to Portuguese. */
+  cancel?: string;
+  saving?: string;
 };
 
 export const PT_PASSWORD_LABELS: PasswordLabels = {
@@ -54,6 +57,7 @@ export function ChangePasswordDialog({
       action={changePasswordAction}
       submitLabel={labels.submit}
       successMessage={labels.success}
+      labels={{ cancel: labels.cancel, saving: labels.saving }}
     >
       {(state) => (
         <>

@@ -7,6 +7,7 @@ import { Section } from "@/components/ui/section";
 import { ProgressBar } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HashHighlight } from "@/features/supplier-portal/hash-highlight";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta, type MilestoneProgress, type StageProgress } from "@/lib/labels";
@@ -56,11 +57,18 @@ export default async function SupplierProjectOverviewPage({
       </Panel>
 
       <Section title={dict.portal.project.stageProgress}>
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+        <HashHighlight />
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           {stages.map((stage) => {
             const status = meta.stage(stage.status as StageProgress, dict);
             return (
-              <div key={stage.id}>
+              // Stage segments on the project lists link here (`#stage-REGULATORY`);
+              // `HashHighlight` tints the target briefly so the eye lands on it.
+              <div
+                key={stage.id}
+                id={`stage-${stage.key}`}
+                className="-mx-2 scroll-mt-24 rounded-sm px-2 py-1.5 transition-colors duration-700 data-[highlight=true]:bg-brand-soft/70"
+              >
                 <div className="mb-2 flex items-baseline justify-between gap-3">
                   <span className="text-title font-medium text-ink">
                     {label.stageKey(stage.key, dict)}
@@ -72,7 +80,13 @@ export default async function SupplierProjectOverviewPage({
                     </span>
                   </span>
                 </div>
-                <ProgressBar value={stage.computedProgress} label={label.stageKey(stage.key, dict)} />
+                <ProgressBar
+                  value={stage.computedProgress}
+                  label={label.stageKey(stage.key, dict)}
+                  tone={
+                    stage.status === "COMPLETED" ? "ok" : stage.status === "BLOCKED" ? "risk" : "neutral"
+                  }
+                />
               </div>
             );
           })}

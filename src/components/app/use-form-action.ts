@@ -35,7 +35,15 @@ import type { ActionState } from "@/server/actions/utils";
 export function useFormAction(
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>,
   onSuccess?: (result: ActionState, form: HTMLFormElement) => void,
+  /**
+   * Shown when the action could not be reached at all — a dropped connection
+   * rejects the call instead of returning `{ error }`, and an uncaught
+   * rejection in a transition replaces the whole page with the error screen,
+   * taking the typed note and the chosen file with it.
+   */
+  options: { unreachableError?: string } = {},
 ) {
+  const { unreachableError } = options;
   const [state, setState] = React.useState<ActionState>({});
   const [pending, startTransition] = React.useTransition();
 
@@ -46,12 +54,24 @@ export function useFormAction(
       const formData = new FormData(form);
 
       startTransition(async () => {
-        const result = await action(state, formData);
+        let result: ActionState;
+        try {
+          result = await action(state, formData);
+        } catch (error) {
+          // Framework control flow (redirect, notFound) is not a failure.
+          const digest = (error as { digest?: unknown } | null)?.digest;
+          if (typeof digest === "string" && digest.startsWith("NEXT_")) throw error;
+          result = {
+            error:
+              unreachableError ??
+              "Não foi possível concluir. Verifique sua conexão e tente novamente.",
+          };
+        }
         setState(result);
         if (result.ok) onSuccess?.(result, form);
       });
     },
-    [action, onSuccess, state],
+    [action, onSuccess, state, unreachableError],
   );
 
   const reset = React.useCallback(() => setState({}), []);

@@ -5,11 +5,16 @@ import { requireSupplierUser } from "@/server/auth/current-user";
 import { listSupplierQueue } from "@/server/services/supplier-queue";
 import { listProjects } from "@/server/services/projects";
 import { listNotifications } from "@/server/services/notifications";
+import { markNotificationReadAction } from "@/server/actions/notifications";
 import { Panel } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Greeting } from "@/features/supplier-portal/greeting";
+import { StageProgressBar } from "@/features/supplier-portal/stage-progress-bar";
+import { stageBarLabels } from "@/features/supplier-portal/portal-labels";
+import { DUE_TONE_CLASS, dueLabel } from "@/features/supplier-portal/due-label";
 import { getDictionary, interpolate, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
@@ -17,12 +22,6 @@ import { daysUntil, formatDate, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Home" };
-
-function greetingKey(hour: number) {
-  if (hour < 12) return "greetingMorning" as const;
-  if (hour < 18) return "greetingAfternoon" as const;
-  return "greetingEvening" as const;
-}
 
 /**
  * "What is my situation right now?"
@@ -43,7 +42,7 @@ export default async function SupplierHomePage() {
 
   const [queue, projects, updates] = await Promise.all([
     listSupplierQueue(user),
-    listProjects(user, { perPage: 4 }),
+    listProjects(user, { perPage: 5 }),
     listNotifications(user.id, 4),
   ]);
 
@@ -57,12 +56,20 @@ export default async function SupplierHomePage() {
   }).length;
   const nextUpcoming = queue.open.find((item) => (daysUntil(item.dueDate) ?? -1) >= 0);
   const firstName = user.name.split(" ")[0];
+  const barLabels = stageBarLabels(dict);
 
   return (
     <div className="mx-auto max-w-[820px]">
-      <h1 className="text-page text-ink">
-        {interpolate(dict.portal[greetingKey(new Date().getHours())], { name: firstName })}
-      </h1>
+      <Greeting
+        name={firstName}
+        className="text-page text-ink"
+        labels={{
+          neutral: dict.portal.greetingNeutral,
+          morning: dict.portal.greetingMorning,
+          afternoon: dict.portal.greetingAfternoon,
+          evening: dict.portal.greetingEvening,
+        }}
+      />
       <p className="mt-1.5 mb-8 text-body text-muted">{dict.portal.welcome}</p>
 
       {/* The one focal element: what Vionex needs, and how to act on it. */}
@@ -71,10 +78,15 @@ export default async function SupplierHomePage() {
           <div className="min-w-0">
             <h2 className="text-section text-ink">{dict.portal.home.actionRequiredTitle}</h2>
             {openCount === 0 ? (
-              <p className="mt-1 flex items-center gap-2 text-body text-ink-soft">
-                <CircleCheck className="size-4 shrink-0 text-ok" />
-                {dict.portal.home.actionRequiredEmpty}
-              </p>
+              <>
+                <p className="mt-1 flex items-center gap-2 text-body font-medium text-ink">
+                  <CircleCheck className="size-4 shrink-0 text-ok" aria-hidden />
+                  {dict.portal.home.actionRequiredEmpty}
+                </p>
+                <p className="mt-0.5 pl-6 text-meta text-muted">
+                  {dict.portal.home.actionRequiredEmptyHint}
+                </p>
+              </>
             ) : (
               <p className="mt-1 text-body text-ink-soft">
                 {plural(dict.portal.home.actionRequiredCount, openCount)}
@@ -82,7 +94,7 @@ export default async function SupplierHomePage() {
                   <>
                     {" · "}
                     <span className="font-medium text-risk">
-                      {dict.portal.requests.overdue}: {overdueCount}
+                      {plural(dict.portal.home.overdueCount, overdueCount)}
                     </span>
                   </>
                 ) : nextUpcoming?.dueDate ? (
@@ -110,39 +122,42 @@ export default async function SupplierHomePage() {
         {openCount > 0 ? (
           <ul className="mt-4 divide-y divide-brand-line/40 border-t border-brand-line/40">
             {topOpen.map((item) => {
-              const remaining = daysUntil(item.dueDate);
-              const overdue = remaining !== null && remaining < 0;
+              const due = dueLabel(item.dueDate, dict, locale);
               return (
                 <li key={item.id}>
                   <Link
                     href={item.href}
-                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 transition-colors hover:opacity-80"
+                    className="group flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5"
                   >
-                    <span className="min-w-0 flex-1 truncate text-body text-ink">
+                    <span className="min-w-0 flex-1 truncate text-body text-ink max-sm:basis-full max-sm:whitespace-normal group-hover:underline group-hover:decoration-brand-line group-hover:underline-offset-4">
                       {item.title}
                       <span className="text-ink-soft"> · {item.project.name}</span>
                     </span>
-                    {item.dueDate ? (
+                    {due ? (
                       <span
                         className={cn(
-                          "shrink-0 text-meta whitespace-nowrap",
-                          overdue ? "font-medium text-risk" : "text-muted",
+                          "inline-flex shrink-0 items-center gap-1.5 text-meta whitespace-nowrap",
+                          DUE_TONE_CLASS[due.tone],
                         )}
                       >
-                        {overdue ? (
-                          dict.portal.requests.overdue
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5">
-                            <Clock className="size-3.5" />
-                            {formatDate(item.dueDate, locale)}
-                          </span>
-                        )}
+                        {due.tone === "overdue" ? null : <Clock className="size-3.5" aria-hidden />}
+                        {due.text}
                       </span>
                     ) : null}
                   </Link>
                 </li>
               );
             })}
+            {openCount > topOpen.length ? (
+              <li>
+                <Link
+                  href="/supplier/action-required"
+                  className="flex min-h-11 items-center py-2.5 text-meta font-medium text-brand-strong hover:underline"
+                >
+                  {plural(dict.portal.home.moreRequests, openCount - topOpen.length)}
+                </Link>
+              </li>
+            ) : null}
           </ul>
         ) : null}
       </Panel>
@@ -151,6 +166,7 @@ export default async function SupplierHomePage() {
       {projects.items.length > 0 ? (
         <Section
           title={dict.portal.home.activeProjects}
+          count={projects.total}
           action={{ label: dict.portal.home.viewProjects, href: "/supplier/projects" }}
           className="mb-10"
         >
@@ -158,19 +174,41 @@ export default async function SupplierHomePage() {
             {projects.items.map((project) => {
               const status = meta.project(project.status, dict);
               return (
-                <li key={project.id}>
-                  <Link
-                    href={`/supplier/projects/${project.id}`}
-                    className="-mx-2 flex flex-wrap items-center justify-between gap-3 rounded-sm px-2 py-3 transition-colors hover:bg-subtle"
-                  >
+                <li
+                  key={project.id}
+                  className="relative -mx-2 rounded-sm px-2 pt-3 pb-1.5 transition-colors hover:bg-subtle md:pb-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-body font-medium text-ink">{project.name}</p>
+                      {/* The name is the row's link; its overlay makes the whole row clickable. */}
+                      <Link
+                        href={`/supplier/projects/${project.id}`}
+                        className="block truncate text-body font-medium text-ink after:absolute after:inset-0 after:content-['']"
+                      >
+                        {project.name}
+                      </Link>
                       <p className="mt-0.5 text-meta text-muted">
-                        {label.stageKey(project.currentStage, dict)}
+                        {interpolate(dict.portal.home.nowIn, {
+                          stage: label.stageKey(project.currentStage, dict),
+                        })}
+                        {" · "}
+                        <span className="tabular-nums">
+                          {interpolate(dict.portal.home.overallProgress, {
+                            percent: project.progress,
+                          })}
+                        </span>
                       </p>
                     </div>
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                  </Link>
+                  </div>
+                  {/* Above the row overlay, so each segment is its own target. */}
+                  <StageProgressBar
+                    projectId={project.id}
+                    stages={project.stages}
+                    currentStage={project.currentStage}
+                    labels={barLabels}
+                    className="relative z-10 mt-1 max-w-[560px]"
+                  />
                 </li>
               );
             })}
@@ -178,33 +216,62 @@ export default async function SupplierHomePage() {
         </Section>
       ) : null}
 
-      <Section title={dict.portal.home.updatesTitle}>
+      <Section
+        title={dict.portal.home.updatesTitle}
+        action={
+          updates.length > 0
+            ? { label: dict.portal.home.viewAllUpdates, href: "/supplier/notifications" }
+            : undefined
+        }
+      >
         {updates.length === 0 ? (
           <EmptyState icon={Bell} title={dict.portal.home.updatesEmpty} compact />
         ) : (
           <ul className="divide-y divide-line-soft">
             {updates.map((update) => {
               const body = (
-                <>
-                  <p className="text-body font-medium text-ink">{update.title}</p>
-                  {update.description ? (
-                    <p className="mt-0.5 text-meta text-muted">{update.description}</p>
-                  ) : null}
-                  <p className="mt-1 text-meta text-faint">
-                    {formatRelative(update.createdAt, locale)}
-                  </p>
-                </>
+                <span className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "mt-1.5 size-2 shrink-0 rounded-full",
+                      update.readAt ? "bg-transparent" : "bg-brand",
+                    )}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block text-body text-ink",
+                        update.readAt ? "font-normal" : "font-medium",
+                      )}
+                    >
+                      {update.title}
+                    </span>
+                    {update.description ? (
+                      <span className="mt-0.5 block text-meta text-muted">{update.description}</span>
+                    ) : null}
+                    <span className="mt-1 block text-meta text-faint">
+                      {formatRelative(update.createdAt, locale)}
+                    </span>
+                  </span>
+                </span>
               );
 
               return (
                 <li key={update.id}>
                   {update.href ? (
-                    <Link
-                      href={update.href}
-                      className="-mx-2 block rounded-sm px-2 py-3 transition-colors hover:bg-subtle"
-                    >
-                      {body}
-                    </Link>
+                    // Following an update marks it read on the way, so the bell
+                    // in the header clears instead of staying lit.
+                    <form action={markNotificationReadAction}>
+                      <input type="hidden" name="notificationId" value={update.id} />
+                      <input type="hidden" name="href" value={update.href} />
+                      <button
+                        type="submit"
+                        className="-mx-2 block w-[calc(100%+1rem)] rounded-sm px-2 py-3 text-left transition-colors hover:bg-subtle"
+                      >
+                        {body}
+                      </button>
+                    </form>
                   ) : (
                     <div className="py-3">{body}</div>
                   )}

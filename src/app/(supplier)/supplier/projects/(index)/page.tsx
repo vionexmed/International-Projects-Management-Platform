@@ -8,8 +8,9 @@ import { projectScope } from "@/server/authz/scopes";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchInput } from "@/components/app/search-filters";
 import { StatusBadge } from "@/components/ui/badge";
-import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
+import { StageProgressBar } from "@/features/supplier-portal/stage-progress-bar";
+import { stageBarLabels } from "@/features/supplier-portal/portal-labels";
 import {
   CellStack,
   Table,
@@ -60,6 +61,8 @@ export default async function SupplierProjectsPage({
     }
   }
 
+  const barLabels = stageBarLabels(dict);
+
   return (
     <>
       <PageHeader title={dict.portal.projects.title} description={dict.portal.projects.subtitle} />
@@ -85,7 +88,7 @@ export default async function SupplierProjectsPage({
                   <TR>
                     <TH>{dict.common.project}</TH>
                     <TH>{dict.portal.projects.currentStage}</TH>
-                    <TH className="w-40">{dict.common.progress}</TH>
+                    <TH className="w-60">{dict.portal.projects.stageBar}</TH>
                     <TH>{dict.common.nextMilestone}</TH>
                     <TH>{dict.common.targetLaunch}</TH>
                     <TH>{dict.common.status}</TH>
@@ -111,12 +114,20 @@ export default async function SupplierProjectsPage({
                             {label.stageKey(project.currentStage, dict)}
                           </span>
                         </TD>
-                        <TD label={dict.common.progress}>
-                          <div className="w-32">
-                            <div className="mb-1 text-meta font-semibold text-ink tabular-nums">
-                              {project.progress}%
+                        <TD label={dict.portal.projects.stageBar}>
+                          {/* Above the row's link overlay: each segment opens its own stage. */}
+                          <div className="relative z-10 w-full md:w-56">
+                            <div className="text-meta font-semibold text-ink tabular-nums">
+                              {interpolate(dict.portal.home.overallProgress, {
+                                percent: project.progress,
+                              })}
                             </div>
-                            <ProgressBar value={project.progress} />
+                            <StageProgressBar
+                              projectId={project.id}
+                              stages={project.stages}
+                              currentStage={project.currentStage}
+                              labels={barLabels}
+                            />
                           </div>
                         </TD>
                         <TD label={dict.common.nextMilestone}>

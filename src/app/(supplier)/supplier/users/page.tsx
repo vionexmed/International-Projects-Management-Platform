@@ -23,7 +23,7 @@ import {
   AddPortalUserDialog,
   EditPortalUserDialog,
 } from "@/features/supplier-portal/portal-user-dialogs";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { getDictionary, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
 export const metadata: Metadata = { title: "Users" };
@@ -115,7 +115,7 @@ export default async function SupplierUsersPage() {
               </Table>
             </TableScroll>
             <TableFooter>
-              <span>{users.length}</span>
+              <span>{plural(dict.portal.team.countLabel, users.length)}</span>
             </TableFooter>
           </>
         )}

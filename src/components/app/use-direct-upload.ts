@@ -28,8 +28,18 @@ export type UploadPreparation =
   | { ok: true; token: string | null }
   | { ok: false; error: string };
 
-export function useDirectUpload() {
+/**
+ * Wording for the two failures the browser can see for itself. Optional so the
+ * internal screens keep theirs; `{status}` is the HTTP status from storage.
+ */
+export type DirectUploadMessages = {
+  connectionFailed?: string;
+  storageRefused?: string;
+};
+
+export function useDirectUpload(messages: DirectUploadMessages = {}) {
   const [progress, setProgress] = React.useState<number | null>(null);
+  const { connectionFailed, storageRefused } = messages;
 
   /**
    * Returns a token when the file was uploaded directly, or `null` when the
@@ -53,7 +63,10 @@ export function useDirectUpload() {
         // No presigned URL — local driver. Fall back to the in-band path.
         if (!ticket.url) return { ok: true, token: null };
 
-        await putWithProgress(ticket.url, file, ticket.contentType, setProgress);
+        await putWithProgress(ticket.url, file, ticket.contentType, setProgress, {
+          connectionFailed,
+          storageRefused,
+        });
         return { ok: true, token: ticket.token };
       } catch (error) {
         /**
@@ -72,7 +85,7 @@ export function useDirectUpload() {
         setProgress(null);
       }
     },
-    [],
+    [connectionFailed, storageRefused],
   );
 
   return { prepare, progress };
@@ -88,6 +101,7 @@ function putWithProgress(
   file: File,
   contentType: string,
   onProgress: (value: number) => void,
+  messages: DirectUploadMessages,
 ) {
   return new Promise<void>((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -106,6 +120,13 @@ function putWithProgress(
       // The body of a storage error is XML and says exactly what went wrong;
       // the first line of it is worth more than any wording we could invent.
       const detail = (request.responseText || "").replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+      if (messages.storageRefused) {
+        // The storage's own words stay available to whoever debugs it.
+        if (detail) console.error("[upload] storage refused the file:", detail);
+        return reject(
+          new Error(messages.storageRefused.replace("{status}", String(request.status))),
+        );
+      }
       reject(
         new Error(
           `O armazenamento recusou o arquivo (HTTP ${request.status})${detail ? `: ${detail}` : "."}`,
@@ -113,7 +134,12 @@ function putWithProgress(
       );
     });
     request.addEventListener("error", () =>
-      reject(new Error("A conexão com o armazenamento falhou antes de o envio terminar.")),
+      reject(
+        new Error(
+          messages.connectionFailed ??
+            "A conexão com o armazenamento falhou antes de o envio terminar.",
+        ),
+      ),
     );
     request.addEventListener("abort", () => reject(new Error("Envio cancelado.")));
 

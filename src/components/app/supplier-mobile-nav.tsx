@@ -93,7 +93,7 @@ export function SupplierMobileNav({
     <div className="md:hidden">
       <Button
         variant="ghost"
-        size="icon"
+        size="iconLg"
         onClick={() => setOpen(true)}
         aria-label="Menu"
         aria-expanded={open}
@@ -113,12 +113,12 @@ export function SupplierMobileNav({
           <div className="relative flex w-[260px] flex-col border-r border-line bg-surface">
             <div className="flex items-center justify-between px-5 py-5">
               <VionexLogo subtitle={dict.portal.brandLine} />
-              <Button variant="ghost" size="iconSm" onClick={() => setOpen(false)} aria-label={dict.common.close}>
+              <Button variant="ghost" size="iconLg" onClick={() => setOpen(false)} aria-label={dict.common.close}>
                 <X />
               </Button>
             </div>
 
-            <nav className="px-3">
+            <nav className="px-3" aria-label={dict.portal.mainNav}>
               <ul className="space-y-0.5">
                 {items.map((item) => {
                   const active = item.exact
@@ -131,8 +131,9 @@ export function SupplierMobileNav({
                       <Link
                         href={item.href}
                         onClick={() => setOpen(false)}
+                        aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm",
+                          "flex min-h-11 items-center gap-3 rounded-sm px-3 py-2.5 text-sm",
                           active
                             ? "bg-brand-soft/60 font-medium text-brand-deep"
                             : "text-ink-soft hover:bg-raised",

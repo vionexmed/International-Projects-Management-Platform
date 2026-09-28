@@ -8,10 +8,10 @@ import { Panel, PanelHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getDictionary, plural } from "@/lib/i18n/dictionary";
+import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
-import { daysUntil, formatDate } from "@/lib/format";
+import { DUE_TONE_CLASS, dueLabel } from "@/features/supplier-portal/due-label";
 import { cn } from "@/lib/utils";
 
 export default async function SupplierProjectRequestsPage({
@@ -41,9 +41,12 @@ export default async function SupplierProjectRequestsPage({
       ) : (
         <ul className="divide-y divide-line-soft">
           {requests.map((request) => {
-            const status = meta.request(request.status as RequestStatus, dict);
-            const remaining = daysUntil(request.dueDate);
-            const overdue = remaining !== null && remaining < 0 && request.status === "PENDING";
+            const open = request.status === "PENDING" || request.status === "REJECTED";
+            const status =
+              request.status === "REJECTED"
+                ? { label: dict.portal.requests.changesRequested, tone: "warn" as const }
+                : meta.request(request.status as RequestStatus, dict);
+            const due = dueLabel(request.dueDate, dict, locale, { open });
 
             return (
               <li
@@ -52,24 +55,18 @@ export default async function SupplierProjectRequestsPage({
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium text-ink">{request.title}</p>
-                  <p className={cn("mt-0.5 text-meta", overdue ? "text-risk" : "text-muted")}>
-                    {dict.portal.requests.due} {formatDate(request.dueDate, locale)}
-                    {remaining !== null && request.status === "PENDING"
-                      ? ` · ${
-                          overdue
-                            ? dict.portal.requests.overdue
-                            : remaining === 0
-                              ? dict.portal.requests.dueToday
-                              : plural(dict.portal.requests.dueInDays, remaining)
-                        }`
-                      : ""}
-                  </p>
+                  {due ? (
+                    <p className={cn("mt-0.5 text-meta", DUE_TONE_CLASS[due.tone])}>{due.text}</p>
+                  ) : null}
                 </div>
 
                 <div className="flex shrink-0 items-center gap-4">
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                  <Button variant="secondary" size="sm" asChild>
-                    <Link href={`/supplier/action-required/${request.id}`}>
+                  <Button variant={open ? "primary" : "secondary"} size="sm" asChild>
+                    <Link
+                      href={`/supplier/action-required/${request.id}`}
+                      aria-label={`${dict.common.open}: ${request.title}`}
+                    >
                       {dict.common.open}
                       <ArrowRight />
                     </Link>
