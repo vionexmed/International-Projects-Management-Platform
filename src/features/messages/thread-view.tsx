@@ -50,6 +50,10 @@ export function ThreadView({
     empty?: string;
     fileTooLarge?: string;
     fileType?: string;
+    uploading?: string;
+    connectionFailed?: string;
+    storageRefused?: string;
+    unreachable?: string;
   };
   returnPath: string;
   emptyTitle: string;
@@ -140,6 +144,10 @@ export function ThreadView({
             empty: labels.empty,
             fileTooLarge: labels.fileTooLarge,
             fileType: labels.fileType,
+            uploading: labels.uploading,
+            connectionFailed: labels.connectionFailed,
+            storageRefused: labels.storageRefused,
+            unreachable: labels.unreachable,
           }}
           returnPath={returnPath}
           maxSizeMb={maxUploadMb()}

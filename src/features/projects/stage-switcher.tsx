@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import type { StageKey } from "@/generated/prisma";
+import { RememberedLink } from "@/components/app/nav-memory";
 import { STAGE_ROUTES } from "@/features/projects/stage-routes";
 import { StatusIcon } from "@/components/ui/badge";
 import { SegmentedToggle, ViewToolbar } from "@/components/app/view-toolbar";
@@ -37,13 +37,14 @@ export function StageSwitcher({
     <ViewToolbar
       className="px-4 sm:px-6"
       left={
-        <Link
+        // Back to the plan in its remembered view (list/board, stage, assignee).
+        <RememberedLink
           href={`${base}/tasks`}
           className="inline-flex items-center gap-1.5 text-label font-medium text-muted transition-colors hover:text-ink"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Plano
-        </Link>
+        </RememberedLink>
       }
       center={
         <SegmentedToggle

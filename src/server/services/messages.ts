@@ -7,7 +7,9 @@ import { recordAudit } from "@/server/services/audit";
 import { recordTimelineEvent } from "@/server/services/timeline";
 import { notify, supplierRecipients } from "@/server/services/notifications";
 import { uploadDocument } from "@/server/services/documents";
+import { issueUploadTicket, type UploadTicket } from "@/server/services/upload-tickets";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
+import { errorText } from "@/lib/i18n/error-text";
 
 /**
  * Contextual messaging: every thread belongs to a project, so a conversation
@@ -94,19 +96,65 @@ export async function markThreadRead(user: SessionUser, threadId: string) {
   });
 }
 
+/**
+ * An attachment that already sits in storage: uploaded straight from the
+ * browser and verified by `redeemUploadTicket` before it gets here.
+ */
+export type StoredAttachment = {
+  projectId: string;
+  storageKey: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+};
+
+/**
+ * Approves a large attachment before the browser uploads it.
+ *
+ * The thread decides everything: it must be in the caller's scope, the project
+ * is read from it rather than from the request, and the ticket is bound to it
+ * so it cannot be spent on another conversation or as a document.
+ */
+export async function issueAttachmentTicket(
+  user: SessionUser,
+  threadId: string,
+  file: { fileName: string; contentType: string; size: number },
+): Promise<UploadTicket> {
+  assertRoleCan(user.role, "message:send");
+  assertRoleCan(user.role, "document:upload");
+
+  const thread = await requireThreadAccess(user, threadId);
+  return issueUploadTicket(user, {
+    projectId: thread.projectId,
+    threadId: thread.id,
+    fileName: file.fileName,
+    contentType: file.contentType,
+    size: file.size,
+  });
+}
+
 export async function sendMessage(
   user: SessionUser,
   threadId: string,
   body: string,
-  file?: File | null,
+  /** The file itself for small uploads; a stored object for large ones. */
+  attachment?: File | StoredAttachment | null,
 ) {
   assertRoleCan(user.role, "message:send");
 
   const thread = await requireThreadAccess(user, threadId);
   const trimmed = body.trim();
-  if (!trimmed && !file) {
-    throw new Error("Escreva uma mensagem ou anexe um arquivo.");
+  if (!trimmed && !attachment) {
+    throw new Error(errorText("messageEmpty"));
   }
+
+  const file = attachment instanceof File ? attachment : null;
+  const stored = attachment && !(attachment instanceof File) ? attachment : null;
+  // The object was written under the ticket's project; it must be this thread's.
+  if (stored && stored.projectId !== thread.projectId) {
+    throw new Error(errorText("uploadOtherProject"));
+  }
+  const fileName = file?.name ?? stored?.fileName ?? null;
 
   /**
    * An attachment is a document, stored the way every other document is.
@@ -123,11 +171,19 @@ export async function sendMessage(
    * that thread is already invisible to them.
    */
   let versionId: string | null = null;
-  if (file) {
+  if (fileName) {
     const document = await uploadDocument(user, {
       projectId: thread.projectId,
-      file,
-      name: file.name.replace(/\.[^.]+$/, ""),
+      file: file ?? undefined,
+      uploaded: stored
+        ? {
+            storageKey: stored.storageKey,
+            fileName: stored.fileName,
+            contentType: stored.contentType,
+            size: stored.size,
+          }
+        : undefined,
+      name: fileName.replace(/\.[^.]+$/, ""),
       type: "OTHER",
       visibility: thread.withSupplier ? "SHARED_WITH_SUPPLIER" : "INTERNAL_ONLY",
     });
@@ -145,7 +201,7 @@ export async function sendMessage(
       data: {
         threadId,
         senderId: user.id,
-        body: trimmed || file!.name,
+        body: trimmed || fileName!,
         ...(versionId
           ? { attachments: { create: { documentVersionId: versionId } } }
           : {}),

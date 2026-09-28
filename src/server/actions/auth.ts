@@ -18,7 +18,7 @@ import {
   recordFailedLogin,
 } from "@/server/auth/throttle";
 import { isSupplierRole } from "@/types/auth";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { getDictionary, interpolate } from "@/lib/i18n/dictionary";
 import { DEFAULT_INTERNAL_LOCALE, isLocale, type Locale } from "@/lib/i18n/config";
 
 const signInSchema = z.object({
@@ -57,7 +57,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const throttle = await checkLoginThrottle(email, ip);
   if (throttle.blocked) {
     return {
-      error: `Muitas tentativas. Aguarde ${throttle.retryAfterMinutes} minutos e tente novamente.`,
+      error: interpolate(dict.auth.tooManyAttempts, { minutes: throttle.retryAfterMinutes }),
     };
   }
 

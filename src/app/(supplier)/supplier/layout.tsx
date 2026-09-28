@@ -8,6 +8,7 @@ import { SupplierSidebar } from "@/components/app/supplier-sidebar";
 import { SupplierMobileNav } from "@/components/app/supplier-mobile-nav";
 import { CommandPalette } from "@/components/app/command-palette";
 import { DemoBanner } from "@/components/app/demo-banner";
+import { NavMemory } from "@/components/app/nav-memory";
 import { getDictionary, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
@@ -36,6 +37,8 @@ export default async function SupplierLayout({ children }: { children: React.Rea
   return (
     <>
       <DemoBanner />
+      {/* Lets breadcrumbs and back arrows return to a list exactly as it was left. */}
+      <NavMemory />
     <div className="flex min-h-dvh bg-canvas">
       <SupplierSidebar
         user={user}

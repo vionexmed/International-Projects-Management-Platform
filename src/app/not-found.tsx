@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { HistoryBackButton } from "@/components/app/nav-memory";
 
 export default function NotFound() {
   return (
@@ -10,9 +11,12 @@ export default function NotFound() {
         <p className="mt-1.5 text-[13px] text-muted">
           O endereço não existe ou você não tem acesso a ele.
         </p>
-        <Button variant="secondary" className="mt-5" asChild>
-          <Link href="/dashboard">Voltar ao dashboard</Link>
-        </Button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <HistoryBackButton fallbackHref="/dashboard" label="Voltar" />
+          <Button variant="secondary" asChild>
+            <Link href="/dashboard">Ir para o dashboard</Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

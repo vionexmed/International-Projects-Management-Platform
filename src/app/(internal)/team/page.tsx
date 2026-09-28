@@ -36,7 +36,12 @@ export default async function TeamPage() {
 
   return (
     <>
-      <PageHeader title="Equipe" actions={manageable ? <InviteMemberDialog /> : null} />
+      {/* Reached from the account menu, not the rail: a trail back. */}
+      <PageHeader
+        breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Equipe" }]}
+        title="Equipe"
+        actions={manageable ? <InviteMemberDialog /> : null}
+      />
 
       <TableShell>
         {members.length === 0 ? (

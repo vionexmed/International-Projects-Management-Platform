@@ -1,5 +1,6 @@
 import type { DocumentType, StageKey, UserRole } from "@/generated/prisma";
 import { ForbiddenError } from "@/server/authz/errors";
+import { errorText } from "@/lib/i18n/error-text";
 
 /**
  * Capability-based permissions. Roles are fixed in the schema; the mapping
@@ -119,7 +120,7 @@ export function roleHas(role: UserRole, permission: Permission) {
  */
 export function assertRoleCan(role: UserRole, permission: Permission) {
   if (!roleHas(role, permission)) {
-    throw new ForbiddenError("Seu perfil não permite esta ação.");
+    throw new ForbiddenError(errorText("roleNotAllowed"));
   }
 }
 

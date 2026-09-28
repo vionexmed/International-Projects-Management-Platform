@@ -7,7 +7,9 @@ import { Sheet, SheetContent } from "@/components/ui/dialog";
 /**
  * The task side sheet opened by `?task=<id>`. The URL is the state: the
  * server renders the sheet when the param is present, and closing it
- * navigates to the same view without the param.
+ * navigates to the same view without the param (Esc does the same).
+ * `replace`, not `push`: closing must not leave a history entry that the
+ * browser's Back would reopen the sheet from.
  */
 export function TaskSheet({
   closeHref,
@@ -23,7 +25,7 @@ export function TaskSheet({
     <Sheet
       open
       onOpenChange={(open) => {
-        if (!open) router.push(closeHref, { scroll: false });
+        if (!open) router.replace(closeHref, { scroll: false });
       }}
     >
       <SheetContent size="lg" aside={aside}>

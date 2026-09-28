@@ -5,6 +5,7 @@ import { requireDocumentRequestAccess } from "@/server/authz/access";
 import { listRequestReviews, type RequestStatus } from "@/server/services/documents";
 import { orNotFound } from "@/server/authz/rsc";
 import { PageHeader } from "@/components/app/page-header";
+import { trailLabels } from "@/components/app/trail-labels";
 import { Panel, PanelHeader, PropertyList } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { SolidBadge } from "@/components/ui/badge";
@@ -74,6 +75,7 @@ export default async function SupplierRequestPage({
     <div className="mx-auto max-w-[1080px]">
       <PageHeader
         breadcrumb={[{ label: dict.portal.requests.title, href: "/supplier/action-required" }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
         title={request.title}
         status={<SolidBadge tone={status.tone}>{status.label}</SolidBadge>}
         description={`${request.project.name} · ${label.documentType(request.type, dict)}`}

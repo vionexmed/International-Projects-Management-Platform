@@ -37,5 +37,9 @@ export function threadLabels(dict: Dictionary) {
     empty: m.emptyMessage,
     fileTooLarge: dict.portal.requests.fileSizeError,
     fileType: dict.portal.requests.fileTypeError,
+    uploading: dict.portal.requests.uploadingPercent,
+    connectionFailed: dict.portal.requests.connectionFailed,
+    storageRefused: dict.portal.requests.storageRefused,
+    unreachable: `${dict.common.somethingWentWrong} ${dict.common.tryAgain}`,
   };
 }

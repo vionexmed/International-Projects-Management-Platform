@@ -5,6 +5,7 @@ import { orNotFound } from "@/server/authz/rsc";
 import { listSupplierOptions } from "@/server/services/suppliers";
 import { listInternalUserOptions } from "@/server/services/users";
 import { db } from "@/server/db";
+import { BackLink } from "@/components/app/nav-memory";
 import { AvatarStack } from "@/components/ui/avatar";
 import { SolidBadge } from "@/components/ui/badge";
 import { ProjectTabs } from "@/features/projects/project-tabs";
@@ -74,6 +75,8 @@ export default async function ProjectLayout({
     <div className="-mx-4 -mt-5 -mb-5 flex min-h-[calc(100dvh-3rem)] flex-col bg-surface sm:-mx-6 sm:-mt-6 sm:-mb-6 lg:min-h-dvh">
       <header className="sticky top-12 z-20 bg-surface shadow-[0_1px_3px_rgba(5,41,47,0.06)] lg:top-0">
         <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+          {/* Up to the list, as it was left (status, filters, page). */}
+          <BackLink href="/projects" label="Voltar: Projetos" className="-ml-1.5 -mr-1" />
           <span
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-xs bg-brand-soft text-label font-semibold text-brand-deep select-none"
             aria-hidden

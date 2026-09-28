@@ -1,4 +1,5 @@
 import type { PartialDictionary } from "@/lib/i18n/dictionary";
+import { errorsZh } from "@/lib/i18n/dictionaries/errors.zh";
 
 /**
  * Chinese is intentionally partial for the MVP (§42): the Supplier Portal
@@ -306,5 +307,7 @@ export const zh: PartialDictionary = {
     capsLockOn: "大写锁定已开启。",
     invalidCredentials: "邮箱或密码不正确。",
     accountInactive: "此账户已停用，请联系管理员。",
+    tooManyAttempts: "尝试次数过多。请等待 {minutes} 分钟后重试。",
   },
+  errors: errorsZh,
 };

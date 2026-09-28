@@ -13,12 +13,11 @@ import {
 import { listSupplierOptions } from "@/server/services/suppliers";
 import { listInternalUserOptions } from "@/server/services/users";
 import { PageHeader } from "@/components/app/page-header";
-import { TabsNav } from "@/components/app/tabs-nav";
+import { StatusFilter } from "@/components/app/status-filter";
 import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
 import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress";
-import { StatCard } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   CellStack,
@@ -44,9 +43,9 @@ import type { Tone } from "@/lib/status";
 export const metadata: Metadata = { title: "Projetos" };
 
 /**
- * `ARCHIVED` is a different list, not another status filter: it asks the scope
- * for the other half of the portfolio. Kept as a tab because that is where
- * somebody looks for a project they cannot find.
+ * The status filter's options; `key` is the `tab` param value. `ARCHIVED`
+ * asks the scope for the other half of the portfolio — kept in the same
+ * menu because that is where somebody looks for a project they cannot find.
  */
 const TABS: {
   key: string;
@@ -54,12 +53,13 @@ const TABS: {
   status?: ProjectStatus;
   attention?: boolean;
   archived?: boolean;
+  tone?: Tone;
 }[] = [
   { key: "ALL", label: "Todos" },
-  { key: "ATTENTION", label: "Precisam de atenção", attention: true },
+  { key: "ATTENTION", label: "Precisam de atenção", attention: true, tone: "warn" },
   { key: "ON_TRACK", label: "Em dia", status: "ON_TRACK" },
-  { key: "AT_RISK", label: "Em risco", status: "AT_RISK" },
-  { key: "BLOCKED", label: "Bloqueados", status: "BLOCKED" },
+  { key: "AT_RISK", label: "Em risco", status: "AT_RISK", tone: "warn" },
+  { key: "BLOCKED", label: "Bloqueados", status: "BLOCKED", tone: "risk" },
   { key: "COMPLETED", label: "Concluídos", status: "COMPLETED" },
   { key: "ARCHIVED", label: "Arquivados", archived: true },
 ];
@@ -138,25 +138,6 @@ export default async function ProjectsPage({
   const activeFilters = ["supplier", "owner", "stage", "country"].filter((key) => params[key]).length;
   const suggestedCode = `VX-${String(counts.ALL + 1).padStart(3, "0")}`;
 
-  const buildTabHref = (key: string) => {
-    const next = new URLSearchParams();
-    for (const [param, value] of Object.entries(params)) {
-      if (value && param !== "tab" && param !== "page") next.set(param, value);
-    }
-    if (key !== "ALL") next.set("tab", key);
-    const query = next.toString();
-    return query ? `/projects?${query}` : "/projects";
-  };
-
-  /** The strip above the table: five grouped counts, each a door into its own tab. */
-  const kpis: { key: string; label: string; value: number; tone?: Tone }[] = [
-    { key: "ALL", label: "Ativos", value: counts.ALL },
-    { key: "ON_TRACK", label: "Em dia", value: counts.ON_TRACK },
-    { key: "AT_RISK", label: "Em risco", value: counts.AT_RISK, tone: "warn" },
-    { key: "BLOCKED", label: "Bloqueados", value: counts.BLOCKED, tone: "risk" },
-    { key: "COMPLETED", label: "Concluídos", value: counts.COMPLETED },
-  ];
-
   return (
     <>
       <PageHeader
@@ -168,34 +149,27 @@ export default async function ProjectsPage({
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
-        {kpis.map((kpi) => (
-          <StatCard
-            key={kpi.key}
-            label={kpi.label}
-            value={kpi.value}
-            href={buildTabHref(kpi.key)}
-            deltaTone={kpi.tone}
-          />
-        ))}
-      </div>
-
       {/*
-        Tabs on their own line, search and filters under them. Seven tabs plus
-        a search box and a button did not fit one row at 1440px without the
-        tabs butting into the search; stacked, neither has to shrink.
+        One toolbar row. The status used to be said three times — five KPI
+        cards, seven tabs with the same counts, and the table — so it is now
+        one filter, with each count inside its menu option. It writes the
+        same `tab` param the tabs wrote.
       */}
-      <TabsNav
-        className="mb-4"
-        items={TABS.map((tab) => ({
-          href: buildTabHref(tab.key),
-          label: tab.label,
-          count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
-          active: tab.key === activeTab.key,
-        }))}
-      />
-      <div className="mb-5 flex flex-wrap items-center gap-x-2">
-        <SearchInput placeholder="Buscar projetos…" className="min-w-0 flex-1 sm:w-60 sm:flex-none" />
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <StatusFilter
+          paramKey="tab"
+          defaultValue="ALL"
+          options={TABS.map((tab) => ({
+            value: tab.key,
+            label: tab.label,
+            count: tab.archived || tab.attention ? undefined : tab.status ? counts[tab.status] : counts.ALL,
+            tone: tab.tone,
+          }))}
+        />
+        <SearchInput
+          placeholder="Buscar projetos…"
+          className="min-w-0 max-sm:order-first max-sm:basis-full sm:w-60"
+        />
         <FilterBar activeCount={activeFilters}>
           <FilterSelect
             paramKey="supplier"

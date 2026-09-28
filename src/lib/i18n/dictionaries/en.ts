@@ -1,4 +1,5 @@
 import type { Dictionary } from "@/lib/i18n/dictionary";
+import { errorsEn } from "@/lib/i18n/dictionaries/errors.en";
 
 export const en: Dictionary = {
   common: {
@@ -403,5 +404,7 @@ export const en: Dictionary = {
     capsLockOn: "Caps Lock is on.",
     invalidCredentials: "Invalid email or password.",
     accountInactive: "This account is inactive. Please contact your administrator.",
+    tooManyAttempts: "Too many attempts. Wait {minutes} minutes and try again.",
   },
+  errors: errorsEn,
 };

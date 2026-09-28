@@ -7,7 +7,7 @@ import {
   markNotificationReadAction,
 } from "@/server/actions/notifications";
 import { PageHeader } from "@/components/app/page-header";
-import { TabsNav } from "@/components/app/tabs-nav";
+import { SegmentedToggle } from "@/components/app/view-toolbar";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -76,11 +76,16 @@ export default async function NotificationsPage({
         }
       />
 
-      <TabsNav
+      {/*
+        Two options, so a short segmented switch rather than a tab strip; the
+        unread count is already in the line under the title (and on the bell).
+      */}
+      <SegmentedToggle
+        label="Filtrar notificações"
         className="mb-5"
         items={[
           { href: "/notifications", label: "Todas", active: !unreadOnly },
-          { href: "/notifications?tab=unread", label: "Não lidas", count: unread, active: unreadOnly },
+          { href: "/notifications?tab=unread", label: "Não lidas", active: unreadOnly },
         ]}
       />
 

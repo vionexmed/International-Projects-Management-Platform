@@ -5,7 +5,7 @@ import { listProjects } from "@/server/services/projects";
 import { listInternalUserOptions } from "@/server/services/users";
 import { listSupplierOptions } from "@/server/services/suppliers";
 import { PageHeader } from "@/components/app/page-header";
-import { TabsNav } from "@/components/app/tabs-nav";
+import { StatusFilter } from "@/components/app/status-filter";
 import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
 import { TableFooter, TableShell } from "@/components/ui/table";
@@ -60,16 +60,6 @@ export default async function TasksPage({
     (key) => params[key],
   ).length;
 
-  const buildTabHref = (key: string) => {
-    const next = new URLSearchParams();
-    for (const [param, value] of Object.entries(params)) {
-      if (value && param !== "tab" && param !== "page") next.set(param, value);
-    }
-    if (key !== "ALL") next.set("tab", key);
-    const query = next.toString();
-    return query ? `/tasks?${query}` : "/tasks";
-  };
-
   return (
     <>
       <PageHeader
@@ -84,18 +74,22 @@ export default async function TasksPage({
         }
       />
 
-      {/* Same toolbar as `/projects`: tabs on one line, search and filters under them. */}
-      <TabsNav
-        className="mb-4"
-        items={TABS.map((tab) => ({
-          href: buildTabHref(tab.key),
-          label: tab.label,
-          count: tab.status ? counts[tab.status] : counts.ALL,
-          active: tab.key === activeTab.key,
-        }))}
-      />
-      <div className="mb-5 flex flex-wrap items-center gap-x-2">
-        <SearchInput placeholder="Buscar tarefas…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
+      {/* Same toolbar as `/projects`: one row — status, search, the rest of the filters. */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <StatusFilter
+          paramKey="tab"
+          defaultValue="ALL"
+          options={TABS.map((tab) => ({
+            value: tab.key,
+            label: tab.label,
+            count: tab.status ? counts[tab.status] : counts.ALL,
+            tone: tab.key === "OVERDUE" ? "risk" : undefined,
+          }))}
+        />
+        <SearchInput
+          placeholder="Buscar tarefas…"
+          className="min-w-0 max-sm:order-first max-sm:basis-full sm:w-72"
+        />
         <FilterBar activeCount={activeFilters}>
           <FilterSelect
             paramKey="project"

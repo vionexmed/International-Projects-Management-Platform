@@ -1,9 +1,8 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { requireInternalUser } from "@/server/auth/current-user";
 import { requireTaskAccess } from "@/server/authz/access";
 import { orNotFound } from "@/server/authz/rsc";
 import { listInternalUserOptions } from "@/server/services/users";
+import { Breadcrumb } from "@/components/app/breadcrumb";
 import {
   TaskComments,
   TaskDetailActions,
@@ -50,15 +49,19 @@ export default async function TaskDetailPage({
     <div className="-mx-4 -mt-5 -mb-5 flex min-h-[calc(100dvh-3rem)] flex-col bg-surface sm:-mx-6 sm:-mt-6 sm:-mb-6 lg:min-h-dvh">
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="min-w-0 flex-1 px-4 pt-5 pb-8 sm:px-6">
-          <nav aria-label="Navegação estrutural" className="mb-1 flex items-center gap-1 text-label">
-            <Link href={`/projects/${task.project.id}`} className="text-brand-strong hover:underline">
-              {task.project.name}
-            </Link>
-            <ChevronRight className="size-3.5 text-faint" aria-hidden />
-            <Link href={`/projects/${task.project.id}/tasks`} className="text-brand-strong hover:underline">
-              Plano
-            </Link>
-          </nav>
+          {/*
+            Opened from many places (dashboard, notifications, /tasks,
+            regulatory), so the arrow steps back to wherever that was; on a
+            fresh tab it goes up to the plan.
+          */}
+          <Breadcrumb
+            history
+            className="mb-1"
+            items={[
+              { label: task.project.name, href: `/projects/${task.project.id}` },
+              { label: "Plano", href: `/projects/${task.project.id}/tasks` },
+            ]}
+          />
           <div className="mb-5 flex items-start justify-between gap-4">
             <h1 className="min-w-0 text-[22px] leading-8 font-semibold text-ink">{task.title}</h1>
             <div className="flex shrink-0 items-center gap-2 pt-0.5">

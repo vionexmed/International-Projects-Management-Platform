@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileQuestion } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { Button } from "@/components/ui/button";
+import { HistoryBackButton } from "@/components/app/nav-memory";
 import { Panel } from "@/components/ui/card";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
@@ -28,9 +29,12 @@ export default async function SupplierNotFound() {
           {dict.common.noResults}
         </h1>
         <p className="mt-1.5 text-[14px] text-muted">{dict.common.tryAgain}</p>
-        <Button asChild variant="primary" className="mt-6">
-          <Link href="/supplier">{dict.nav.home}</Link>
-        </Button>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <HistoryBackButton fallbackHref="/supplier" label={dict.common.back} />
+          <Button asChild variant="primary">
+            <Link href="/supplier">{dict.nav.home}</Link>
+          </Button>
+        </div>
       </div>
     </Panel>
   );

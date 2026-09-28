@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HistoryBackButton } from "@/components/app/nav-memory";
 
 /**
  * Friendly failure surface. The underlying error is logged for operators but
@@ -29,10 +30,13 @@ export default function GlobalError({
         {error.digest ? (
           <p className="mt-3 font-mono text-[11px] text-faint">Referência: {error.digest}</p>
         ) : null}
-        <Button variant="primary" className="mt-5" onClick={reset}>
-          <RotateCw />
-          Tentar novamente
-        </Button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <HistoryBackButton fallbackHref="/" label="Voltar" />
+          <Button variant="primary" onClick={reset}>
+            <RotateCw />
+            Tentar novamente
+          </Button>
+        </div>
       </div>
     </div>
   );

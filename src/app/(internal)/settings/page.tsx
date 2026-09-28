@@ -78,7 +78,9 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-3xl">
+      {/* Reached from the account menu, not the rail: a trail back. */}
       <PageHeader
+        breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Configurações" }]}
         title="Configurações"
         description="Organização, permissões e parâmetros da plataforma."
       />

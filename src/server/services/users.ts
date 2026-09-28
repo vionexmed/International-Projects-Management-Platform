@@ -7,6 +7,7 @@ import { recordAudit } from "@/server/services/audit";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
 import { roleHas } from "@/server/authz/permissions";
 import { ForbiddenError } from "@/server/authz/errors";
+import { errorText } from "@/lib/i18n/error-text";
 
 /** Vionex team members with their current workload. */
 /**
@@ -120,7 +121,7 @@ export async function createUser(actor: SessionUser, input: CreateUserInput) {
       throw new ForbiddenError();
     }
     if (!supplierRole) {
-      throw new Error("Você só pode criar usuários do portal.");
+      throw new Error(errorText("portalRolesOnlyCreate"));
     }
     /**
      * An explicit mismatch is refused; an omission is filled in.
@@ -133,19 +134,19 @@ export async function createUser(actor: SessionUser, input: CreateUserInput) {
      * wrong by leaving it out.
      */
     if (input.supplierId && input.supplierId !== actor.supplierId) {
-      throw new Error("Você só pode criar usuários da sua própria empresa.");
+      throw new Error(errorText("ownCompanyCreate"));
     }
     input = { ...input, supplierId: actor.supplierId };
   }
 
   if (supplierRole && !input.supplierId) {
-    throw new Error("Usuário de fornecedor precisa estar vinculado a um fornecedor.");
+    throw new Error(errorText("supplierLinkRequired"));
   }
   if (!supplierRole && input.supplierId) {
-    throw new Error("Usuário interno não pode estar vinculado a um fornecedor.");
+    throw new Error(errorText("internalWithSupplier"));
   }
   if (isSupplierRole(actor.role) && input.supplierId !== actor.supplierId) {
-    throw new Error("Você só pode criar usuários da sua própria empresa.");
+    throw new Error(errorText("ownCompanyCreate"));
   }
 
   if (input.supplierId) {
@@ -153,12 +154,12 @@ export async function createUser(actor: SessionUser, input: CreateUserInput) {
       where: { id: input.supplierId, organizationId: actor.organizationId },
       select: { id: true },
     });
-    if (!supplier) throw new Error("Fornecedor inválido.");
+    if (!supplier) throw new Error(errorText("supplierInvalid"));
   }
 
   const email = input.email.trim().toLowerCase();
   const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
-  if (existing) throw new Error("Já existe um usuário com este e-mail.");
+  if (existing) throw new Error(errorText("emailTaken"));
 
   const user = await db.user.create({
     data: {
@@ -202,11 +203,11 @@ export async function updateUser(
     where: { AND: [userScope(actor), { id: userId }] },
     select: { id: true, role: true, supplierId: true },
   });
-  if (!target) throw new Error("Usuário não encontrado.");
+  if (!target) throw new Error(errorText("userNotFound"));
 
   // Changing between internal and supplier roles would strand the supplier link.
   if (input.role && isSupplierRole(input.role) !== isSupplierRole(target.role)) {
-    throw new Error("Não é possível alternar entre papéis internos e de fornecedor.");
+    throw new Error(errorText("roleSwitch"));
   }
 
   /**
@@ -233,10 +234,10 @@ export async function updateUser(
       throw new ForbiddenError();
     }
     if (!target.supplierId || target.supplierId !== actor.supplierId) {
-      throw new Error("Você só pode gerenciar usuários da sua própria empresa.");
+      throw new Error(errorText("ownCompanyManage"));
     }
     if (input.role && !isSupplierRole(input.role)) {
-      throw new Error("Você só pode atribuir papéis do portal.");
+      throw new Error(errorText("portalRolesOnlyAssign"));
     }
   }
 
@@ -270,7 +271,7 @@ export async function updateUser(
         });
         if (remaining === 0) {
           throw new Error(
-            "Esta empresa ficaria sem nenhum administrador ativo. Promova outro usuário antes.",
+            errorText("lastAdmin"),
           );
         }
       },

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useFormAction } from "@/components/app/use-form-action";
+import { needsDirectUpload, useDirectUpload } from "@/components/app/use-direct-upload";
 import { sendMessageAction } from "@/server/actions/messages";
 import { ACCEPT_ATTRIBUTE, ALLOWED_EXTENSIONS, maxUploadMb } from "@/lib/upload";
 import { formatFileSize } from "@/lib/format";
@@ -43,6 +44,13 @@ export function MessageComposer({
     /** `{size}` is the limit in MB. */
     fileTooLarge?: string;
     fileType?: string;
+    /** Progress of a large attachment; `{percent}` is 0–100. */
+    uploading?: string;
+    /** Direct-upload failures the browser sees itself; `{status}` is HTTP. */
+    connectionFailed?: string;
+    storageRefused?: string;
+    /** Shown when the send could not reach the server at all. */
+    unreachable?: string;
   };
   returnPath: string;
   /** Read on the server; checked here so an oversized file is refused before it is sent. */
@@ -51,8 +59,25 @@ export function MessageComposer({
   const router = useRouter();
   const formRef = React.useRef<HTMLFormElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const [file, setFile] = React.useState<File | null>(null);
+  const tokenRef = React.useRef<HTMLInputElement>(null);
+  const [file, setFileState] = React.useState<File | null>(null);
   const [localError, setLocalError] = React.useState<string | null>(null);
+
+  /**
+   * Large files go straight to storage first, the way documents do: the
+   * platform refuses any request above ~4.5 MB before our code runs. The form
+   * then carries a receipt (`uploadToken`) instead of the bytes.
+   */
+  const { prepare, progress } = useDirectUpload(
+    { connectionFailed: labels.connectionFailed, storageRefused: labels.storageRefused },
+    "attachment",
+  );
+
+  // A receipt belongs to one file: choosing or removing a file voids it.
+  const setFile = React.useCallback((next: File | null) => {
+    if (tokenRef.current) tokenRef.current.value = "";
+    setFileState(next);
+  }, []);
 
   const clearFile = () => {
     if (fileRef.current) fileRef.current.value = "";
@@ -87,10 +112,13 @@ export function MessageComposer({
       toast.success(labels.sent);
       router.refresh();
     },
-    [labels.sent, router],
+    [labels.sent, router, setFile],
   );
 
-  const { state, pending, onSubmit } = useFormAction(sendMessageAction, handleSuccess);
+  const { state, pending, onSubmit } = useFormAction(sendMessageAction, handleSuccess, {
+    unreachableError: labels.unreachable,
+  });
+  const busy = pending || progress !== null;
 
   React.useEffect(() => {
     if (state.error) toast.error(state.error);
@@ -105,18 +133,40 @@ export function MessageComposer({
       return;
     }
     setLocalError(null);
-    onSubmit(event);
+
+    // Small files — and a file whose receipt is already in hand after a failed
+    // send — travel exactly as before.
+    const alreadyUploaded = Boolean(tokenRef.current?.value);
+    if (!file || alreadyUploaded || !needsDirectUpload(file)) return onSubmit(event);
+
+    event.preventDefault();
+    const form = event.currentTarget;
+    void (async () => {
+      const prepared = await prepare(file, threadId);
+      if (!prepared.ok) return setLocalError(prepared.error);
+
+      if (prepared.token) {
+        // Uploaded already: send the receipt and keep the bytes off the request.
+        tokenRef.current!.value = prepared.token;
+        if (fileRef.current) fileRef.current.value = "";
+      }
+      onSubmit({
+        currentTarget: form,
+        preventDefault: () => {},
+      } as unknown as React.FormEvent<HTMLFormElement>);
+    })();
   };
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-2.5">
       <input type="hidden" name="threadId" value={threadId} />
       <input type="hidden" name="returnPath" value={returnPath} />
+      <input ref={tokenRef} type="hidden" name="uploadToken" defaultValue="" />
 
       <Textarea
         name="body"
         rows={3}
-        disabled={pending}
+        disabled={busy}
         placeholder={labels.placeholder}
         aria-label={labels.placeholder}
         aria-describedby={localError ? `${threadId}-composer-error` : undefined}
@@ -133,6 +183,12 @@ export function MessageComposer({
           }
         }}
       />
+
+      {progress !== null ? (
+        <span role="status" aria-live="polite" className="sr-only">
+          {(labels.uploading ?? "Enviando arquivo… {percent}%").replace("{percent}", String(progress))}
+        </span>
+      ) : null}
 
       {localError ? (
         <p id={`${threadId}-composer-error`} role="alert" className="text-[12px] font-medium text-risk">
@@ -158,7 +214,7 @@ export function MessageComposer({
             <span className="shrink-0 text-muted">{formatFileSize(file.size)}</span>
             <button
               type="button"
-              disabled={pending}
+              disabled={busy}
               aria-label={labels.remove}
               onClick={clearFile}
               className="-my-1 inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink"
@@ -172,7 +228,7 @@ export function MessageComposer({
             variant="ghost"
             size="sm"
             className="max-md:h-10"
-            disabled={pending}
+            disabled={busy}
             onClick={() => fileRef.current?.click()}
           >
             <Paperclip />
@@ -184,9 +240,16 @@ export function MessageComposer({
           {labels.shortcut ? (
             <span className="text-[12px] text-faint max-md:hidden">{labels.shortcut}</span>
           ) : null}
-          <Button type="submit" variant="primary" size="sm" disabled={pending} className="max-md:h-10">
+          <Button type="submit" variant="primary" size="sm" disabled={busy} className="max-md:h-10">
             <Send />
-            {pending ? (labels.sending ?? labels.send) : labels.send}
+            {progress !== null
+              ? (labels.uploading ?? "Enviando arquivo… {percent}%").replace(
+                  "{percent}",
+                  String(progress),
+                )
+              : pending
+                ? (labels.sending ?? labels.send)
+                : labels.send}
           </Button>
         </span>
       </div>

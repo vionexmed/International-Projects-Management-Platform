@@ -4,6 +4,7 @@ import { Users } from "lucide-react";
 import { can, requireSupplierUser } from "@/server/auth/current-user";
 import { listPortalUsers } from "@/server/services/users";
 import { PageHeader } from "@/components/app/page-header";
+import { trailLabels } from "@/components/app/trail-labels";
 import { UserAvatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,7 +50,10 @@ export default async function SupplierUsersPage() {
 
   return (
     <>
+      {/* Reached from the account menu, not the sidebar: a trail back home. */}
       <PageHeader
+        breadcrumb={[{ label: dict.nav.home, href: "/supplier" }, { label: dict.portal.team.title }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
         title={dict.portal.team.title}
         description={dict.portal.team.subtitle}
         actions={<AddPortalUserDialog dict={dict} />}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { requestUploadTicketAction } from "@/server/actions/documents";
+import { requestAttachmentTicketAction } from "@/server/actions/messages";
 
 /**
  * Sends the file to storage before the form is submitted, when it has to be.
@@ -24,6 +25,11 @@ import { requestUploadTicketAction } from "@/server/actions/documents";
 /** Files at or above this go direct. Comfortably under the 4.5 MB ceiling. */
 const DIRECT_UPLOAD_THRESHOLD = 3 * 1024 * 1024;
 
+/** Whether `prepare` will send this file straight to storage. */
+export function needsDirectUpload(file: File) {
+  return file.size >= DIRECT_UPLOAD_THRESHOLD;
+}
+
 export type UploadPreparation =
   | { ok: true; token: string | null }
   | { ok: false; error: string };
@@ -37,22 +43,42 @@ export type DirectUploadMessages = {
   storageRefused?: string;
 };
 
-export function useDirectUpload(messages: DirectUploadMessages = {}) {
+type TicketResult =
+  | { ok: true; url: string | null; token: string; contentType: string }
+  | { ok: false; error: string };
+
+type DescribedFile = { fileName: string; contentType: string; size: number };
+
+/**
+ * Who approves the upload. A document is approved for a project; a message
+ * attachment for a conversation, so the ticket is bound to that thread.
+ */
+const TICKET_REQUESTERS = {
+  document: (projectId: string, file: DescribedFile): Promise<TicketResult> =>
+    requestUploadTicketAction({ projectId, ...file }),
+  attachment: (threadId: string, file: DescribedFile): Promise<TicketResult> =>
+    requestAttachmentTicketAction({ threadId, ...file }),
+};
+
+export function useDirectUpload(
+  messages: DirectUploadMessages = {},
+  kind: keyof typeof TICKET_REQUESTERS = "document",
+) {
   const [progress, setProgress] = React.useState<number | null>(null);
   const { connectionFailed, storageRefused } = messages;
 
   /**
    * Returns a token when the file was uploaded directly, or `null` when the
-   * caller should just submit the file with the form.
+   * caller should just submit the file with the form. `target` is the project
+   * for a document and the thread for an attachment.
    */
   const prepare = React.useCallback(
-    async (file: File, projectId: string): Promise<UploadPreparation> => {
-      if (file.size < DIRECT_UPLOAD_THRESHOLD) return { ok: true, token: null };
+    async (file: File, target: string): Promise<UploadPreparation> => {
+      if (!needsDirectUpload(file)) return { ok: true, token: null };
 
       setProgress(0);
       try {
-        const ticket = await requestUploadTicketAction({
-          projectId,
+        const ticket = await TICKET_REQUESTERS[kind](target, {
           fileName: file.name,
           contentType: file.type,
           size: file.size,
@@ -85,7 +111,7 @@ export function useDirectUpload(messages: DirectUploadMessages = {}) {
         setProgress(null);
       }
     },
-    [connectionFailed, storageRefused],
+    [connectionFailed, storageRefused, kind],
   );
 
   return { prepare, progress };

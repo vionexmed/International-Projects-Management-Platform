@@ -1,3 +1,5 @@
+import { errorText } from "@/lib/i18n/error-text";
+
 /**
  * Authorization errors.
  *
@@ -14,7 +16,7 @@ const UNAUTHENTICATED = "AuthenticationError";
 
 /** Thrown when a user is authenticated but lacks the required capability. */
 export class ForbiddenError extends Error {
-  constructor(message = "Você não tem permissão para executar esta ação.") {
+  constructor(message = errorText("forbidden")) {
     super(message);
     this.name = FORBIDDEN;
   }
@@ -22,14 +24,14 @@ export class ForbiddenError extends Error {
 
 /** Thrown when a record does not exist *or* is outside the caller's scope. */
 export class NotFoundError extends Error {
-  constructor(message = "Registro não encontrado.") {
+  constructor(message = errorText("notFound")) {
     super(message);
     this.name = NOT_FOUND;
   }
 }
 
 export class AuthenticationError extends Error {
-  constructor(message = "Sessão expirada. Faça login novamente.") {
+  constructor(message = errorText("sessionExpired")) {
     super(message);
     this.name = UNAUTHENTICATED;
   }

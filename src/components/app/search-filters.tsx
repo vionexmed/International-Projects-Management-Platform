@@ -115,6 +115,14 @@ export function FilterSelect({
   );
 }
 
+export type FilterBarLabels = {
+  filters: string;
+  clear: string;
+  apply: string;
+};
+
+const FILTER_LABELS_PT: FilterBarLabels = { filters: "Filtros", clear: "Limpar", apply: "Aplicar" };
+
 /**
  * Filters live in a right-hand `Sheet` (size `sm`) instead of a panel that
  * pushed the table down — the side-panel-for-filters pattern Rocketlane uses
@@ -126,16 +134,26 @@ export function FilterSelect({
 export function FilterBar({
   children,
   activeCount,
+  labels,
   className,
 }: {
   children: React.ReactNode;
   activeCount: number;
+  /** Pass dictionary strings on the supplier portal, which is not in Portuguese. */
+  labels?: FilterBarLabels;
   className?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const text = labels ?? FILTER_LABELS_PT;
+  // The count sentence exists only in Portuguese; localised callers go without it.
+  const description = labels
+    ? undefined
+    : activeCount > 0
+      ? `${activeCount} ativo(s)`
+      : "Nenhum filtro ativo.";
 
   const clear = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -157,7 +175,7 @@ export function FilterBar({
           className={className}
         >
           <SlidersHorizontal />
-          Filtros
+          {text.filters}
           {activeCount > 0 ? (
             <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-strong px-1 text-[10px] font-semibold text-white">
               {activeCount}
@@ -167,16 +185,13 @@ export function FilterBar({
       </SheetTrigger>
 
       <SheetContent size="sm">
-        <SheetHeader
-          title="Filtros"
-          description={activeCount > 0 ? `${activeCount} ativo(s)` : "Nenhum filtro ativo."}
-        />
+        <SheetHeader title={text.filters} description={description} />
         <SheetBody className="flex flex-col gap-3">{children}</SheetBody>
         <SheetFooter layout="split">
           <Button variant="secondary" onClick={clear} disabled={activeCount === 0}>
-            Limpar
+            {text.clear}
           </Button>
-          <Button onClick={() => setOpen(false)}>Aplicar</Button>
+          <Button onClick={() => setOpen(false)}>{text.apply}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env, uploadMaxBytes } from "@/lib/env";
+import { errorText } from "@/lib/i18n/error-text";
 
 /** MIME type → canonical extension. Anything outside this map is rejected. */
 export const ALLOWED_FILE_TYPES: Record<string, string[]> = {
@@ -28,20 +29,20 @@ export type UploadValidationError = { message: string };
  */
 export function validateUpload(file: File): UploadValidationError | null {
   if (file.size === 0) {
-    return { message: "O arquivo está vazio." };
+    return { message: errorText("fileEmpty") };
   }
   if (file.size > uploadMaxBytes()) {
-    return { message: `O arquivo excede o limite de ${maxUploadMb()} MB.` };
+    return { message: errorText("fileTooLarge", { size: maxUploadMb() }) };
   }
 
   const allowedExtensions = ALLOWED_FILE_TYPES[file.type];
   if (!allowedExtensions) {
-    return { message: "Tipo de arquivo não permitido." };
+    return { message: errorText("fileTypeNotAllowed") };
   }
 
   const lower = file.name.toLowerCase();
   if (!allowedExtensions.some((ext) => lower.endsWith(ext))) {
-    return { message: "A extensão do arquivo não corresponde ao seu tipo." };
+    return { message: errorText("fileExtensionMismatch") };
   }
 
   return null;

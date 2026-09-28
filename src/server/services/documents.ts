@@ -28,6 +28,7 @@ import { recalculateProject } from "@/server/services/projects";
 import { ForbiddenError, NotFoundError } from "@/server/authz/errors";
 import { assertRoleCan, canReviewDocumentType } from "@/server/authz/permissions";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
+import { errorText } from "@/lib/i18n/error-text";
 
 export type DocumentListFilters = {
   query?: string;
@@ -128,7 +129,7 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
   assertRoleCan(user.role, "document:upload");
 
   if (!input.file && !input.uploaded) {
-    throw new Error("Nenhum arquivo enviado.");
+    throw new Error(errorText("fileMissing"));
   }
   if (input.file) {
     const invalid = validateUpload(input.file);
@@ -143,7 +144,7 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
     },
     select: { id: true, name: true, supplierId: true },
   });
-  if (!project) throw new Error("Projeto não encontrado.");
+  if (!project) throw new Error(errorText("projectNotFound"));
 
   // Suppliers may only ever add to documents that are already shared with them.
   let existing = null;
@@ -152,7 +153,7 @@ export async function uploadDocument(user: SessionUser, input: UploadDocumentInp
       where: { AND: [documentScope(user), { id: input.documentId, projectId: project.id }] },
       select: { id: true, name: true, type: true, visibility: true },
     });
-    if (!existing) throw new Error("Documento não encontrado.");
+    if (!existing) throw new Error(errorText("documentNotFound"));
   }
 
   /**
@@ -315,7 +316,7 @@ export async function createDocumentRequest(user: SessionUser, input: CreateDocu
     where: { id: input.projectId, organizationId: user.organizationId },
     select: { id: true, name: true, supplierId: true },
   });
-  if (!project) throw new Error("Projeto não encontrado.");
+  if (!project) throw new Error(errorText("projectNotFound"));
 
   const request = await db.$transaction(async (tx) => {
     const task = input.createTask
@@ -399,8 +400,8 @@ export async function submitDocumentRequest(
       requestedBy: { select: { id: true } },
     },
   });
-  if (!request) throw new NotFoundError("Solicitação não encontrada.");
-  if (request.status === "CANCELLED") throw new Error("Esta solicitação foi cancelada.");
+  if (!request) throw new NotFoundError(errorText("requestNotFound"));
+  if (request.status === "CANCELLED") throw new Error(errorText("requestCancelled"));
 
   /**
    * Which states accept a submission.
@@ -412,14 +413,15 @@ export async function submitDocumentRequest(
    * `APPROVED` is closed; reopening it is Vionex's call, not the supplier's.
    */
   if (request.status === "SUBMITTED" || request.status === "IN_REVIEW") {
-    throw new Error("Esta solicitação está em análise. Aguarde o retorno da Vionex.");
+    throw new Error(errorText("requestInReview"));
   }
   if (request.status === "APPROVED") {
-    throw new Error("Esta solicitação já foi aprovada.");
+    throw new Error(errorText("requestApproved"));
   }
 
-  if (!input.file && !input.message?.trim()) {
-    throw new Error("Anexe um arquivo ou escreva uma resposta.");
+  // A file that went straight to storage counts as a file.
+  if (!input.file && !input.uploaded && !input.message?.trim()) {
+    throw new Error(errorText("requestEmpty"));
   }
 
   let documentId = request.documentId;
@@ -532,7 +534,7 @@ export async function reviewDocumentRequest(
       document: { select: { currentVersionId: true } },
     },
   });
-  if (!request) throw new NotFoundError("Solicitação não encontrada.");
+  if (!request) throw new NotFoundError(errorText("requestNotFound"));
 
   /**
    * The domain gate (PERM-2), checked here rather than only in the action.
@@ -673,7 +675,7 @@ export async function listRequestReviews(user: SessionUser, requestId: string) {
     where: { AND: [documentRequestScope(user), { id: requestId }] },
     select: { id: true },
   });
-  if (!request) throw new NotFoundError("Solicitação não encontrada.");
+  if (!request) throw new NotFoundError(errorText("requestNotFound"));
 
   const internal = !isSupplierRole(user.role);
 

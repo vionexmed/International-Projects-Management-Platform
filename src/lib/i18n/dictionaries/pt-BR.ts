@@ -1,3 +1,4 @@
+import { errorsPtBR } from "@/lib/i18n/dictionaries/errors.pt-BR";
 /**
  * Canonical dictionary. Its shape defines the `Dictionary` type that every
  * other locale must satisfy (partially — missing keys fall back to here).
@@ -410,5 +411,7 @@ export const ptBR = {
     capsLockOn: "Caps Lock está ativado.",
     invalidCredentials: "E-mail ou senha inválidos.",
     accountInactive: "Esta conta está inativa. Fale com o administrador.",
+    tooManyAttempts: "Muitas tentativas. Aguarde {minutes} minutos e tente novamente.",
   },
+  errors: errorsPtBR,
 } as const;

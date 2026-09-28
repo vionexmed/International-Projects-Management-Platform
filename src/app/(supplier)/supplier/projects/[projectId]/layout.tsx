@@ -2,6 +2,7 @@ import { requireSupplierUser } from "@/server/auth/current-user";
 import { requireSharedProjectAccess } from "@/server/authz/access";
 import { orNotFound } from "@/server/authz/rsc";
 import { PageHeader } from "@/components/app/page-header";
+import { trailLabels } from "@/components/app/trail-labels";
 import { SolidBadge } from "@/components/ui/badge";
 import { SupplierProjectTabs } from "@/features/supplier-portal/supplier-project-tabs";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -46,6 +47,7 @@ export default async function SupplierProjectLayout({
     <>
       <PageHeader
         breadcrumb={[{ label: dict.nav.projects, href: "/supplier/projects" }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
         title={project.name}
         status={<SolidBadge tone={status.tone}>{status.label}</SolidBadge>}
         properties={[

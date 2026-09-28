@@ -3,10 +3,8 @@ import Link from "next/link";
 import { requireInternalUser } from "@/server/auth/current-user";
 import { getPortfolioSummary, listUpcomingDeadlines } from "@/server/services/dashboard";
 import { countAttentionItems, listAttentionItems } from "@/server/services/attention";
-import { countUnread } from "@/server/services/notifications";
 import { PageHeader } from "@/components/app/page-header";
 import { AttentionList } from "@/components/app/attention-list";
-import { TabsNav } from "@/components/app/tabs-nav";
 import { ViewToolbar } from "@/components/app/view-toolbar";
 import { Section } from "@/components/ui/section";
 import { SummaryLine, type SummaryItem } from "@/components/ui/stat";
@@ -42,12 +40,11 @@ export default async function DashboardPage() {
   const user = await requireInternalUser();
   const locale = localeFromLanguage(user.language);
 
-  const [summary, attention, counts, deadlines, unread] = await Promise.all([
+  const [summary, attention, counts, deadlines] = await Promise.all([
     getPortfolioSummary(user),
     listAttentionItems(user, 6),
     countAttentionItems(user),
     listUpcomingDeadlines(user, 6),
-    countUnread(user.id),
   ]);
 
   /**
@@ -93,19 +90,11 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={greeting(user.name)} className="mb-0" />
-
       {/*
-        "Visão geral" is this page; "Notificações" is the same bell the rail
-        already links to — a real tab, not a client-side view switch, so the
-        unread count and the page itself stay the one source of truth.
+        No "Visão geral | Notificações" tabs: the second was the rail's bell
+        again, with the unread count a second time.
       */}
-      <TabsNav
-        items={[
-          { href: "/dashboard", label: "Visão geral", active: true },
-          { href: "/notifications", label: "Notificações", count: unread, active: false },
-        ]}
-      />
+      <PageHeader title={greeting(user.name)} className="mb-2" />
 
       <ViewToolbar
         left={<SummaryLine items={portfolio} />}

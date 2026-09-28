@@ -9,6 +9,7 @@ import { CommandPalette, SearchTrigger } from "@/components/app/command-palette"
 import { VionexLogo } from "@/components/app/logo";
 import { Topbar } from "@/components/app/topbar";
 import { DemoBanner } from "@/components/app/demo-banner";
+import { NavMemory } from "@/components/app/nav-memory";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label } from "@/lib/labels";
@@ -42,6 +43,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
   return (
     <>
       <DemoBanner />
+      {/* Lets breadcrumbs and back arrows return to a list exactly as it was left. */}
+      <NavMemory />
       <div className="flex min-h-dvh bg-canvas">
         <InternalSidebar
           user={user}

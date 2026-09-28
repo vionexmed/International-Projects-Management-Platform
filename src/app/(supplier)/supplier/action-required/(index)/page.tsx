@@ -4,7 +4,7 @@ import { ArrowRight, CircleCheck, Clock, FileText, ListChecks } from "lucide-rea
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { listSupplierQueue, type QueueItem } from "@/server/services/supplier-queue";
 import { PageHeader } from "@/components/app/page-header";
-import { TabsNav } from "@/components/app/tabs-nav";
+import { SegmentedToggle } from "@/components/app/view-toolbar";
 import { Panel } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { StatusBadge } from "@/components/ui/badge";
@@ -56,17 +56,17 @@ export default async function ActionRequiredPage({
   const visibleWaiting = waiting.filter(matches);
   const visibleDone = done.filter(matches);
 
-  const countFor = (key: string) =>
-    key === "all"
-      ? open.length
-      : open.filter((item) => (key === "document" ? item.type === "DOCUMENT" : item.type === "TASK"))
-          .length;
-
   return (
     <>
       <PageHeader title={dict.portal.requests.title} description={dict.portal.requests.subtitle} />
 
-      <TabsNav
+      {/*
+        The page's one option row: three short choices, so a segmented switch.
+        No counts on it — the open total is on the sidebar badge and the rows
+        themselves; repeating it here was the same number twice.
+      */}
+      <SegmentedToggle
+        label={dict.common.filters}
         className="mb-5"
         items={FILTERS.map((filter) => ({
           href:
@@ -74,7 +74,6 @@ export default async function ActionRequiredPage({
               ? "/supplier/action-required"
               : `/supplier/action-required?type=${filter.key}`,
           label: filter.label(dict),
-          count: countFor(filter.key),
           active: filter.key === active.key,
         }))}
       />
