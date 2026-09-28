@@ -38,6 +38,13 @@ const uploadLimitMb = Number(process.env.UPLOAD_MAX_SIZE_MB ?? 25);
 const actionBodyLimit = `${Math.max(2, Math.ceil(uploadLimitMb * 1.1))}mb` as const satisfies `${number}mb`;
 
 const nextConfig: NextConfig = {
+  /*
+   * Development only. The supplier portal is exercised from 127.0.0.1 so its
+   * session cookie stays apart from the internal one on localhost; without
+   * this, `next dev` blocks its scripts as cross-origin and the page never
+   * hydrates. Production ignores the setting.
+   */
+  allowedDevOrigins: ["127.0.0.1"],
   experimental: {
     serverActions: {
       bodySizeLimit: actionBodyLimit,

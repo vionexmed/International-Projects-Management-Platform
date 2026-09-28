@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CircleCheck } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Panel } from "@/components/ui/card";
+import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import type { AttentionItem } from "@/server/services/attention";
 import type { Locale } from "@/lib/i18n/config";
 import { daysUntil, formatDate } from "@/lib/format";
@@ -14,6 +15,16 @@ const KIND_LABEL: Record<AttentionItem["kind"], string> = {
   MILESTONE_DELAYED: "Marco atrasado",
   PROJECT_BLOCKED: "Projeto bloqueado",
   SHIPMENT_LATE: "Embarque atrasado",
+};
+
+/** The glyph each exception kind reads as — shape carries the state, `severity` its tone. */
+const KIND_ICON: Record<AttentionItem["kind"], StatusIconKind> = {
+  TASK_OVERDUE: "open",
+  REQUEST_OVERDUE: "waiting",
+  REVIEW_WAITING: "waiting",
+  MILESTONE_DELAYED: "milestone",
+  PROJECT_BLOCKED: "blocked",
+  SHIPMENT_LATE: "waiting",
 };
 
 /**
@@ -69,14 +80,12 @@ export function AttentionList({
             <li key={item.id}>
               <Link
                 href={item.href}
-                className="flex items-center gap-x-4 px-5 py-3 transition-colors hover:bg-subtle"
+                className="flex items-center gap-x-4 px-5 py-2.5 transition-colors hover:bg-subtle"
               >
-                <span
-                  className={cn(
-                    "size-[7px] shrink-0 rounded-full",
-                    item.severity === "risk" ? "bg-risk-dot" : "bg-warn-dot",
-                  )}
-                  aria-hidden
+                <StatusIcon
+                  kind={KIND_ICON[item.kind]}
+                  tone={item.severity === "risk" ? "risk" : "warn"}
+                  size={16}
                 />
 
                 <span className="min-w-0 flex-1">

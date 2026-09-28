@@ -65,7 +65,7 @@ export default async function DocumentsPage({
       {/* Same toolbar as `/projects` and `/tasks`: the filters sit beside the search. */}
       <div className="mb-5 flex flex-wrap items-center gap-x-2">
         <SearchInput placeholder="Buscar documentos…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
-        <FilterBar activeCount={activeFilters} className="contents">
+        <FilterBar activeCount={activeFilters}>
           <FilterSelect
             paramKey="project"
             label="Projeto"

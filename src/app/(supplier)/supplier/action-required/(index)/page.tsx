@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CircleCheck, Clock, FileText, ListChecks } from "lucide-react";
+import { Clock } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { listSupplierQueue, type QueueItem } from "@/server/services/supplier-queue";
 import { PageHeader } from "@/components/app/page-header";
 import { TabsNav } from "@/components/app/tabs-nav";
-import { Panel } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusBadge, StatusIcon } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  CellStack,
+  Table,
+  TableScroll,
+  TableShell,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+} from "@/components/ui/table";
 import { getDictionary, plural, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage, type Locale } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
@@ -80,21 +90,15 @@ export default async function ActionRequiredPage({
       />
 
       {visibleOpen.length === 0 ? (
-        <Panel>
+        <TableShell>
           <EmptyState
-            icon={CircleCheck}
+            icon={StatusIconEmpty}
             title={dict.portal.requests.empty}
             description={dict.portal.requests.emptyDescription}
           />
-        </Panel>
+        </TableShell>
       ) : (
-        <Panel>
-          <ul className="divide-y divide-line-soft">
-            {visibleOpen.map((item) => (
-              <QueueRow key={item.id} item={item} dict={dict} locale={locale} />
-            ))}
-          </ul>
-        </Panel>
+        <QueueTable items={visibleOpen} dict={dict} locale={locale} />
       )}
 
       {visibleWaiting.length > 0 ? (
@@ -103,21 +107,13 @@ export default async function ActionRequiredPage({
           description={dict.portal.requests.underReviewHint}
           className="mt-8"
         >
-          <ul className="divide-y divide-line-soft">
-            {visibleWaiting.map((item) => (
-              <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
-            ))}
-          </ul>
+          <QueueTable items={visibleWaiting} dict={dict} locale={locale} muted />
         </Section>
       ) : null}
 
       {visibleDone.length > 0 ? (
         <Section title={dict.portal.requests.done} className="mt-8">
-          <ul className="divide-y divide-line-soft">
-            {visibleDone.map((item) => (
-              <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted />
-            ))}
-          </ul>
+          <QueueTable items={visibleDone} dict={dict} locale={locale} muted />
         </Section>
       ) : null}
 
@@ -128,84 +124,107 @@ export default async function ActionRequiredPage({
   );
 }
 
+/** A stand-in glyph for the empty state, matching the queue's own iconography. */
+function StatusIconEmpty(props: { className?: string }) {
+  return <StatusIcon kind="done" size={20} className={props.className} />;
+}
+
 /**
- * One pendency. The type is stated plainly rather than implied by which page
- * you happened to open.
+ * Compact grid: status as a shape (not a pill), title and type, project, due
+ * date, and the request's own workflow badge when it has one.
  */
-function QueueRow({
-  item,
+function QueueTable({
+  items,
   dict,
   locale,
   muted = false,
 }: {
-  item: QueueItem;
+  items: QueueItem[];
   dict: Dictionary;
   locale: Locale;
   muted?: boolean;
 }) {
+  return (
+    <TableShell>
+      <TableScroll>
+        <Table>
+          <THead>
+            <TR>
+              <TH>{dict.common.name}</TH>
+              <TH>{dict.common.project}</TH>
+              <TH>{dict.common.dueDate}</TH>
+              <TH>{dict.common.status}</TH>
+              <TH className="w-10" />
+            </TR>
+          </THead>
+          <TBody>
+            {items.map((item) => (
+              <QueueRow key={item.id} item={item} dict={dict} locale={locale} muted={muted} />
+            ))}
+          </TBody>
+        </Table>
+      </TableScroll>
+    </TableShell>
+  );
+}
+
+function QueueRow({
+  item,
+  dict,
+  locale,
+  muted,
+}: {
+  item: QueueItem;
+  dict: Dictionary;
+  locale: Locale;
+  muted: boolean;
+}) {
   const remaining = daysUntil(item.dueDate);
   const overdue = remaining !== null && remaining < 0 && item.state === "open";
-  const Icon = item.type === "DOCUMENT" ? FileText : ListChecks;
   const status = item.requestStatus ? meta.request(item.requestStatus, dict) : null;
+  const typeLabel = item.type === "DOCUMENT" ? dict.portal.requests.typeDocument : dict.portal.requests.typeTask;
 
   return (
-    <li>
-      <Link
-        href={item.href}
-        className={cn(
-          "flex flex-wrap items-center gap-x-4 gap-y-2 py-4 transition-colors hover:bg-subtle",
-          muted ? "-mx-2 rounded-sm px-2" : "px-5",
-        )}
+    <TR interactive>
+      <TD>
+        <Link href={item.href} className="flex min-w-0 items-center gap-2.5 after:absolute after:inset-0 after:content-['']">
+          <StatusIcon kind={item.state} />
+          <CellStack
+            title={
+              <span className={cn(muted && "font-normal text-ink-soft")}>{item.title}</span>
+            }
+            subtitle={typeLabel}
+          />
+        </Link>
+      </TD>
+      <TD label={dict.common.project} className="text-meta text-ink-soft">
+        {item.project.name}
+      </TD>
+      <TD
+        label={dict.common.dueDate}
+        className={cn("text-meta whitespace-nowrap", overdue ? "font-medium text-risk" : "text-ink-soft")}
       >
-        <span
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-sm border",
-            muted ? "border-line bg-subtle text-muted" : "border-brand-line bg-brand-soft text-brand-strong",
-          )}
-        >
-          <Icon className="size-4" />
-        </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-body font-medium text-ink">{item.title}</span>
-          <span className="mt-0.5 block truncate text-meta text-muted">
-            {item.type === "DOCUMENT"
-              ? dict.portal.requests.typeDocument
-              : dict.portal.requests.typeTask}{" "}
-            · {item.project.name}
-          </span>
-        </span>
-
         {item.dueDate ? (
-          <span
-            className={cn(
-              "shrink-0 text-meta whitespace-nowrap",
-              overdue ? "font-medium text-risk" : "text-muted",
-            )}
-          >
-            {overdue ? (
-              dict.portal.requests.overdue
-            ) : remaining !== null && remaining <= 7 && item.state === "open" ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="size-3.5" />
-                {remaining === 0
-                  ? dict.portal.requests.dueToday
-                  : plural(dict.portal.requests.dueInDays, remaining)}
-              </span>
-            ) : (
-              formatDate(item.dueDate, locale)
-            )}
-          </span>
-        ) : null}
-
-        {status ? (
-          <span className="shrink-0">
-            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-          </span>
-        ) : null}
-
-        <ArrowRight className="size-4 shrink-0 text-faint" />
-      </Link>
-    </li>
+          overdue ? (
+            dict.portal.requests.overdue
+          ) : remaining !== null && remaining <= 7 && item.state === "open" ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="size-3.5" />
+              {remaining === 0 ? dict.portal.requests.dueToday : plural(dict.portal.requests.dueInDays, remaining)}
+            </span>
+          ) : (
+            formatDate(item.dueDate, locale)
+          )
+        ) : (
+          "—"
+        )}
+      </TD>
+      <TD label={dict.common.status}>
+        {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : "—"}
+      </TD>
+      <TD className="max-md:hidden text-right text-meta font-medium whitespace-nowrap text-brand-strong">
+        {item.type === "DOCUMENT" ? dict.portal.requests.openRequest : dict.portal.requests.openProject}
+      </TD>
+    </TR>
   );
 }

@@ -9,6 +9,12 @@ export type TabItem = {
   label: string;
   count?: number;
   active: boolean;
+  /**
+   * Optional icon before the label, as an element (`<ListChecks />`) — a
+   * component reference could not cross from a server page to this client
+   * component. Sized to 16 px here.
+   */
+  icon?: React.ReactNode;
 };
 
 /**
@@ -25,6 +31,8 @@ export type TabItem = {
  * off-screen to the right until someone happened to swipe. The active tab
  * now scrolls itself into view; `"nearest"` so a tab already visible never
  * jumps.
+ *
+ * Geometry: 40-px tabs, 13-px labels, a 2-px turquoise indicator.
  */
 export function TabsNav({
   items,
@@ -53,7 +61,7 @@ export function TabsNav({
         aria-hidden
       />
       <nav
-        className="scroll-slim -mb-px flex items-center gap-0.5 overflow-x-auto pr-10 sm:gap-1 sm:pr-0"
+        className="scroll-slim -mb-px flex items-center gap-0.5 overflow-x-auto pr-10 sm:pr-0"
         aria-label="Abas"
       >
         {sets.map((set, index) => (
@@ -61,32 +69,45 @@ export function TabsNav({
             {index > 0 && set.length > 0 ? (
               <span className="mx-2 h-4 w-px shrink-0 bg-line" aria-hidden />
             ) : null}
-            {set.map((item) => (
-              <Link
-                key={item.href}
-                ref={item.active ? activeRef : undefined}
-                href={item.href}
-                aria-current={item.active ? "page" : undefined}
-                className={cn(
-                  "inline-flex items-center gap-2 border-b-2 px-2.5 py-3 text-body sm:px-3 font-medium whitespace-nowrap transition-colors",
-                  item.active
-                    ? "border-brand-strong text-ink"
-                    : "border-transparent text-muted hover:border-line-strong hover:text-ink-soft",
-                )}
-              >
-                {item.label}
-                {item.count ? (
-                  <span
-                    className={cn(
-                      "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
-                      item.active ? "bg-brand-soft text-brand-deep" : "bg-raised text-muted",
-                    )}
-                  >
-                    {item.count}
-                  </span>
-                ) : null}
-              </Link>
-            ))}
+            {set.map((item) => {
+              return (
+                <Link
+                  key={item.href}
+                  ref={item.active ? activeRef : undefined}
+                  href={item.href}
+                  aria-current={item.active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-10 items-center gap-1.5 border-b-2 px-2.5 text-label font-medium whitespace-nowrap transition-colors sm:px-3",
+                    item.active
+                      ? "border-brand text-ink"
+                      : "border-transparent text-muted hover:border-line-strong hover:text-ink-soft",
+                  )}
+                >
+                  {item.icon ? (
+                    <span
+                      className={cn(
+                        "inline-flex shrink-0 [&_svg]:size-4",
+                        item.active ? "text-brand-strong" : "text-faint",
+                      )}
+                      aria-hidden
+                    >
+                      {item.icon}
+                    </span>
+                  ) : null}
+                  {item.label}
+                  {item.count ? (
+                    <span
+                      className={cn(
+                        "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
+                        item.active ? "bg-brand-soft text-brand-deep" : "bg-raised text-muted",
+                      )}
+                    >
+                      {item.count}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
           </React.Fragment>
         ))}
       </nav>

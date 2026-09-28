@@ -224,6 +224,8 @@ export const ptBR = {
       noDueDate: "Sem prazo definido",
       activeProjects: "Seus projetos",
       viewProjects: "Ver projetos",
+      yourTasksTitle: "Suas tarefas",
+      viewAllTasks: "Ver todas",
     },
     projects: {
       title: "Projetos",

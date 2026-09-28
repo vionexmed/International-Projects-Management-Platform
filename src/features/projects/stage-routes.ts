@@ -2,8 +2,8 @@ import type { StageKey } from "@/generated/prisma";
 
 /**
  * The four stage pages keep their own URLs (notifications and bookmarks point
- * at them); what changed is how they are reached. One "Etapas" tab in the
- * project bar, then the `StageSwitcher` to move between the stages.
+ * at them); they are reached from the "Plano" tab: each stage group in the
+ * plan links here, and the `StageSwitcher` moves between stages.
  */
 export const STAGE_ROUTES: { key: StageKey; segment: string; label: string }[] = [
   { key: "CLINICAL", segment: "clinical", label: "Clínico" },

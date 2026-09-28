@@ -96,7 +96,7 @@ export default async function TasksPage({
       />
       <div className="mb-5 flex flex-wrap items-center gap-x-2">
         <SearchInput placeholder="Buscar tarefas…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
-        <FilterBar activeCount={activeFilters} className="contents">
+        <FilterBar activeCount={activeFilters}>
           <FilterSelect
             paramKey="project"
             label="Projeto"

@@ -1,26 +1,17 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import type { StageKey } from "@/generated/prisma";
+import { FileText, LayoutDashboard, ListChecks, MessageSquare } from "lucide-react";
 import { TabsNav } from "@/components/app/tabs-nav";
-import { STAGE_SEGMENTS, stageSegment } from "@/features/projects/stage-routes";
+import { STAGE_SEGMENTS } from "@/features/projects/stage-routes";
 
 /**
- * Five tabs, not nine. The four stage pages share one "Etapas" tab (they have
- * the same shape, and four look-alike tabs made the bar read as a wall), and
- * the full history is reached from the overview's activity section instead of
- * a tab of its own. The URLs underneath did not change.
+ * Four tabs with icons. "Plano" is the task plan (`/tasks`, kept for old
+ * links) and also stays lit on the four stage pages, which are the plan's
+ * stage details. The full history keeps "Visão geral" lit: it is the long
+ * form of the overview's activity list.
  */
-export function ProjectTabs({
-  projectId,
-  currentStage,
-  className,
-}: {
-  projectId: string;
-  /** "Etapas" opens where the project is now. */
-  currentStage: StageKey;
-  className?: string;
-}) {
+export function ProjectTabs({ projectId, className }: { projectId: string; className?: string }) {
   const pathname = usePathname();
   const base = `/projects/${projectId}`;
   const at = (segment: string) => pathname === `${base}/${segment}`;
@@ -29,16 +20,20 @@ export function ProjectTabs({
     <TabsNav
       className={className}
       items={[
-        // The timeline is the overview's full history, so it keeps that tab lit.
-        { href: base, label: "Visão geral", active: pathname === base || at("timeline") },
         {
-          href: `${base}/${stageSegment(currentStage)}`,
-          label: "Etapas",
-          active: STAGE_SEGMENTS.some(at),
+          href: base,
+          label: "Visão geral",
+          icon: <LayoutDashboard />,
+          active: pathname === base || at("timeline"),
         },
-        { href: `${base}/documents`, label: "Documentos", active: at("documents") },
-        { href: `${base}/tasks`, label: "Tarefas", active: at("tasks") },
-        { href: `${base}/messages`, label: "Mensagens", active: at("messages") },
+        {
+          href: `${base}/tasks`,
+          label: "Plano",
+          icon: <ListChecks />,
+          active: at("tasks") || STAGE_SEGMENTS.some(at),
+        },
+        { href: `${base}/documents`, label: "Documentos", icon: <FileText />, active: at("documents") },
+        { href: `${base}/messages`, label: "Mensagens", icon: <MessageSquare />, active: at("messages") },
       ]}
     />
   );

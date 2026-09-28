@@ -1,11 +1,13 @@
 import type { ProgressStatus, Task, TaskPriority } from "@/generated/prisma";
-import { StatusBadge } from "@/components/ui/badge";
-import { CanvasEmpty, CanvasList, CanvasRow } from "@/features/projects/canvas-list";
+import { StatusIcon } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/avatar";
+import { DenseEmpty, DenseList, DenseRow } from "@/features/projects/work-block";
 import { deriveTaskStatus } from "@/lib/status";
 import { formatDateShort } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { meta } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@/server/services/tasks";
 
 export type StageTask = Pick<Task, "id" | "title" | "dueDate"> & {
@@ -19,7 +21,7 @@ export type StageTask = Pick<Task, "id" | "title" | "dueDate"> & {
 /** Only the priorities worth reading get a word; normal work stays blank. */
 const LOUD_PRIORITY: TaskPriority[] = ["HIGH", "URGENT"];
 
-/** Compact task list reused by the stage pages, on the canvas under a section title. */
+/** A stage's tasks as 40-px rows: status glyph, title, assignee, deadline. */
 export function StageTaskList({
   tasks,
   locale,
@@ -31,41 +33,39 @@ export function StageTaskList({
   dict: Dictionary;
   emptyTitle?: string;
 }) {
-  if (tasks.length === 0) return <CanvasEmpty>{emptyTitle}</CanvasEmpty>;
+  if (tasks.length === 0) return <DenseEmpty>{emptyTitle}</DenseEmpty>;
 
   return (
-    <CanvasList>
+    <DenseList>
       {tasks.map((task) => {
-        const status = meta.task(deriveTaskStatus(task.status as TaskStatus, task.dueDate), dict);
-        const priority = LOUD_PRIORITY.includes(task.priority)
-          ? meta.priority(task.priority, dict)
-          : null;
+        const derived = deriveTaskStatus(task.status as TaskStatus, task.dueDate);
+        const status = meta.task(derived, dict);
+        const late = derived === "OVERDUE";
+        const priority = LOUD_PRIORITY.includes(task.priority) ? meta.priority(task.priority, dict) : null;
 
         return (
-          <CanvasRow
+          <DenseRow
             key={task.id}
             href={`/tasks/${task.id}`}
+            leading={<StatusIcon status={derived} label={status.label} />}
             title={task.title}
-            subtitle={[
-              task.assignedTo?.name ?? "Sem responsável",
-              task.supplier ? `aguardando ${task.supplier.name}` : null,
-              task.dueDate ? formatDateShort(task.dueDate, locale) : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+            meta={task.supplier ? `aguardando ${task.supplier.name}` : null}
             trailing={
               <>
-                {priority ? (
-                  <span className="text-meta font-medium whitespace-nowrap text-risk">
-                    {priority.label}
+                {priority ? <span className="font-medium text-risk">{priority.label}</span> : null}
+                {task.assignedTo ? (
+                  <span title={task.assignedTo.name}>
+                    <UserAvatar name={task.assignedTo.name} size="xs" />
                   </span>
                 ) : null}
-                <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                <span className={cn("w-12 text-right tabular-nums", late ? "font-medium text-risk" : "text-ink-soft")}>
+                  {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
+                </span>
               </>
             }
           />
         );
       })}
-    </CanvasList>
+    </DenseList>
   );
 }

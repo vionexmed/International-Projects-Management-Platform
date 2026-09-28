@@ -3,8 +3,8 @@ import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
 import { orNotFound } from "@/server/authz/rsc";
-import { Panel, PropertyList } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
+import { PropertyList } from "@/components/ui/card";
+import { WorkBlock } from "@/features/projects/work-block";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShipmentDialog } from "@/features/projects/shipment-dialog";
 import { ShipmentProgress } from "@/features/projects/shipment-progress";
@@ -48,31 +48,28 @@ export default async function ProjectImportPage({
   ).length;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       {/*
         A project with parcelled production has more than one shipment, so the
-        button to add one stays in the section header — once a project had a
-        shipment, an add button that lived only in the empty state vanished.
+        add button stays in the block header, not only in the empty state.
       */}
-      <Section
+      <WorkBlock
         title="Embarques"
         count={shipments.length || undefined}
         action={editable ? <ShipmentDialog projectId={projectId} /> : null}
       >
         {shipments.length === 0 ? (
-          <Panel>
-            <EmptyState
-              icon={Ship}
-              title="Nenhum embarque cadastrado."
-              description="Adicione um embarque para acompanhar produção, trânsito e desembaraço."
-              compact
-            />
-          </Panel>
+          <EmptyState
+            icon={Ship}
+            title="Nenhum embarque cadastrado."
+            description="Adicione um embarque para acompanhar produção, trânsito e desembaraço."
+            compact
+          />
         ) : (
-          <div className="space-y-6">
+          <div className="divide-y divide-line">
             {shipments.map((shipment) => (
-              <Panel key={shipment.id}>
-                <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+              <div key={shipment.id}>
+                <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 px-4 pt-3">
                   {/* The current step is marked on the tracker below, not repeated here. */}
                   <h3 className="min-w-0 truncate text-title text-ink">
                     {shipment.reference ?? "Embarque"}
@@ -100,7 +97,7 @@ export default async function ProjectImportPage({
 
                 <ShipmentProgress current={shipment.stage} dict={dict} />
 
-                <div className="space-y-5 border-t border-line p-5">
+                <div className="space-y-4 border-t border-line-faint p-4">
                   <PropertyList
                     layout="grid"
                     items={[
@@ -134,37 +131,37 @@ export default async function ProjectImportPage({
                     </div>
                   ) : null}
                 </div>
-              </Panel>
+              </div>
             ))}
           </div>
         )}
-      </Section>
+      </WorkBlock>
 
-      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
-        <Section
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+        <WorkBlock
           title="Tarefas de importação"
           count={openTasks > 0 ? `${openTasks} em aberto` : undefined}
-          action={{ label: "Ver todas", href: `/projects/${projectId}/tasks?category=IMPORT` }}
+          action={{ label: "Abrir no plano", href: `/projects/${projectId}/tasks?category=IMPORT` }}
         >
           <StageTaskList tasks={tasks} locale={locale} dict={dict} />
-        </Section>
+        </WorkBlock>
 
-        <Section
+        <WorkBlock
           title="Documentos de importação"
           count={documents.length || undefined}
           action={{ label: "Ver todos", href: `/projects/${projectId}/documents?type=IMPORT` }}
         >
           <StageDocumentList documents={documents} locale={locale} dict={dict} />
-        </Section>
+        </WorkBlock>
       </div>
     </div>
   );
 }
 
-/** A free-text status note, in a well rather than another bordered box. */
+/** A free-text status note, on the tinted surface. */
 function Note({ label: noteLabel, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-raised/70 px-4 py-3">
+    <div className="rounded-sm border border-line-soft bg-subtle px-3 py-2.5">
       <p className="text-meta text-muted">{noteLabel}</p>
       <p className="mt-1 text-body text-ink-soft">{children}</p>
     </div>

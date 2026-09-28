@@ -3,8 +3,11 @@ import Link from "next/link";
 import { requireInternalUser } from "@/server/auth/current-user";
 import { getPortfolioSummary, listUpcomingDeadlines } from "@/server/services/dashboard";
 import { countAttentionItems, listAttentionItems } from "@/server/services/attention";
+import { countUnread } from "@/server/services/notifications";
 import { PageHeader } from "@/components/app/page-header";
 import { AttentionList } from "@/components/app/attention-list";
+import { TabsNav } from "@/components/app/tabs-nav";
+import { ViewToolbar } from "@/components/app/view-toolbar";
 import { Section } from "@/components/ui/section";
 import { SummaryLine, type SummaryItem } from "@/components/ui/stat";
 import { CanvasEmpty, CanvasList, CanvasRow } from "@/features/projects/canvas-list";
@@ -39,11 +42,12 @@ export default async function DashboardPage() {
   const user = await requireInternalUser();
   const locale = localeFromLanguage(user.language);
 
-  const [summary, attention, counts, deadlines] = await Promise.all([
+  const [summary, attention, counts, deadlines, unread] = await Promise.all([
     getPortfolioSummary(user),
     listAttentionItems(user, 6),
     countAttentionItems(user),
     listUpcomingDeadlines(user, 6),
+    countUnread(user.id),
   ]);
 
   /**
@@ -89,17 +93,31 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={greeting(user.name)}>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <SummaryLine items={portfolio} />
+      <PageHeader title={greeting(user.name)} className="mb-0" />
+
+      {/*
+        "Visão geral" is this page; "Notificações" is the same bell the rail
+        already links to — a real tab, not a client-side view switch, so the
+        unread count and the page itself stay the one source of truth.
+      */}
+      <TabsNav
+        items={[
+          { href: "/dashboard", label: "Visão geral", active: true },
+          { href: "/notifications", label: "Notificações", count: unread, active: false },
+        ]}
+      />
+
+      <ViewToolbar
+        left={<SummaryLine items={portfolio} />}
+        right={
           <Link
             href="/reports"
             className="text-meta text-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
           >
             Ver relatórios
           </Link>
-        </div>
-      </PageHeader>
+        }
+      />
 
       {/*
         Two columns on a desktop: the exceptions are the page's subject and
@@ -107,7 +125,7 @@ export default async function DashboardPage() {
         full-width column put titles on the far left and dates on the far
         right, with 800px of nothing in between.
       */}
-      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
+      <div className="mt-8 grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
         <Section
           title="Precisa da sua atenção"
           count={counts.total > 0 ? counts.total : undefined}

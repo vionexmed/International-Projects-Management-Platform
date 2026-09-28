@@ -6,12 +6,21 @@ import { cn } from "@/lib/utils";
  * the server (search params), so the client ships no table runtime.
  */
 
-/** Same radius and shadow as `Panel`, so a table and a panel side by side match. */
-export function TableShell({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+/**
+ * Flat surface with a hairline border — no shadow, since only overlays lift
+ * off the page. `flush` drops the radius and side borders for a grid that
+ * runs edge to edge inside a work page.
+ */
+export function TableShell({
+  className,
+  variant = "card",
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { variant?: "card" | "flush" }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-line bg-surface shadow-panel",
+        "overflow-hidden bg-surface",
+        variant === "flush" ? "border-y border-line" : "rounded-sm border border-line",
         className,
       )}
       {...props}
@@ -23,6 +32,8 @@ export function TableScroll({ className, ...props }: React.HTMLAttributes<HTMLDi
   return <div className={cn("scroll-slim w-full overflow-x-auto", className)} {...props} />;
 }
 
+export type TableDensity = "compact" | "comfortable";
+
 /**
  * On a phone a seven-column table is 1200px wide and every cell gets chopped
  * mid-word, so below `md` the rows collapse into stacked cards: the header is
@@ -32,23 +43,40 @@ export function TableScroll({ className, ...props }: React.HTMLAttributes<HTMLDi
  *
  * `stacked={false}` keeps the classic table for the rare grid that is narrow
  * enough to read as-is.
+ *
+ * `density="compact"` (default) is the dense grid: 40-px rows on a faint
+ * rule, a 38-px tinted header in 13/600. `comfortable` restores the older
+ * 48-px rows and overline headers. `columnRules` adds 1-px vertical rules.
+ * Both are marker classes the cells read through Tailwind `in-*` variants,
+ * because the cells render on the server and cannot read React context.
  */
 export function Table({
   className,
   stacked = true,
+  density = "compact",
+  columnRules = false,
   ...props
-}: React.TableHTMLAttributes<HTMLTableElement> & { stacked?: boolean }) {
+}: React.TableHTMLAttributes<HTMLTableElement> & {
+  stacked?: boolean;
+  density?: TableDensity;
+  columnRules?: boolean;
+}) {
   return (
     <table
-      className={cn("w-full border-collapse text-body", stacked && "table-stacked", className)}
+      className={cn(
+        "w-full border-collapse text-body",
+        stacked && "table-stacked",
+        density === "comfortable" && "table-comfortable",
+        columnRules && "table-rules",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-/** No tinted header band — the overline labels are enough to mark the row. */
 export function THead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("bg-transparent", className)} {...props} />;
+  return <thead className={className} {...props} />;
 }
 
 export function TBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -63,7 +91,7 @@ export function TR({
   return (
     <tr
       className={cn(
-        "border-b border-line-soft last:border-b-0",
+        "border-b border-line-faint last:border-b-0 in-[.table-comfortable]:border-line-soft",
         // `relative` lets a single cell link stretch across the whole row.
         interactive && "relative transition-colors hover:bg-subtle",
         className,
@@ -72,6 +100,10 @@ export function TR({
     />
   );
 }
+
+/* Shared by TH and TD: optional vertical rules between columns. */
+const COLUMN_RULE =
+  "in-[.table-rules]:border-r in-[.table-rules]:border-line-soft in-[.table-rules]:last:border-r-0";
 
 export function TH({
   className,
@@ -82,7 +114,10 @@ export function TH({
     <th
       scope="col"
       className={cn(
-        "table-label h-9 border-b border-line bg-transparent px-4 whitespace-nowrap",
+        "h-[38px] border-b border-line bg-subtle px-3 text-label font-semibold whitespace-nowrap text-ink-soft first:pl-4 last:pr-4",
+        // The older overline header, kept for `density="comfortable"`.
+        "in-[.table-comfortable]:h-9 in-[.table-comfortable]:bg-transparent in-[.table-comfortable]:px-4 in-[.table-comfortable]:text-[11px] in-[.table-comfortable]:font-medium in-[.table-comfortable]:tracking-[0.06em] in-[.table-comfortable]:text-muted in-[.table-comfortable]:uppercase",
+        COLUMN_RULE,
         align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left",
         className,
       )}
@@ -92,9 +127,10 @@ export function TH({
 }
 
 /**
- * Rows are 48px and single-line: every labelled (non-primary) cell is
- * `nowrap`, so a name or a stage never breaks onto a second line. The primary
- * cell — the one without a `label` — is the only one allowed to wrap.
+ * Rows are 40px (48px when comfortable) and single-line: every labelled
+ * (non-primary) cell is `nowrap`, so a name or a stage never breaks onto a
+ * second line. The primary cell — the one without a `label` — is the only one
+ * allowed to wrap; a two-line primary cell simply makes its row taller.
  *
  * `label` is the column name this cell belongs to. It is invisible on a
  * desktop — the header row already says it — and becomes the cell's own label
@@ -117,13 +153,16 @@ export function TD({
     <td
       data-label={label}
       className={cn(
-        "h-12 px-4 py-2 align-middle text-body text-ink-soft",
+        "h-10 px-3 py-1.5 align-middle text-body text-ink-soft first:pl-4 last:pr-4",
+        "in-[.table-comfortable]:h-12 in-[.table-comfortable]:px-4 in-[.table-comfortable]:py-2",
+        COLUMN_RULE,
         label !== undefined && "whitespace-nowrap",
         align === "right" && "text-right tabular-nums max-md:in-[.table-stacked]:text-left",
         // Once stacked into a card the row has room to wrap and owns the
         // padding. Utilities, not the `.table-stacked` rules in globals.css,
         // because those sit in the components layer and lose to utilities.
-        "max-md:in-[.table-stacked]:h-auto max-md:in-[.table-stacked]:p-0 max-md:in-[.table-stacked]:whitespace-normal",
+        // `p-0!` also has to beat the `first:pl-4`/`last:pr-4` edge padding.
+        "max-md:in-[.table-stacked]:h-auto max-md:in-[.table-stacked]:border-r-0 max-md:in-[.table-stacked]:p-0! max-md:in-[.table-stacked]:whitespace-normal",
         className,
       )}
       {...props}

@@ -4,8 +4,7 @@ import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { listDocumentRequests, type RequestStatus } from "@/server/services/documents";
 import { db } from "@/server/db";
-import { Panel } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
+import { WorkBlock } from "@/features/projects/work-block";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CellStack, Table, TableScroll, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -84,9 +83,9 @@ export default async function ProjectRegulatoryPage({
   }));
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       {/* Document requests to the supplier */}
-      <Section
+      <WorkBlock
         title="Solicitações ao fornecedor"
         count={openRequests > 0 ? `${openRequests} ${openRequests === 1 ? "aberta" : "abertas"}` : undefined}
         description={`Documentos pedidos a ${project.supplier.name} pelo portal.`}
@@ -96,92 +95,90 @@ export default async function ProjectRegulatoryPage({
           ) : null
         }
       >
-        <Panel>
-          {requests.length === 0 ? (
-            <EmptyState
-              icon={Inbox}
-              title="Nenhuma solicitação enviada."
-              description="Solicite um documento para que ele apareça no portal do fornecedor."
-              compact
-            />
-          ) : (
-            <TableScroll>
-              <Table>
-                <THead>
-                  {/* Same distribution as the list pages: the name takes the slack, dates close the row. */}
-                  <TR>
-                    <TH className="min-w-64">Documento</TH>
-                    <TH className="w-px">Solicitado por</TH>
-                    <TH className="w-px">Status</TH>
-                    <TH className="w-px" align="right">Prazo</TH>
-                    <TH className="w-px" />
-                  </TR>
-                </THead>
-                <TBody>
-                  {requests.map((request) => {
-                    const status = meta.request(request.status as RequestStatus, dict);
-                    const remaining = daysUntil(request.dueDate);
-                    const late =
-                      remaining !== null &&
-                      remaining < 0 &&
-                      ["PENDING", "REJECTED"].includes(request.status);
+        {requests.length === 0 ? (
+          <EmptyState
+            icon={Inbox}
+            title="Nenhuma solicitação enviada."
+            description="Solicite um documento para que ele apareça no portal do fornecedor."
+            compact
+          />
+        ) : (
+          <TableScroll>
+            <Table columnRules>
+              <THead>
+                {/* Same distribution as the list pages: the name takes the slack, dates close the row. */}
+                <TR>
+                  <TH className="min-w-64">Documento</TH>
+                  <TH className="w-px">Solicitado por</TH>
+                  <TH className="w-px">Status</TH>
+                  <TH className="w-px" align="right">Prazo</TH>
+                  <TH className="w-px" />
+                </TR>
+              </THead>
+              <TBody>
+                {requests.map((request) => {
+                  const status = meta.request(request.status as RequestStatus, dict);
+                  const remaining = daysUntil(request.dueDate);
+                  const late =
+                    remaining !== null &&
+                    remaining < 0 &&
+                    ["PENDING", "REJECTED"].includes(request.status);
 
-                    return (
-                      <TR key={request.id}>
-                        <TD>
-                          <CellStack title={request.title} subtitle={request.document?.name} />
-                        </TD>
-                        <TD label="Solicitado por">{request.requestedBy.name}</TD>
-                        <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                        </TD>
-                        <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
-                          {request.dueDate ? formatDateShort(request.dueDate, locale) : null}
-                          {late ? " · atrasado" : ""}
-                        </TD>
-                        <TD className="text-right whitespace-nowrap max-md:mt-3">
-                          {canReviewDocumentType(user.role, request.type) &&
-                          ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
-                            <ReviewRequestDialog
-                              requestId={request.id}
-                              projectId={projectId}
-                              title={request.title}
-                              supplierName={request.supplier.name}
-                              status={status.label}
-                              submittedAt={
-                                request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
-                              }
-                              dueDate={request.dueDate ? formatDate(request.dueDate, locale) : null}
-                              rounds={(reviewsByRequest.get(request.id) ?? []).map((review) => ({
-                                ...review,
-                                when: formatDateTime(review.createdAt, locale),
-                              }))}
-                              submission={
-                                request.document?.currentVersion
-                                  ? {
-                                      versionId: request.document.currentVersion.id,
-                                      fileName: request.document.currentVersion.fileName,
-                                      fileSize: request.document.currentVersion.fileSize,
-                                      version: request.document.currentVersion.version,
-                                      uploadedAt: formatDateTime(
-                                        request.document.currentVersion.createdAt,
-                                        locale,
-                                      ),
-                                    }
-                                  : null
-                              }
-                            />
-                          ) : null}
-                        </TD>
-                      </TR>
-                    );
-                  })}
-                </TBody>
-              </Table>
-            </TableScroll>
-          )}
-        </Panel>
-      </Section>
+                  return (
+                    <TR key={request.id}>
+                      <TD>
+                        <CellStack title={request.title} subtitle={request.document?.name} />
+                      </TD>
+                      <TD label="Solicitado por">{request.requestedBy.name}</TD>
+                      <TD label="Status">
+                        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                      </TD>
+                      <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
+                        {request.dueDate ? formatDateShort(request.dueDate, locale) : null}
+                        {late ? " · atrasado" : ""}
+                      </TD>
+                      <TD className="text-right whitespace-nowrap max-md:mt-3">
+                        {canReviewDocumentType(user.role, request.type) &&
+                        ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
+                          <ReviewRequestDialog
+                            requestId={request.id}
+                            projectId={projectId}
+                            title={request.title}
+                            supplierName={request.supplier.name}
+                            status={status.label}
+                            submittedAt={
+                              request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
+                            }
+                            dueDate={request.dueDate ? formatDate(request.dueDate, locale) : null}
+                            rounds={(reviewsByRequest.get(request.id) ?? []).map((review) => ({
+                              ...review,
+                              when: formatDateTime(review.createdAt, locale),
+                            }))}
+                            submission={
+                              request.document?.currentVersion
+                                ? {
+                                    versionId: request.document.currentVersion.id,
+                                    fileName: request.document.currentVersion.fileName,
+                                    fileSize: request.document.currentVersion.fileSize,
+                                    version: request.document.currentVersion.version,
+                                    uploadedAt: formatDateTime(
+                                      request.document.currentVersion.createdAt,
+                                      locale,
+                                    ),
+                                  }
+                                : null
+                            }
+                          />
+                        ) : null}
+                      </TD>
+                    </TR>
+                  );
+                })}
+              </TBody>
+            </Table>
+          </TableScroll>
+        )}
+      </WorkBlock>
 
       {/*
         Regulatory checklist — real tasks (category REGULATORY) since Fase 3
@@ -190,7 +187,7 @@ export default async function ProjectRegulatoryPage({
         plus `authority`/`requestedFrom`: the two fields a task only carries
         for this category.
       */}
-      <Section
+      <WorkBlock
         title="Itens regulatórios"
         count={items.length > 0 ? `${approved} de ${items.length} concluídos` : undefined}
         description={
@@ -204,67 +201,65 @@ export default async function ProjectRegulatoryPage({
           ) : null
         }
       >
-        <Panel>
-          {items.length === 0 ? (
-            <EmptyState icon={ShieldCheck} title="Nenhum item regulatório cadastrado." compact />
-          ) : (
-            <TableScroll>
-              <Table>
-                <THead>
-                  <TR>
-                    <TH className="min-w-64">Item</TH>
-                    <TH className="w-px">Solicitado a</TH>
-                    <TH className="w-px">Responsável</TH>
-                    <TH className="w-px">Status</TH>
-                    <TH className="w-px" align="right">Prazo</TH>
+        {items.length === 0 ? (
+          <EmptyState icon={ShieldCheck} title="Nenhum item regulatório cadastrado." compact />
+        ) : (
+          <TableScroll>
+            <Table columnRules>
+              <THead>
+                <TR>
+                  <TH className="min-w-64">Item</TH>
+                  <TH className="w-px">Solicitado a</TH>
+                  <TH className="w-px">Responsável</TH>
+                  <TH className="w-px">Status</TH>
+                  <TH className="w-px" align="right">Prazo</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {items.map((item) => (
+                  <TR key={item.id}>
+                    <TD>
+                      <CellStack
+                        title={
+                          <Link href={`/tasks/${item.id}`} className="hover:underline">
+                            {item.title}
+                          </Link>
+                        }
+                        subtitle={item.authority !== authority ? item.authority : null}
+                      />
+                    </TD>
+                    <TD label="Solicitado a">{item.requestedFrom}</TD>
+                    <TD label="Responsável">{item.assignedTo?.name}</TD>
+                    <TD label="Status">
+                      <StatusMenu
+                        action={updateRegulatoryItemAction}
+                        hidden={{ projectId, itemId: item.id }}
+                        name="status"
+                        value={item.status}
+                        options={statusOptions}
+                        ariaLabel={`Status de ${item.title}`}
+                        readOnly={!canManage}
+                      />
+                    </TD>
+                    <TD label="Prazo" align="right">
+                      {item.dueDate ? formatDateShort(item.dueDate, locale) : null}
+                    </TD>
                   </TR>
-                </THead>
-                <TBody>
-                  {items.map((item) => (
-                    <TR key={item.id}>
-                      <TD>
-                        <CellStack
-                          title={
-                            <Link href={`/tasks/${item.id}`} className="hover:underline">
-                              {item.title}
-                            </Link>
-                          }
-                          subtitle={item.authority !== authority ? item.authority : null}
-                        />
-                      </TD>
-                      <TD label="Solicitado a">{item.requestedFrom}</TD>
-                      <TD label="Responsável">{item.assignedTo?.name}</TD>
-                      <TD label="Status">
-                        <StatusMenu
-                          action={updateRegulatoryItemAction}
-                          hidden={{ projectId, itemId: item.id }}
-                          name="status"
-                          value={item.status}
-                          options={statusOptions}
-                          ariaLabel={`Status de ${item.title}`}
-                          readOnly={!canManage}
-                        />
-                      </TD>
-                      <TD label="Prazo" align="right">
-                        {item.dueDate ? formatDateShort(item.dueDate, locale) : null}
-                      </TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-            </TableScroll>
-          )}
-        </Panel>
-      </Section>
+                ))}
+              </TBody>
+            </Table>
+          </TableScroll>
+        )}
+      </WorkBlock>
 
-      <Section
+      <WorkBlock
         title="Documentos regulatórios"
         count={documents.length || undefined}
         description="Regulatórios, certificados e instruções de uso."
         action={{ label: "Ver todos", href: `/projects/${projectId}/documents` }}
       >
         <StageDocumentList documents={documents} locale={locale} dict={dict} />
-      </Section>
+      </WorkBlock>
     </div>
   );
 }

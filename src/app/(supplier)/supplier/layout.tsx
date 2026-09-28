@@ -1,11 +1,8 @@
-import { Bell, Building2 } from "lucide-react";
-import Link from "next/link";
 import { can, requireSupplierUser } from "@/server/auth/current-user";
 import { countUnread } from "@/server/services/notifications";
 import { countUnreadMessages } from "@/server/services/messages";
 import { countSupplierQueue } from "@/server/services/supplier-queue";
-import { SupplierSidebar } from "@/components/app/supplier-sidebar";
-import { SupplierMobileNav } from "@/components/app/supplier-mobile-nav";
+import { SupplierTopNav } from "@/components/app/supplier-topnav";
 import { CommandPalette } from "@/components/app/command-palette";
 import { DemoBanner } from "@/components/app/demo-banner";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -36,65 +33,35 @@ export default async function SupplierLayout({ children }: { children: React.Rea
   return (
     <>
       <DemoBanner />
-    <div className="flex min-h-dvh bg-canvas">
-      <SupplierSidebar
-        user={user}
-        dict={dict}
-        locale={locale}
-        actionRequiredCount={actionRequired}
-        messageCount={unreadMessages}
-      />
+      <div className="flex min-h-dvh flex-col bg-canvas">
+        <SupplierTopNav
+          user={user}
+          dict={dict}
+          locale={locale}
+          actionRequiredCount={actionRequired}
+          messageCount={unreadMessages}
+          notificationCount={notifications}
+          manageUsers={can(user, "portal:manage-users")}
+        />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 sm:gap-4 sm:px-5 lg:px-8">
-          <SupplierMobileNav
-            dict={dict}
-            locale={locale}
-            manageUsers={can(user, "portal:manage-users")}
-            actionRequiredCount={actionRequired}
-            messageCount={unreadMessages}
-          />
-
-          <CommandPalette
-            labels={{
-              placeholder: dict.common.search,
-              empty: dict.common.noResults,
-              hint: dict.portal.projects.searchPlaceholder,
-              groups: {
-                project: dict.common.project,
-                task: dict.nav.actionRequired,
-                document: dict.common.type,
-                supplier: dict.common.supplier,
-              },
-            }}
-          />
-
-          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
-            <Link
-              href="/supplier/notifications"
-              aria-label={dict.nav.notifications}
-              className="relative inline-flex size-9 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink"
-            >
-              <Bell className="size-[18px]" />
-              {notifications > 0 ? (
-                <span
-                  className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand ring-2 ring-surface"
-                  aria-hidden
-                />
-              ) : null}
-            </Link>
-
-            <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
-
-            <span className="inline-flex min-w-0 items-center gap-2 rounded-md border border-line px-2.5 py-2 text-meta font-medium text-ink sm:gap-2.5 sm:px-3">
-              <Building2 className="size-4 shrink-0 text-muted" />
-              <span className="truncate">{user.supplierName}</span>
-            </span>
-          </div>
-        </header>
+        {/* One palette for the whole portal; the header's search icon opens it. */}
+        <CommandPalette
+          trigger="none"
+          labels={{
+            placeholder: dict.common.search,
+            empty: dict.common.noResults,
+            hint: dict.portal.projects.searchPlaceholder,
+            groups: {
+              project: dict.common.project,
+              task: dict.nav.actionRequired,
+              document: dict.common.type,
+              supplier: dict.common.supplier,
+            },
+          }}
+        />
 
         <main className="flex-1 px-4 py-7 sm:px-5 sm:py-8 lg:px-8">
-          <div className="mx-auto w-full max-w-[1160px]">{children}</div>
+          <div className="mx-auto w-full max-w-[1120px]">{children}</div>
         </main>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-5 text-meta text-muted sm:px-5 lg:px-8">
@@ -107,7 +74,6 @@ export default async function SupplierLayout({ children }: { children: React.Rea
             projects@vionex.com
           </a>
         </footer>
-      </div>
       </div>
     </>
   );

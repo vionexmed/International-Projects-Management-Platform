@@ -9,8 +9,8 @@ import { extendTailwindMerge } from "tailwind-merge";
  */
 const twMerge = extendTailwindMerge({
   extend: {
-    theme: { text: ["page", "section", "title", "body", "meta", "kpi", "kpi-sm"] },
-    classGroups: { shadow: [{ shadow: ["panel"] }] },
+    theme: { text: ["page", "section", "title", "body", "label", "meta", "kpi", "kpi-sm"] },
+    classGroups: { shadow: [{ shadow: ["panel", "overlay", "dialog", "sheet"] }] },
   },
 });
 

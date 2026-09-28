@@ -2,10 +2,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const PANEL_VARIANT = {
-  default: "border-line bg-surface shadow-panel",
+  default: "border-line bg-surface",
   /** The one block a page is about — the supplier's action card. */
-  focal: "border-brand-line bg-brand-soft/60 shadow-panel",
-  /** A blocker or overdue note. Tinted, unshadowed, tighter padding built in. */
+  focal: "border-brand-line bg-brand-soft/60",
+  /** A blocker or overdue note. Tinted, tighter padding built in. */
   callout: "px-4 py-3",
 } as const;
 
@@ -17,8 +17,8 @@ const CALLOUT_TONE = {
 export type PanelVariant = keyof typeof PANEL_VARIANT;
 
 /**
- * A bordered surface on the darker canvas. The faint shadow is what lets two
- * panels 24px apart read as two things instead of one sheet.
+ * A flat, hairline-bordered surface on the darker canvas — the canvas step
+ * and the border are what set two panels apart; shadows are for overlays.
  *
  * Panels are for tables, forms and a page's focal card — short lists and
  * summaries sit on the canvas under a `Section` instead, so a page is not a
@@ -36,7 +36,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "rounded-lg border",
+        "rounded-sm border",
         PANEL_VARIANT[variant],
         variant === "callout" && CALLOUT_TONE[tone],
         className,

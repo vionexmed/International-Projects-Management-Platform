@@ -7,6 +7,7 @@ import {
   countProjectsByStatus,
   listProjectCountries,
   listProjects,
+  type ProjectStageSummary,
   type ProjectStatus,
 } from "@/server/services/projects";
 import { listSupplierOptions } from "@/server/services/suppliers";
@@ -15,8 +16,9 @@ import { PageHeader } from "@/components/app/page-header";
 import { TabsNav } from "@/components/app/tabs-nav";
 import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress";
+import { StatCard } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   CellStack,
@@ -32,10 +34,12 @@ import {
 } from "@/components/ui/table";
 import { NewProjectDialog } from "@/features/projects/new-project-dialog";
 import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta } from "@/lib/labels";
-import { formatDate } from "@/lib/format";
+import { formatDate, daysUntil } from "@/lib/format";
+import { initials, cn } from "@/lib/utils";
+import type { Tone } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Projetos" };
 
@@ -59,6 +63,45 @@ const TABS: {
   { key: "COMPLETED", label: "Concluídos", status: "COMPLETED" },
   { key: "ARCHIVED", label: "Arquivados", archived: true },
 ];
+
+/** Shape, not colour, carries the state — `tone` from `meta.project` supplies the colour. */
+const STATUS_ICON: Record<ProjectStatus, StatusIconKind> = {
+  ON_TRACK: "in-progress",
+  AT_RISK: "waiting",
+  BLOCKED: "blocked",
+  COMPLETED: "done",
+};
+
+/** Mirrors `badge.tsx`'s private text-tone table so the label beside the icon reads the same. */
+const TONE_TEXT: Record<Tone, string> = {
+  ok: "text-ink-soft",
+  warn: "text-warn",
+  risk: "text-risk",
+  info: "text-info",
+  neutral: "text-muted",
+};
+
+const STAGE_TONE: Record<ProjectStageSummary["status"], string> = {
+  NOT_STARTED: "bg-line-soft",
+  IN_PROGRESS: "bg-brand",
+  COMPLETED: "bg-ok-dot",
+  BLOCKED: "bg-risk-dot",
+};
+
+/** The row's "Etapas" cell: four small segments, one per stage, coloured by its own progress. */
+function StageStrip({ stages, dict }: { stages: ProjectStageSummary[]; dict: Dictionary }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {stages.map((stage) => (
+        <span
+          key={stage.key}
+          title={`${label.stageKey(stage.key, dict)} · ${stage.progress}%`}
+          className={cn("h-1.5 w-4 shrink-0 rounded-full", STAGE_TONE[stage.status])}
+        />
+      ))}
+    </span>
+  );
+}
 
 export default async function ProjectsPage({
   searchParams,
@@ -105,6 +148,15 @@ export default async function ProjectsPage({
     return query ? `/projects?${query}` : "/projects";
   };
 
+  /** The strip above the table: five grouped counts, each a door into its own tab. */
+  const kpis: { key: string; label: string; value: number; tone?: Tone }[] = [
+    { key: "ALL", label: "Ativos", value: counts.ALL },
+    { key: "ON_TRACK", label: "Em dia", value: counts.ON_TRACK },
+    { key: "AT_RISK", label: "Em risco", value: counts.AT_RISK, tone: "warn" },
+    { key: "BLOCKED", label: "Bloqueados", value: counts.BLOCKED, tone: "risk" },
+    { key: "COMPLETED", label: "Concluídos", value: counts.COMPLETED },
+  ];
+
   return (
     <>
       <PageHeader
@@ -115,6 +167,18 @@ export default async function ProjectsPage({
           ) : null
         }
       />
+
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
+        {kpis.map((kpi) => (
+          <StatCard
+            key={kpi.key}
+            label={kpi.label}
+            value={kpi.value}
+            href={buildTabHref(kpi.key)}
+            deltaTone={kpi.tone}
+          />
+        ))}
+      </div>
 
       {/*
         Tabs on their own line, search and filters under them. Seven tabs plus
@@ -131,8 +195,8 @@ export default async function ProjectsPage({
         }))}
       />
       <div className="mb-5 flex flex-wrap items-center gap-x-2">
-        <SearchInput placeholder="Buscar projetos…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
-        <FilterBar activeCount={activeFilters} className="contents">
+        <SearchInput placeholder="Buscar projetos…" className="min-w-0 flex-1 sm:w-60 sm:flex-none" />
+        <FilterBar activeCount={activeFilters}>
           <FilterSelect
             paramKey="supplier"
             label="Fornecedor"
@@ -159,7 +223,7 @@ export default async function ProjectsPage({
         </FilterBar>
       </div>
 
-      <TableShell>
+      <TableShell variant="flush">
         {result.items.length === 0 ? (
           <EmptyState
             icon={FolderKanban}
@@ -176,40 +240,53 @@ export default async function ProjectsPage({
               <Table>
                 <THead>
                   <TR>
-                    {/*
-                      The name column takes the slack; every other column is
-                      as wide as its content. Six columns — the supplier moved
-                      under the project name, which it qualifies.
-                    */}
-                    <TH className="min-w-64">Projeto</TH>
-                    <TH className="w-px">Etapa</TH>
-                    <TH className="w-px">Responsável</TH>
+                    <TH className="min-w-64">Nome</TH>
                     <TH className="w-px">Status</TH>
+                    <TH className="w-px">Etapa atual</TH>
                     <TH className="w-px">Progresso</TH>
+                    <TH className="w-px">Etapas</TH>
                     <TH className="w-px" align="right">Lançamento</TH>
+                    <TH className="w-px">Saúde</TH>
                     {activeTab.archived && canArchive ? <TH className="w-px" /> : null}
                   </TR>
                 </THead>
                 <TBody>
                   {result.items.map((project) => {
                     const status = meta.project(project.status, dict);
+                    const remaining = daysUntil(project.nextMilestone?.dueDate ?? null);
+                    const milestoneLate = project.nextMilestone !== null && remaining !== null && remaining < 0;
+
                     return (
                       <TR key={project.id} interactive>
                         <TD>
                           <Link
                             href={`/projects/${project.id}`}
-                            className="block after:absolute after:inset-0 after:content-['']"
+                            className="flex items-center gap-2.5 after:absolute after:inset-0 after:content-['']"
                           >
+                            <span
+                              className="flex size-6 shrink-0 items-center justify-center rounded-xs bg-brand-soft text-[10px] font-semibold text-brand-deep"
+                              aria-hidden
+                            >
+                              {initials(project.name)}
+                            </span>
                             <CellStack
                               title={project.name}
-                              subtitle={`${project.projectCode} · ${project.supplier.name}, ${project.supplier.country}`}
+                              subtitle={`${project.projectCode} · ${project.supplier.name}`}
                             />
                           </Link>
                         </TD>
-                        <TD label="Etapa">{label.stageKey(project.currentStage, dict)}</TD>
-                        <TD label="Responsável">{project.owner.name}</TD>
                         <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <StatusIcon kind={STATUS_ICON[project.status]} tone={status.tone} />
+                            <span className={cn(status.tone !== "neutral" && TONE_TEXT[status.tone])}>
+                              {status.label}
+                            </span>
+                          </span>
+                        </TD>
+                        <TD label="Etapa atual">
+                          <span className="inline-flex items-center rounded-xs bg-brand-soft px-2 py-1 text-xs font-medium whitespace-nowrap text-brand-deep">
+                            {label.stageKey(project.currentStage, dict)}
+                          </span>
                         </TD>
                         <TD label="Progresso">
                           {/* Number beside the bar, not above it: one line, like every other cell. */}
@@ -220,8 +297,22 @@ export default async function ProjectsPage({
                             </span>
                           </div>
                         </TD>
+                        <TD label="Etapas">
+                          <StageStrip stages={project.stages} dict={dict} />
+                        </TD>
                         <TD label="Lançamento" align="right">
                           {formatDate(project.targetLaunchDate, locale)}
+                        </TD>
+                        <TD label="Saúde">
+                          {milestoneLate ? (
+                            <span className="font-medium whitespace-nowrap text-risk">
+                              marco atrasado · {Math.abs(remaining ?? 0)}d
+                            </span>
+                          ) : project.status === "AT_RISK" ? (
+                            <span className="font-medium whitespace-nowrap text-warn">em risco</span>
+                          ) : project.status === "BLOCKED" ? (
+                            <span className="font-medium whitespace-nowrap text-risk">bloqueado</span>
+                          ) : null}
                         </TD>
                         {activeTab.archived && canArchive ? (
                           <TD className="text-right max-md:hidden">

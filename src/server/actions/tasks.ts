@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requirePermission } from "@/server/auth/current-user";
 import { addTaskComment, createTask, updateTask } from "@/server/services/tasks";
+import { listInternalUserOptions } from "@/server/services/users";
 import {
   optionalDate,
   optionalText,
@@ -100,6 +101,67 @@ export async function setTaskStatusAction(
     );
 
     await updateTask(user, input.taskId, { status: input.status });
+
+    revalidatePath("/tasks");
+    revalidatePath(`/tasks/${input.taskId}`);
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
+ * Single-field due-date change for the plan's inline date cell.
+ *
+ * `updateTaskAction` cannot serve a one-field edit: its optional fields parse
+ * a missing value as `null`, so posting only the date would clear the
+ * description and the assignee. Same permission, same scoped service call.
+ */
+export async function setTaskDueDateAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("task:update");
+    const input = parseForm(
+      z.object({ taskId: z.string().min(1), dueDate: optionalDate }),
+      formData,
+    );
+
+    await updateTask(user, input.taskId, { dueDate: input.dueDate });
+
+    revalidatePath("/tasks");
+    revalidatePath(`/tasks/${input.taskId}`);
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** Single-field assignee change for the plan's inline "Responsável" cell. */
+export async function setTaskAssigneeAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("task:update");
+    const input = parseForm(
+      z.object({ taskId: z.string().min(1), assignedToId: optionalText }),
+      formData,
+    );
+
+    // Only an active internal user of the caller's organisation can own work;
+    // the id arrives from the browser, so it is checked, not trusted.
+    if (input.assignedToId) {
+      const owners = await listInternalUserOptions(user);
+      if (!owners.some((owner) => owner.id === input.assignedToId)) {
+        return { error: "Responsável inválido." };
+      }
+    }
+
+    await updateTask(user, input.taskId, { assignedToId: input.assignedToId });
 
     revalidatePath("/tasks");
     revalidatePath(`/tasks/${input.taskId}`);

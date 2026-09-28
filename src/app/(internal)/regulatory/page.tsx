@@ -17,8 +17,9 @@ import { Section } from "@/components/ui/section";
 import { TabsNav } from "@/components/app/tabs-nav";
 import { Pagination } from "@/components/app/pagination";
 import { Panel } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { Tone } from "@/lib/status";
 import {
   CellStack,
   Table,
@@ -50,6 +51,15 @@ export const metadata: Metadata = { title: "Regulatório" };
  * and the filtering happens in SQL, so the tab count, the rows and the pager
  * all describe the same set.
  */
+/** A generic tone → glyph map: dense rows read status as a shape first, the tone gives its colour. */
+const TONE_ICON: Record<Tone, StatusIconKind> = {
+  ok: "done",
+  warn: "waiting",
+  risk: "blocked",
+  info: "in-progress",
+  neutral: "open",
+};
+
 const FILTERS: { key: RequestQueueFilter; label: string }[] = [
   { key: "open", label: "Em aberto" },
   { key: "supplier", label: "Aguardando fornecedor" },
@@ -145,7 +155,10 @@ export default async function RegulatoryPage({
                           {late ? ` · ${Math.abs(remaining)}d` : ""}
                         </TD>
                         <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                            {status.label}
+                          </span>
                         </TD>
                       </TR>
                     );
@@ -205,7 +218,10 @@ export default async function RegulatoryPage({
                         <TD label="Solicitado a">{item.requestedFrom ?? ""}</TD>
                         <TD label="Prazo">{item.dueDate ? formatDateShort(item.dueDate, locale) : ""}</TD>
                         <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                            {status.label}
+                          </span>
                         </TD>
                       </TR>
                     );

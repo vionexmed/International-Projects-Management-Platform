@@ -39,10 +39,13 @@ export function ProjectActionsMenu({
   projectId,
   archived = false,
   canArchive = false,
+  size = "icon",
 }: {
   projectId: string;
   archived?: boolean;
   canArchive?: boolean;
+  /** 32 px in the project header, 36 px in list rows. */
+  size?: "icon" | "iconSm";
 }) {
   const [confirming, setConfirming] = React.useState(false);
 
@@ -50,7 +53,7 @@ export function ProjectActionsMenu({
     <>
       <Dropdown>
         <DropdownTrigger asChild>
-          <Button variant="secondary" size="icon" aria-label="Ações do projeto">
+          <Button variant="secondary" size={size} aria-label="Ações do projeto">
             <MoreHorizontal />
           </Button>
         </DropdownTrigger>
@@ -59,7 +62,7 @@ export function ProjectActionsMenu({
           <DropdownItem asChild>
             <Link href={`/projects/${projectId}/tasks`}>
               <ListChecks />
-              Ver tarefas
+              Abrir plano
             </Link>
           </DropdownItem>
           <DropdownItem asChild>
