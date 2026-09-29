@@ -79,7 +79,7 @@ export function PlanList({
             <summary
               className={cn(
                 gridClass,
-                "h-10 cursor-pointer list-none border-b border-line-faint hover:bg-subtle [&::-webkit-details-marker]:hidden",
+                "h-12 cursor-pointer list-none border-y border-line bg-subtle/70 hover:bg-subtle [&::-webkit-details-marker]:hidden",
               )}
               style={gridStyle}
             >
@@ -93,6 +93,7 @@ export function PlanList({
                   label={stageStatus ? `Etapa: ${stageStatus.label}` : undefined}
                 />
                 <span className="truncate text-body font-semibold text-ink">{group.name}</span>
+                <span className="hidden rounded-full bg-surface px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted sm:inline">Categoria</span>
                 <span className="shrink-0 text-meta text-muted tabular-nums">
                   {group.done}/{group.tasks.length}
                 </span>
@@ -125,7 +126,7 @@ export function PlanList({
                 {group.tasks.map((task) => (
                   <li
                     key={task.id}
-                    className={cn(gridClass, "relative h-10 border-b border-line-faint hover:bg-subtle")}
+                    className={cn(gridClass, "relative h-10 border-b border-line-faint bg-surface hover:bg-brand-soft/30")}
                     style={gridStyle}
                   >
                     <span className="flex min-w-0 items-center gap-2 pl-10 md:pl-14">
