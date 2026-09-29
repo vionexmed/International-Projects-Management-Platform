@@ -32,7 +32,6 @@ export function PlanList({
   editable,
   projectId,
   columns,
-  taskHref,
   dict,
 }: {
   groups: PlanGroup[];
@@ -40,10 +39,8 @@ export function PlanList({
   editable: boolean;
   projectId: string;
   columns: PlanColumn[];
-  taskHref: (taskId: string) => string;
   dict: Dictionary;
 }) {
-  void taskHref;
   const visibleColumns = columns.filter((column) => column.visible);
   const [widths, setWidths] = React.useState(() => {
     if (typeof window === "undefined") return [...BASE_WIDTHS, ...visibleColumns.map(() => 160)];

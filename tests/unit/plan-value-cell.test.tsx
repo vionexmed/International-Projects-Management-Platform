@@ -95,7 +95,6 @@ describe("project plan custom cells", () => {
       editable={false}
       projectId="project-1"
       columns={[{ id: "secret", name: "Internal secret", type: "TEXT", visible: false, options: [], values: [{ taskId: "task-1", value: "Private value" }] }]}
-      taskHref={() => "/projects/project-1/tasks?task=task-1"}
       dict={getDictionary("pt-BR")}
     />);
     expect(markup).not.toContain("Internal secret");
