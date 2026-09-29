@@ -107,14 +107,14 @@ export function PlanList({
                   </Link>
                 ) : null}
               </span>
-              <span className={sideCell}>
+              <span className="flex items-center px-3">
                 <AvatarStack people={group.people} size={20} max={4} />
               </span>
-              <span className={cn("flex items-center px-3 text-meta text-muted tabular-nums", RULE)}>
+              <span className="flex items-center px-3 text-meta text-muted tabular-nums">
                 <span className="truncate">{group.span ?? ""}</span>
               </span>
-              <span className={sideCell} />
-              {visibleColumns.map((column) => <span key={column.id} className={RULE} />)}
+              <span className="flex items-center px-3" />
+              {visibleColumns.map((column) => <span key={column.id} />)}
             </summary>
 
             {group.tasks.length === 0 ? (
