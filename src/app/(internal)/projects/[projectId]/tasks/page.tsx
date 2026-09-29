@@ -4,6 +4,7 @@ import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { isNotFoundError } from "@/server/authz/errors";
 import { listTasks } from "@/server/services/tasks";
+import { listProjectPlanColumns } from "@/server/services/project-plan";
 import { listInternalUserOptions } from "@/server/services/users";
 import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
@@ -14,8 +15,9 @@ import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from "@/comp
 import { SegmentedToggle, ViewToolbar } from "@/components/app/view-toolbar";
 import { NewTaskDialog } from "@/features/tasks/new-task-dialog";
 import { PlanList } from "@/features/tasks/plan-list";
+import { PlanCustomColumnControls } from "@/features/tasks/plan-custom-column-controls";
 import { PlanBoard } from "@/features/tasks/plan-board";
-import { PLAN_CATEGORIES, buildPlanGroups, planHref } from "@/features/tasks/plan-data";
+import { PLAN_CATEGORIES, buildPlanGroups, planHref, toPlanColumns } from "@/features/tasks/plan-data";
 import { TaskSheet } from "@/features/tasks/task-sheet";
 import {
   TaskComments,
@@ -66,7 +68,7 @@ export default async function ProjectPlanPage({
   // A URL value, so it is checked against the people who can hold work.
   const assignee = owners.some((owner) => owner.id === search.assignee) ? search.assignee : undefined;
 
-  const [result, allTasks, sheet] = await Promise.all([
+  const [result, allTasks, sheet, planColumns] = await Promise.all([
     listTasks(user, { projectId, category, assignedToId: assignee, perPage: 100 }),
     // Everyone with work in the project, for the avatar filter — unfiltered on purpose.
     db.task.findMany({
@@ -80,7 +82,10 @@ export default async function ProjectPlanPage({
           throw error;
         })
       : null,
+    listProjectPlanColumns(user, projectId),
   ]);
+
+  const columns = toPlanColumns(planColumns);
 
   const groups = buildPlanGroups({
     tasks: result.items,
@@ -144,6 +149,9 @@ export default async function ProjectPlanPage({
         }
         right={
           <>
+            {view === "list" && can(user, "task:update") ? (
+              <PlanCustomColumnControls projectId={projectId} columns={columns} />
+            ) : null}
             {people.length > 0 ? (
               <nav aria-label="Filtrar por responsável" className="hidden items-center gap-2 sm:flex">
                 <span className="text-label text-muted">Responsável</span>
@@ -195,7 +203,7 @@ export default async function ProjectPlanPage({
       {view === "board" ? (
         <PlanBoard groups={groups} owners={owners} editable={editable} taskHref={taskHref} dict={dict} />
       ) : (
-        <PlanList groups={groups} owners={owners} editable={editable} taskHref={taskHref} dict={dict} />
+        <PlanList groups={groups} owners={owners} editable={editable} projectId={projectId} columns={columns} taskHref={taskHref} dict={dict} />
       )}
 
       {openTask ? (
