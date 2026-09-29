@@ -23,6 +23,9 @@ export const TASK_PRIORITIES = [
   { value: "URGENT", label: "Urgente" },
 ];
 
+export const SUPPLIER_TASK_HINT =
+  "O envio acontece na aba Documentos e não conclui a tarefa. Para coletar um arquivo com revisão, use uma solicitação de documento formal.";
+
 export function NewTaskDialog({
   projects,
   projectId,
@@ -129,6 +132,7 @@ export function NewTaskDialog({
               <p className="mt-0.5 text-[12px] text-muted">
                 A tarefa ficará visível para o fornecedor no Supplier Portal.
               </p>
+              <p className="mt-1 text-[12px] text-muted">{SUPPLIER_TASK_HINT}</p>
             </div>
           </div>
         </>

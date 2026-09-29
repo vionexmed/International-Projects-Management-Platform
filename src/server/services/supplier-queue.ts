@@ -117,9 +117,8 @@ export async function listSupplierQueue(user: SessionUser) {
           ? ("done" as const)
           : ("open" as const),
       requestStatus: null,
-      // A task has no page of its own in the portal — it is not something the
-      // supplier submits — so it opens the project it belongs to.
-      href: `/supplier/projects/${task.project.id}`,
+      // Generic uploads let the supplier send a file without completing the task.
+      href: `/supplier/projects/${task.project.id}/documents?upload=1`,
     })),
   ];
 

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 const PANEL_VARIANT = {
   default: "border-line bg-surface",
   /** The one block a page is about — the supplier's action card. */
-  focal: "border-brand-line bg-brand-soft/60",
+  focal: "rounded-lg border-brand-line bg-brand-soft/60 shadow-[0_2px_8px_rgba(5,41,47,0.06)]",
   /** A blocker or overdue note. Tinted, tighter padding built in. */
   callout: "px-4 py-3",
 } as const;

@@ -11,10 +11,13 @@ import { localeFromLanguage } from "@/lib/i18n/config";
 
 export default async function SupplierProjectDocumentsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ upload?: string | string[] }>;
 }) {
   const { projectId } = await params;
+  const { upload } = await searchParams;
   const user = await requireSupplierUser();
   await orNotFound(requireSharedProjectAccess(user, projectId));
 
@@ -30,6 +33,7 @@ export default async function SupplierProjectDocumentsPage({
         action={
           <SupplierUploadDialog
             projectId={projectId}
+            defaultOpen={upload === "1"}
             dict={dict}
             accept={ACCEPT_ATTRIBUTE}
             maxSizeMb={maxUploadMb()}
