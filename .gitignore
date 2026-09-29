@@ -51,3 +51,9 @@ yarn-error.log*
 # checkpoint. Kept on disk, just not versioned — if real configuration ever
 # lands here, un-ignore that file explicitly.
 /.claude-flow/
+
+# Local agent-tooling state (ruflo / claude-flow)
+/.swarm/
+/ruvector.db
+/agentdb.rvf
+/agentdb.rvf.lock

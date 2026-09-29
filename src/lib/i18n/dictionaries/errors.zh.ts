@@ -1,0 +1,63 @@
+import type { ErrorCatalog } from "@/lib/i18n/dictionaries/errors.pt-BR";
+
+/** Chinese refusals. Complete, so a refusal never falls back mid-sentence. */
+export const errorsZh: ErrorCatalog = {
+  validation: "请检查标出的字段。",
+  generic: "出了点问题，请重试。",
+  duplicate: "已存在相同信息的记录。",
+  invalidReference: "关联记录无效。",
+
+  forbidden: "您无权执行此操作。",
+  roleNotAllowed: "您的角色不允许此操作。",
+  sessionExpired: "会话已过期，请重新登录。",
+  notFound: "未找到记录。",
+  projectNotFound: "未找到项目。",
+  taskNotFound: "未找到任务。",
+  documentNotFound: "未找到文档。",
+  fileNotFound: "未找到文件。",
+  requestNotFound: "未找到请求。",
+  supplierNotFound: "未找到供应商。",
+  threadNotFound: "未找到对话。",
+
+  fileMissing: "未发送任何文件。",
+  fileEmpty: "文件为空。",
+  fileTooLarge: "文件超过 {size} MB 的限制。",
+  fileTypeNotAllowed: "不允许此文件类型。",
+  fileExtensionMismatch: "文件扩展名与其类型不符。",
+  uploadExpired: "上传已过期，请重试。",
+  uploadOtherSession: "此上传属于另一个会话。",
+  uploadNotReceived: "文件未到达存储，请重试。",
+  uploadOtherProject: "此上传属于另一个项目。",
+  uploadOtherThread: "此上传属于另一个对话。",
+  uploadPrepareFailed: "无法准备上传。",
+  projectRequired: "请选择项目。",
+
+  requestCancelled: "此请求已取消。",
+  requestInReview: "此请求正在审核中，请等待 Vionex 的回复。",
+  requestApproved: "此请求已获批准。",
+  requestEmpty: "请附加文件或填写回复。",
+
+  messageEmpty: "请输入消息或附加文件。",
+
+  portalRolesOnlyCreate: "您只能创建门户用户。",
+  ownCompanyCreate: "您只能为本公司创建用户。",
+  ownCompanyManage: "您只能管理本公司的用户。",
+  portalRolesOnlyAssign: "您只能分配门户角色。",
+  supplierLinkRequired: "供应商用户必须关联到供应商。",
+  internalWithSupplier: "内部用户不能关联到供应商。",
+  supplierInvalid: "供应商无效。",
+  emailTaken: "已存在使用此邮箱的用户。",
+  userNotFound: "未找到用户。",
+  roleSwitch: "不能在内部角色和供应商角色之间切换。",
+  lastAdmin: "贵公司将没有任何有效的管理员。请先提升另一位用户。",
+
+  nameRequired: "请输入姓名。",
+  emailInvalid: "邮箱地址无效。",
+  passwordMin: "密码至少需要 8 个字符。",
+  currentPasswordRequired: "请输入当前密码。",
+  currentPasswordWrong: "当前密码不正确。",
+  newPasswordMin: "新密码至少需要 8 个字符。",
+  confirmPasswordRequired: "请确认新密码。",
+  passwordMismatch: "两次输入的密码不一致。",
+  passwordUnchanged: "新密码必须与当前密码不同。",
+};

@@ -5,23 +5,30 @@ import { requireUser } from "@/server/auth/current-user";
 import { db } from "@/server/db";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { recordAudit } from "@/server/services/audit";
-import { parseForm, toActionError, type ActionState } from "@/server/actions/utils";
+import {
+  localizeActionState,
+  parseForm,
+  type ActionState,
+} from "@/server/actions/utils";
+import { toCallerActionError } from "@/server/actions/caller-locale";
+import { localeFromLanguage } from "@/lib/i18n/config";
+import { errorText } from "@/lib/i18n/error-text";
 
 const schema = z
   .object({
-    currentPassword: z.string().min(1, "Informe a senha atual."),
+    currentPassword: z.string().min(1, errorText("currentPasswordRequired")),
     newPassword: z
       .string()
-      .min(8, "A nova senha deve ter ao menos 8 caracteres.")
+      .min(8, errorText("newPasswordMin"))
       .max(200),
-    confirmPassword: z.string().min(1, "Confirme a nova senha."),
+    confirmPassword: z.string().min(1, errorText("confirmPasswordRequired")),
   })
   .refine((value) => value.newPassword === value.confirmPassword, {
-    message: "As senhas não coincidem.",
+    message: errorText("passwordMismatch"),
     path: ["confirmPassword"],
   })
   .refine((value) => value.newPassword !== value.currentPassword, {
-    message: "A nova senha deve ser diferente da atual.",
+    message: errorText("passwordUnchanged"),
     path: ["newPassword"],
   });
 
@@ -42,7 +49,7 @@ export async function updateOwnProfileAction(
     const user = await requireUser();
     const input = parseForm(
       z.object({
-        name: z.string().trim().min(2, "Informe o nome.").max(120),
+        name: z.string().trim().min(2, errorText("nameRequired")).max(120),
         jobTitle: z
           .string()
           .trim()
@@ -69,7 +76,7 @@ export async function updateOwnProfileAction(
 
     return { ok: true };
   } catch (error) {
-    return toActionError(error);
+    return toCallerActionError(error);
   }
 }
 
@@ -91,7 +98,11 @@ export async function changePasswordAction(
     });
 
     if (!(await verifyPassword(input.currentPassword, record.passwordHash))) {
-      return { error: "Senha atual incorreta.", fieldErrors: { currentPassword: ["Senha atual incorreta."] } };
+      const wrong = errorText("currentPasswordWrong");
+      return localizeActionState(
+        { error: wrong, fieldErrors: { currentPassword: [wrong] } },
+        localeFromLanguage(user.language),
+      );
     }
 
     await db.user.update({
@@ -110,6 +121,6 @@ export async function changePasswordAction(
 
     return { ok: true };
   } catch (error) {
-    return toActionError(error);
+    return toCallerActionError(error);
   }
 }

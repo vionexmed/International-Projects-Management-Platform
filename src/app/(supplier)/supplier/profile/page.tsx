@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { db } from "@/server/db";
 import { PageHeader } from "@/components/app/page-header";
+import { trailLabels } from "@/components/app/trail-labels";
 import { Panel, PropertyList } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/avatar";
 import { ProfileForm } from "@/features/account/profile-form";
@@ -35,7 +36,13 @@ export default async function SupplierProfilePage() {
 
   return (
     <>
-      <PageHeader title={dict.portal.profile.title} description={dict.portal.profile.subtitle} />
+      {/* Reached from the account menu, not the sidebar: a trail back home. */}
+      <PageHeader
+        breadcrumb={[{ label: dict.nav.home, href: "/supplier" }, { label: dict.portal.profile.title }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
+        title={dict.portal.profile.title}
+        description={dict.portal.profile.subtitle}
+      />
 
       <div className="max-w-3xl space-y-10">
         <div className="grid gap-4 md:grid-cols-[240px_1fr] md:gap-8">
@@ -60,7 +67,7 @@ export default async function SupplierProfilePage() {
                         : dict.portal.team.roleUser,
                   },
                   {
-                    label: dict.nav.account,
+                    label: dict.portal.profile.lastSignIn,
                     value: account.lastLoginAt ? formatRelative(account.lastLoginAt, locale) : null,
                   },
                 ]}

@@ -80,9 +80,20 @@ export async function supplierRecipients(supplierId: string, client: Prisma.Tran
   return users.map((user) => user.id);
 }
 
-export async function listNotifications(userId: string, take = 40) {
+/**
+ * `options` also accepts a bare number, for the callers that only ever
+ * wanted `take` — kept so existing call sites did not have to change for a
+ * filter only `/notifications` itself needed.
+ */
+export async function listNotifications(
+  userId: string,
+  options: number | { take?: number; unreadOnly?: boolean } = {},
+) {
+  const { take = 40, unreadOnly = false } =
+    typeof options === "number" ? { take: options } : options;
+
   return db.notification.findMany({
-    where: { userId },
+    where: { userId, ...(unreadOnly ? { readAt: null } : {}) },
     orderBy: { createdAt: "desc" },
     take,
   });

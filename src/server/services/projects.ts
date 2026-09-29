@@ -54,6 +54,13 @@ export type ProjectListFilters = {
   perPage?: number;
 };
 
+export type ProjectStageSummary = {
+  key: StageKey;
+  status: StageSnapshot["status"];
+  /** Same derivation as the project's own progress bar — a manual override, else task completion. */
+  progress: number;
+};
+
 export type ProjectListRow = {
   id: string;
   name: string;
@@ -65,6 +72,8 @@ export type ProjectListRow = {
   supplier: { id: string; name: string; country: string };
   owner: { id: string; name: string };
   progress: number;
+  /** The four stages in order, for the row's chevron strip — never re-fetched, the include already has them. */
+  stages: ProjectStageSummary[];
   nextMilestone: { title: string; dueDate: Date | null } | null;
 };
 
@@ -129,19 +138,32 @@ export async function listProjects(user: SessionUser, filters: ProjectListFilter
     db.project.count({ where }),
   ]);
 
-  const items: ProjectListRow[] = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    projectCode: row.projectCode,
-    status: row.status as ProjectStatus,
-    currentStage: row.currentStage,
-    country: row.country,
-    targetLaunchDate: row.targetLaunchDate,
-    supplier: row.supplier,
-    owner: row.owner,
-    progress: projectProgress(row.stages as StageSnapshot[], row.tasks as TaskSnapshot[]),
-    nextMilestone: row.milestones[0] ?? null,
-  }));
+  const items: ProjectListRow[] = rows.map((row) => {
+    const stageSnapshots = row.stages as StageSnapshot[];
+    const taskSnapshots = row.tasks as TaskSnapshot[];
+
+    return {
+      id: row.id,
+      name: row.name,
+      projectCode: row.projectCode,
+      status: row.status as ProjectStatus,
+      currentStage: row.currentStage,
+      country: row.country,
+      targetLaunchDate: row.targetLaunchDate,
+      supplier: row.supplier,
+      owner: row.owner,
+      progress: projectProgress(stageSnapshots, taskSnapshots),
+      stages: STAGE_ORDER.map((key) => {
+        const stage = stageSnapshots.find((candidate) => candidate.key === key);
+        return {
+          key,
+          status: stage?.status ?? "NOT_STARTED",
+          progress: stage ? stageProgress(stage, taskSnapshots) : 0,
+        };
+      }),
+      nextMilestone: row.milestones[0] ?? null,
+    };
+  });
 
   return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };
 }

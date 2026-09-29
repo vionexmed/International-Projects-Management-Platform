@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Panel } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ThreadView } from "@/features/messages/thread-view";
+import { threadLabels } from "@/features/supplier-portal/portal-labels";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { formatRelative } from "@/lib/format";
@@ -57,6 +58,7 @@ export default async function SupplierMessagesPage({
                   <li key={thread.id}>
                     <Link
                       href={`/supplier/messages?thread=${thread.id}`}
+                      aria-current={active ? "true" : undefined}
                       className={cn(
                         "block px-4 py-3.5 transition-colors",
                         active ? "bg-brand-soft/50" : "hover:bg-subtle",
@@ -66,7 +68,11 @@ export default async function SupplierMessagesPage({
                         <p
                           className={cn(
                             "truncate text-body",
-                            active ? "font-semibold text-brand-deep" : "font-medium text-ink",
+                            active
+                              ? "font-semibold text-brand-deep"
+                              : thread.unreadCount > 0
+                                ? "font-semibold text-ink"
+                                : "font-medium text-ink",
                           )}
                         >
                           {thread.project.name}
@@ -107,14 +113,7 @@ export default async function SupplierMessagesPage({
                   currentUserId={user.id}
                   locale={locale}
                   returnPath="/supplier/messages"
-                  labels={{
-                    placeholder: dict.portal.messages.placeholder,
-                    send: dict.portal.messages.send,
-                    sent: dict.portal.messages.sent,
-                    attach: dict.portal.messages.attach,
-                    removeFile: dict.portal.messages.removeFile,
-                    attachments: dict.portal.messages.attachments,
-                  }}
+                  labels={threadLabels(dict)}
                   emptyTitle={dict.portal.messages.empty}
                 />
               </>

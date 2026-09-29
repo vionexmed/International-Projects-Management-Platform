@@ -1,23 +1,25 @@
 import Link from "next/link";
 import { AlertOctagon } from "lucide-react";
 import { can, requireInternalUser } from "@/server/auth/current-user";
-import { getProjectWorkspace } from "@/server/services/projects";
+import { getProjectWorkspace, type ProjectStatus } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
+import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { orNotFound } from "@/server/authz/rsc";
-import { Panel } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
+import { db } from "@/server/db";
 import { ProgressBar, type ProgressTone } from "@/components/ui/progress";
-import { StatusBadge } from "@/components/ui/badge";
+import { SolidBadge, StatusIcon } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/avatar";
 import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
 import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
-import { CanvasEmpty, CanvasList, CanvasRow } from "@/features/projects/canvas-list";
+import { DenseEmpty, DenseList, DenseRow, WorkBlock } from "@/features/projects/work-block";
 import { stageSegment } from "@/features/projects/stage-routes";
 import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta, type MilestoneProgress, type StageProgress } from "@/lib/labels";
-import { daysUntil, formatDate } from "@/lib/format";
+import { isTaskOverdue } from "@/lib/status";
+import { daysUntil, formatDate, formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** A bar is neutral unless it has something to say: done, or held up. */
@@ -27,13 +29,11 @@ const STAGE_BAR_TONE: Partial<Record<StageProgress, ProgressTone>> = {
 };
 
 /**
- * "How is this project right now?"
- *
- * One focal block — progress: the overall number, what comes next, the
- * blocker when there is one, and the four stages beside them. Everything
- * under it is on the canvas. Identity (owner, dates, category) lives in the record header,
- * and the full tables live in the other tabs; this page links to them rather
- * than reproducing them.
+ * "How is this project right now?" — a KPI strip (derived health, progress,
+ * open and late work, next milestone, launch), then the stages and the
+ * milestones on the left and the record's properties and recent activity on
+ * the right. Health is never picked by hand: it is recalculated from
+ * deadlines, blockers and stages on every write, and the card says why.
  */
 export default async function ProjectOverviewPage({
   params,
@@ -45,187 +45,292 @@ export default async function ProjectOverviewPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [{ project, stages, milestones, progress }, timeline] = await Promise.all([
+  const [{ project, stages, milestones, progress }, timeline, tasks] = await Promise.all([
     orNotFound(getProjectWorkspace(user, projectId)),
-    /**
-     * Three, not eight. This block is a preview of the full history, which is
-     * the canonical record of the project; a longer list here would be the
-     * same information twice, and the second copy is the one nobody trusts.
-     */
-    listProjectTimeline(user, projectId, 3),
+    listProjectTimeline(user, projectId, 5),
+    // Counts only, for the KPI strip and the stage rows. The project is verified by the layout and the workspace call.
+    db.task.findMany({
+      where: { projectId },
+      select: { category: true, status: true, priority: true, dueDate: true },
+    }),
   ]);
+
+  const now = new Date();
+  const open = tasks.filter((task) => task.status !== "COMPLETED" && task.status !== "CANCELLED");
+  const overdue = open.filter((task) => isTaskOverdue(task.status, task.dueDate, now));
+  const criticalOverdue = overdue.filter((task) => task.priority === "HIGH" || task.priority === "URGENT");
+  const blockedStages = stages.filter((stage) => stage.status === "BLOCKED");
+
+  const health = meta.project(project.status as ProjectStatus, dict);
+  const healthReason = project.blockerNote
+    ? "Há um bloqueio registrado."
+    : blockedStages.length > 0
+      ? `${blockedStages.length === 1 ? "Uma etapa bloqueada" : `${blockedStages.length} etapas bloqueadas`}.`
+      : criticalOverdue.length > 0
+        ? `${criticalOverdue.length} ${criticalOverdue.length === 1 ? "tarefa crítica atrasada" : "tarefas críticas atrasadas"}.`
+        : overdue.length > 0
+          ? `${overdue.length} ${overdue.length === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`
+          : project.status === "ON_TRACK" || project.status === "COMPLETED"
+            ? "Nenhum atraso crítico."
+            : "Recalculada a cada alteração do projeto.";
 
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");
   const nextMilestone = upcomingMilestones[0] ?? null;
-  const nextLate =
-    nextMilestone !== null &&
-    (nextMilestone.status === "DELAYED" || (daysUntil(nextMilestone.dueDate) ?? 0) < 0);
+  const milestoneLate = (milestone: (typeof milestones)[number]) =>
+    milestone.status === "DELAYED" || (daysUntil(milestone.dueDate) ?? 0) < 0;
 
+  const launchIn = daysUntil(project.targetLaunchDate);
   const base = `/projects/${projectId}`;
-
   const canAddMilestone =
     can(user, "project:update") || OPTIONS.stageKey.some((key) => can(user, STAGE_PERMISSION[key]));
 
+  const properties = [
+    {
+      label: "Responsável",
+      value: (
+        <span className="inline-flex items-center gap-2">
+          <UserAvatar name={project.owner.name} size="xs" />
+          {project.owner.name}
+        </span>
+      ),
+    },
+    {
+      label: "Fornecedor",
+      value: (
+        <Link href={`/suppliers/${project.supplier.id}`} className="text-brand-strong hover:underline">
+          {project.supplier.name}
+        </Link>
+      ),
+    },
+    { label: "País", value: project.country },
+    { label: "Código", value: <span className="font-mono text-meta">{project.projectCode}</span> },
+    { label: "Etapa atual", value: label.stageKey(project.currentStage, dict) },
+    { label: "Início", value: project.startDate ? formatDate(project.startDate, locale) : null },
+    {
+      label: "Lançamento previsto",
+      value: project.targetLaunchDate ? formatDate(project.targetLaunchDate, locale) : null,
+    },
+    { label: "Categoria", value: project.category },
+    { label: "Tipo de produto", value: project.productType },
+  ].filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
+
   return (
-    <div className="space-y-10">
-      {/*
-        Progress — the one box on the page. Overall number on the left, the
-        four stages on the right: one block that answers "how far along, and
-        where". The stage rows used to be a second, full-width section below a
-        half-empty health panel that also repeated the current stage's number.
-      */}
-      <Panel className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,8fr)]">
-        <div className="min-w-0 p-5 sm:p-6">
-          <p className="text-meta text-muted">Progresso geral</p>
-          <p className="mt-1 text-kpi text-ink tabular-nums">{progress}%</p>
-          <ProgressBar value={progress} label="Progresso geral" className="mt-3 max-w-xs" />
-
-          <div className="mt-6">
-            <p className="text-meta text-muted">Próximo marco</p>
-            {nextMilestone ? (
-              <>
-                <p className="mt-0.5 text-body font-medium text-ink">{nextMilestone.title}</p>
-                <p className={cn("text-meta tabular-nums", nextLate ? "text-risk" : "text-muted")}>
-                  {formatDate(nextMilestone.dueDate, locale)}
-                  {nextLate ? " · atrasado" : ""}
-                </p>
-              </>
-            ) : (
-              <p className="mt-0.5 text-body text-muted">Nenhum pendente</p>
-            )}
+    <div className="space-y-6">
+      {project.blockerNote ? (
+        <div role="alert" className="flex items-start gap-3 rounded-sm border border-risk/25 bg-risk-soft px-4 py-3">
+          <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
+          <div className="min-w-0">
+            <p className="text-title text-risk">Bloqueio atual</p>
+            <p className="mt-0.5 text-body text-ink">{project.blockerNote}</p>
           </div>
-
-          {/*
-            A blocker is an exception, so it appears only when there is one —
-            under the number it explains.
-          */}
-          {project.blockerNote ? (
-            <Panel variant="callout" tone="risk" role="alert" className="mt-6">
-              <div className="flex items-start gap-3">
-                <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
-                <div className="min-w-0">
-                  <p className="text-title text-risk">Bloqueio atual</p>
-                  <p className="mt-1 text-body text-ink">{project.blockerNote}</p>
-                </div>
-              </div>
-            </Panel>
-          ) : null}
         </div>
+      ) : null}
 
-        <div className="min-w-0 border-t border-line px-5 pt-4 pb-2 sm:px-6 lg:border-t-0 lg:border-l lg:pt-5">
-          <h2 className="text-meta text-muted">Etapas</h2>
-          <ul className="mt-1 divide-y divide-line-soft">
-            {stages.map((stage) => {
-              const status = meta.stage(stage.status as StageProgress, dict);
-              const name = label.stageKey(stage.key, dict);
-              const current = stage.key === project.currentStage;
-              return (
-                /*
-                  Fixed tracks so name, bar, number and status line up across
-                  the four rows and read as one unit. On a phone it is two
-                  lines — name and status, then bar and number — so the name
-                  is not squeezed to a few letters.
-                */
-                <li
-                  key={stage.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_2rem] items-center gap-x-3 gap-y-1.5 py-3 sm:grid-cols-[11.5rem_minmax(0,1fr)_2.75rem_8.5rem_2rem] sm:gap-x-4"
-                >
-                  <Link
-                    href={`${base}/${stageSegment(stage.key)}`}
-                    aria-current={current ? "step" : undefined}
-                    className="col-start-1 row-start-1 min-w-0 truncate text-body font-medium text-ink underline-offset-4 hover:underline"
-                  >
-                    {name}
-                    {/* Replaces the "Etapa atual" line the health panel used to repeat. */}
-                    {current ? <span className="ml-1.5 text-meta font-normal text-muted">atual</span> : null}
-                  </Link>
-                  <ProgressBar
-                    value={stage.computedProgress}
-                    tone={STAGE_BAR_TONE[stage.status as StageProgress]}
-                    label={name}
-                    className="col-start-1 row-start-2 sm:col-start-2 sm:row-start-1"
-                  />
-                  <span className="col-start-2 row-start-2 text-meta font-medium text-ink tabular-nums sm:col-start-3 sm:row-start-1 sm:text-right">
-                    {stage.computedProgress}%
-                  </span>
-                  <span className="col-start-2 row-start-1 min-w-0 sm:col-start-4">
-                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                  </span>
-                  <span className="col-start-3 row-span-2 row-start-1 flex justify-end sm:col-start-5 sm:row-span-1">
-                    {can(user, STAGE_PERMISSION[stage.key]) ? (
-                      <EditStageDialog
-                        stage={{
-                          id: stage.id,
-                          projectId: project.id,
-                          name,
-                          status: stage.status,
-                          progress: stage.progress,
-                          notes: stage.notes,
-                        }}
-                      />
-                    ) : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </Panel>
-
-      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
-        <Section
-          title="Próximos marcos"
-          count={upcomingMilestones.length || undefined}
-          action={
-            /*
-              A stage owner adds milestones to their own stage; the general
-              project capability covers the ones that span the project. The
-              action re-checks both — this only decides whether offering it
-              makes sense.
-            */
-            canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null
-          }
-        >
-          {upcomingMilestones.length === 0 ? (
-            <CanvasEmpty>Nenhum marco pendente.</CanvasEmpty>
+      {/* KPI strip: flat cards, one number each. */}
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <Kpi label="Saúde" className="col-span-2 lg:col-span-1">
+          <SolidBadge tone={health.tone}>{health.label}</SolidBadge>
+          <p className="mt-2 text-meta text-muted">{healthReason}</p>
+        </Kpi>
+        <Kpi label="Progresso geral">
+          <p className="text-kpi-sm text-ink tabular-nums">{progress}%</p>
+          <ProgressBar value={progress} tone={progress === 100 ? "ok" : "neutral"} label="Progresso geral" className="mt-2" barClassName="h-1.5" />
+        </Kpi>
+        <Kpi label="Tarefas em aberto">
+          <p className="text-kpi-sm text-ink tabular-nums">{open.length}</p>
+          <p className={cn("mt-1 text-meta", overdue.length > 0 ? "font-medium text-risk" : "text-muted")}>
+            {overdue.length > 0 ? `${overdue.length} atrasada${overdue.length === 1 ? "" : "s"}` : "Nenhuma atrasada"}
+          </p>
+        </Kpi>
+        <Kpi label="Próximo marco">
+          {nextMilestone ? (
+            <>
+              <p className="truncate text-body font-semibold text-ink" title={nextMilestone.title}>
+                {nextMilestone.title}
+              </p>
+              <p className={cn("mt-1 text-meta tabular-nums", milestoneLate(nextMilestone) ? "font-medium text-risk" : "text-muted")}>
+                {formatDate(nextMilestone.dueDate, locale)}
+                {milestoneLate(nextMilestone) ? " · atrasado" : ""}
+              </p>
+            </>
           ) : (
-            <CanvasList>
-              {upcomingMilestones.map((milestone) => {
-                const status = meta.milestone(milestone.status as MilestoneProgress, dict);
+            <p className="text-body text-muted">Nenhum pendente</p>
+          )}
+        </Kpi>
+        <Kpi label="Lançamento previsto">
+          {project.targetLaunchDate ? (
+            <>
+              <p className="text-body font-semibold text-ink tabular-nums">
+                {formatDate(project.targetLaunchDate, locale)}
+              </p>
+              <p className={cn("mt-1 text-meta", launchIn !== null && launchIn < 0 ? "font-medium text-risk" : "text-muted")}>
+                {launchIn === null ? "" : launchIn < 0 ? `${Math.abs(launchIn)} dias atrás` : launchIn === 0 ? "Hoje" : `em ${launchIn} dias`}
+              </p>
+            </>
+          ) : (
+            <p className="text-body text-muted">Sem data</p>
+          )}
+        </Kpi>
+      </dl>
+
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
+          <WorkBlock title="Progresso por etapa" action={{ label: "Abrir plano", href: `${base}/tasks` }}>
+            <DenseList>
+              {stages.map((stage) => {
+                const status = meta.stage(stage.status as StageProgress, dict);
+                const name = label.stageKey(stage.key, dict);
+                const category = STAGE_TASK_CATEGORY[stage.key];
+                const stageTasks = tasks.filter((task) => task.category === category && task.status !== "CANCELLED");
+                const done = stageTasks.filter((task) => task.status === "COMPLETED").length;
+                const current = stage.key === project.currentStage;
                 return (
-                  <CanvasRow
-                    key={milestone.id}
-                    title={milestone.title}
-                    subtitle={[
-                      milestone.stage ? label.stageKey(milestone.stage, dict) : null,
-                      milestone.dueDate ? formatDate(milestone.dueDate, locale) : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    trailing={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>}
-                  />
+                  /*
+                    Fixed tracks so name, bar, number and status line up across
+                    the rows. On a phone: name and status, then bar and number.
+                  */
+                  <li
+                    key={stage.id}
+                    className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto_2rem] items-center gap-x-3 gap-y-1 px-4 py-2 sm:grid-cols-[12rem_minmax(0,1fr)_2.75rem_4rem_8rem_2rem] sm:py-1.5"
+                  >
+                    <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
+                      <StatusIcon status={stage.status as StageProgress} label={status.label} />
+                      <Link
+                        href={`${base}/${stageSegment(stage.key)}`}
+                        aria-current={current ? "step" : undefined}
+                        className="min-w-0 truncate text-body font-medium text-ink hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      {current ? <span className="shrink-0 text-meta text-muted">atual</span> : null}
+                    </span>
+                    <ProgressBar
+                      value={stage.computedProgress}
+                      tone={STAGE_BAR_TONE[stage.status as StageProgress]}
+                      label={name}
+                      barClassName="h-1.5"
+                      className="col-span-2 col-start-1 row-start-2 sm:col-span-1 sm:col-start-2 sm:row-start-1"
+                    />
+                    <span className="col-start-3 row-start-2 text-meta font-semibold text-ink tabular-nums sm:col-start-3 sm:row-start-1 sm:text-right">
+                      {stage.computedProgress}%
+                    </span>
+                    <span className="hidden text-meta text-muted tabular-nums sm:col-start-4 sm:row-start-1 sm:block">
+                      {done}/{stageTasks.length}
+                    </span>
+                    <span className="col-start-2 row-start-1 min-w-0 truncate text-meta text-muted sm:col-start-5">
+                      {status.label}
+                    </span>
+                    <span className="col-start-3 row-start-1 flex justify-end sm:col-start-6">
+                      {can(user, STAGE_PERMISSION[stage.key]) ? (
+                        <EditStageDialog
+                          stage={{
+                            id: stage.id,
+                            projectId: project.id,
+                            name,
+                            status: stage.status,
+                            progress: stage.progress,
+                            notes: stage.notes,
+                          }}
+                        />
+                      ) : null}
+                    </span>
+                  </li>
                 );
               })}
-            </CanvasList>
-          )}
-        </Section>
+            </DenseList>
+          </WorkBlock>
 
-        <Section
-          title="Atividade recente"
-          action={{ label: "Ver histórico completo", href: `${base}/timeline` }}
-        >
-          <Timeline
-            locale={locale}
-            emptyTitle="Nenhuma atividade ainda."
-            items={timeline.map((event) => ({
-              id: event.id,
-              description: event.description,
-              createdAt: event.createdAt,
-              actorName: event.actor?.name ?? null,
-            }))}
-          />
-        </Section>
+          <WorkBlock
+            title="Próximos marcos"
+            count={upcomingMilestones.length || undefined}
+            action={
+              /*
+                A stage owner adds milestones to their own stage; the general
+                project capability covers the ones that span the project. The
+                action re-checks both — this only decides whether to offer it.
+              */
+              canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null
+            }
+          >
+            {upcomingMilestones.length === 0 ? (
+              <DenseEmpty>Nenhum marco pendente.</DenseEmpty>
+            ) : (
+              <DenseList>
+                {upcomingMilestones.map((milestone) => {
+                  const status = meta.milestone(milestone.status as MilestoneProgress, dict);
+                  const late = milestoneLate(milestone);
+                  return (
+                    <DenseRow
+                      key={milestone.id}
+                      leading={<StatusIcon kind="milestone" tone={late ? "risk" : undefined} />}
+                      title={milestone.title}
+                      meta={milestone.stage ? label.stageKey(milestone.stage, dict) : null}
+                      trailing={
+                        <>
+                          <span className="hidden sm:inline">{status.label}</span>
+                          <span className={cn("w-16 text-right tabular-nums", late ? "font-medium text-risk" : "text-ink-soft")}>
+                            {milestone.dueDate ? formatDateShort(milestone.dueDate, locale) : ""}
+                          </span>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </DenseList>
+            )}
+          </WorkBlock>
+        </div>
+
+        <div className="min-w-0 space-y-6">
+          <WorkBlock title="Propriedades">
+            <dl className="divide-y divide-line-faint">
+              {properties.map((item) => (
+                <div key={item.label} className="grid min-h-10 grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 px-4 py-1.5">
+                  <dt className="text-meta text-muted">{item.label}</dt>
+                  <dd className="min-w-0 truncate text-body text-ink">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+            {project.description ? (
+              <p className="border-t border-line-faint px-4 py-3 text-body whitespace-pre-wrap text-ink-soft">
+                {project.description}
+              </p>
+            ) : null}
+          </WorkBlock>
+
+          <WorkBlock title="Atividade recente" action={{ label: "Histórico completo", href: `${base}/timeline` }}>
+            <div className="px-4 py-4">
+              <Timeline
+                locale={locale}
+                emptyTitle="Nenhuma atividade ainda."
+                items={timeline.map((event) => ({
+                  id: event.id,
+                  description: event.description,
+                  createdAt: event.createdAt,
+                  actorName: event.actor?.name ?? null,
+                }))}
+              />
+            </div>
+          </WorkBlock>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function Kpi({
+  label: kpiLabel,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("min-w-0 rounded-sm border border-line bg-surface px-4 py-3", className)}>
+      <dt className="mb-1.5 text-meta font-medium text-muted">{kpiLabel}</dt>
+      <dd className="min-w-0">{children}</dd>
     </div>
   );
 }

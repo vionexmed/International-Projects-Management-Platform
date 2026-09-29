@@ -14,11 +14,12 @@ import { db } from "@/server/db";
 import { projectScope } from "@/server/authz/scopes";
 import { PageHeader } from "@/components/app/page-header";
 import { Section } from "@/components/ui/section";
-import { TabsNav } from "@/components/app/tabs-nav";
+import { StatusFilter } from "@/components/app/status-filter";
 import { Pagination } from "@/components/app/pagination";
 import { Panel } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { Tone } from "@/lib/status";
 import {
   CellStack,
   Table,
@@ -50,6 +51,15 @@ export const metadata: Metadata = { title: "Regulatório" };
  * and the filtering happens in SQL, so the tab count, the rows and the pager
  * all describe the same set.
  */
+/** A generic tone → glyph map: dense rows read status as a shape first, the tone gives its colour. */
+const TONE_ICON: Record<Tone, StatusIconKind> = {
+  ok: "done",
+  warn: "waiting",
+  risk: "blocked",
+  info: "in-progress",
+  neutral: "open",
+};
+
 const FILTERS: { key: RequestQueueFilter; label: string }[] = [
   { key: "open", label: "Em aberto" },
   { key: "supplier", label: "Aguardando fornecedor" },
@@ -90,22 +100,35 @@ export default async function RegulatoryPage({
     <>
       <PageHeader title="Regulatório" />
 
-      <Section title="Solicitações" count={requests.total} className="mb-10">
-        <TabsNav
-          className="mb-4"
-          items={FILTERS.map((filter) => ({
-            href: filter.key === "open" ? "/regulatory" : `/regulatory?status=${filter.key}`,
-            label: filter.label,
-            count: counts[filter.key],
-            active: filter.key === queue,
-          }))}
-        />
+      {/*
+        The queue is chosen in the section header — one filter writing the
+        same `status` param the tab strip did; the counts live in its menu,
+        the section shows the current total once.
+      */}
+      <Section
+        title="Solicitações"
+        count={requests.total}
+        className="mb-10"
+        action={
+          <StatusFilter
+            paramKey="status"
+            defaultValue="open"
+            align="end"
+            options={FILTERS.map((filter) => ({
+              value: filter.key,
+              label: filter.label,
+              count: counts[filter.key],
+              tone: filter.key === "overdue" ? "risk" : undefined,
+            }))}
+          />
+        }
+      >
         <TableShell>
           {openRequests.length === 0 ? (
             <EmptyState
               icon={ShieldCheck}
               title="Nenhuma solicitação neste recorte."
-              description="Troque o filtro acima para ver as demais solicitações."
+              description="Troque o filtro ao lado do título para ver as demais solicitações."
               compact
             />
           ) : (
@@ -145,7 +168,10 @@ export default async function RegulatoryPage({
                           {late ? ` · ${Math.abs(remaining)}d` : ""}
                         </TD>
                         <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                            {status.label}
+                          </span>
                         </TD>
                       </TR>
                     );
@@ -205,7 +231,10 @@ export default async function RegulatoryPage({
                         <TD label="Solicitado a">{item.requestedFrom ?? ""}</TD>
                         <TD label="Prazo">{item.dueDate ? formatDateShort(item.dueDate, locale) : ""}</TD>
                         <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                            {status.label}
+                          </span>
                         </TD>
                       </TR>
                     );

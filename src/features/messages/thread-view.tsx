@@ -2,7 +2,9 @@ import { MessageSquare, Paperclip } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { UserAvatar } from "@/components/ui/avatar";
 import { MessageComposer } from "@/features/messages/message-composer";
+import { ThreadScroller } from "@/features/messages/thread-scroller";
 import { formatDateTime, formatFileSize } from "@/lib/format";
+import { maxUploadMb } from "@/lib/upload";
 import type { Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +44,16 @@ export function ThreadView({
     attach: string;
     removeFile: string;
     attachments: string;
+    /** Optional composer wording; the internal screens keep the defaults. */
+    sending?: string;
+    shortcut?: string;
+    empty?: string;
+    fileTooLarge?: string;
+    fileType?: string;
+    uploading?: string;
+    connectionFailed?: string;
+    storageRefused?: string;
+    unreachable?: string;
   };
   returnPath: string;
   emptyTitle: string;
@@ -49,7 +61,7 @@ export function ThreadView({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="scroll-slim flex-1 overflow-y-auto p-5">
+      <ThreadScroller count={messages.length} className="scroll-slim flex-1 overflow-y-auto p-5">
         {messages.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
@@ -98,7 +110,7 @@ export function ThreadView({
                               href={`/api/files/${attachment.documentVersion.id}`}
                               className="flex items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-left text-[12px] transition-colors hover:border-brand"
                             >
-                              <Paperclip className="size-3.5 shrink-0 text-muted" />
+                              <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />
                               <span className="min-w-0 flex-1 truncate text-ink">
                                 {attachment.documentVersion.fileName}
                               </span>
@@ -116,7 +128,7 @@ export function ThreadView({
             })}
           </ul>
         )}
-      </div>
+      </ThreadScroller>
 
       <div className="border-t border-line bg-subtle p-4">
         <MessageComposer
@@ -127,8 +139,18 @@ export function ThreadView({
             sent: labels.sent,
             attach: labels.attach,
             remove: labels.removeFile,
+            sending: labels.sending,
+            shortcut: labels.shortcut,
+            empty: labels.empty,
+            fileTooLarge: labels.fileTooLarge,
+            fileType: labels.fileType,
+            uploading: labels.uploading,
+            connectionFailed: labels.connectionFailed,
+            storageRefused: labels.storageRefused,
+            unreachable: labels.unreachable,
           }}
           returnPath={returnPath}
+          maxSizeMb={maxUploadMb()}
         />
       </div>
     </div>

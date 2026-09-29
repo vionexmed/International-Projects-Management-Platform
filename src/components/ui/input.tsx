@@ -1,23 +1,48 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, type, ...props }, ref) => (
-    <input
-      type={type}
-      ref={ref}
-      className={cn(
-        "flex h-9 w-full rounded-sm border border-line bg-surface px-3 py-1 text-sm text-ink transition-colors",
-        "placeholder:text-faint",
-        "focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15",
-        "disabled:cursor-not-allowed disabled:bg-raised disabled:text-muted",
-        "file:border-0 file:bg-transparent file:text-sm file:font-medium",
-        className,
-      )}
-      {...props}
-    />
-  ),
+/**
+ * Field sizes. Forms and modals use 40 px (`lg`, the default); toolbars use
+ * 32 px (`sm`) so a field lines up with the 32-px toolbar buttons. Named
+ * `fieldSize` because `size` is already a native `<input>` attribute.
+ */
+export type FieldSize = "sm" | "md" | "lg";
+
+const FIELD_HEIGHT: Record<FieldSize, string> = {
+  sm: "h-8 text-[13px]",
+  md: "h-9 text-sm",
+  lg: "h-10 text-sm",
+};
+
+/*
+  Filled fields: a tinted `raised` fill with a hairline, turning white with a
+  2-px brand edge (1-px border + 1-px ring, so nothing shifts) on focus.
+*/
+const FIELD_BASE = cn(
+  "w-full rounded-sm border border-line bg-raised text-ink transition-colors",
+  "placeholder:text-faint hover:border-line-strong",
+  "focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand focus:outline-none",
+  "aria-[invalid=true]:border-risk aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-risk",
+  "disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-raised/60 disabled:text-muted",
 );
+
+export const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { fieldSize?: FieldSize }
+>(({ className, type, fieldSize = "lg", ...props }, ref) => (
+  <input
+    type={type}
+    ref={ref}
+    className={cn(
+      "flex px-3 py-1",
+      FIELD_BASE,
+      FIELD_HEIGHT[fieldSize],
+      "file:border-0 file:bg-transparent file:text-sm file:font-medium",
+      className,
+    )}
+    {...props}
+  />
+));
 Input.displayName = "Input";
 
 export const Textarea = React.forwardRef<
@@ -26,13 +51,7 @@ export const Textarea = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <textarea
     ref={ref}
-    className={cn(
-      "flex min-h-20 w-full rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink transition-colors",
-      "placeholder:text-faint",
-      "focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15",
-      "disabled:cursor-not-allowed disabled:bg-raised disabled:text-muted",
-      className,
-    )}
+    className={cn("flex min-h-20 px-3 py-2.5 text-sm", FIELD_BASE, className)}
     {...props}
   />
 ));
@@ -40,15 +59,18 @@ Textarea.displayName = "Textarea";
 
 export const Select = React.forwardRef<
   HTMLSelectElement,
-  React.SelectHTMLAttributes<HTMLSelectElement>
->(({ className, children, ...props }, ref) => (
+  React.SelectHTMLAttributes<HTMLSelectElement> & { fieldSize?: FieldSize }
+>(({ className, children, fieldSize = "lg", ...props }, ref) => (
   <select
     ref={ref}
     className={cn(
-      "h-9 w-full appearance-none rounded-sm border border-line bg-surface bg-no-repeat px-3 pr-8 text-sm text-ink transition-colors",
-      "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 fill=%22none%22 stroke=%22%23687784%22 stroke-width=%221.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m4 6 4 4 4-4%22/%3E%3C/svg%3E')] bg-[right_0.6rem_center]",
-      "focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15",
-      "disabled:cursor-not-allowed disabled:bg-raised disabled:text-muted",
+      "appearance-none px-3 pr-8",
+      FIELD_BASE,
+      FIELD_HEIGHT[fieldSize],
+      // The chevron lives in globals.css (`.field-chevron`): as an arbitrary
+      // background-image utility, tailwind-merge filed it as a background
+      // colour and silently dropped the field fill.
+      "field-chevron",
       className,
     )}
     {...props}

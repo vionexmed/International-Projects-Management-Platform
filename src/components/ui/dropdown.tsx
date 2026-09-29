@@ -18,7 +18,7 @@ export const DropdownContent = React.forwardRef<
       align={align}
       className={cn(
         "z-50 min-w-48 overflow-hidden rounded-md border border-line bg-surface p-1",
-        "shadow-[0_10px_32px_rgba(10,24,38,0.12)]",
+        "shadow-overlay",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
         className,
       )}

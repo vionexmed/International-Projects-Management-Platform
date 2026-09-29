@@ -10,6 +10,7 @@ import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-fi
 import { TableFooter, TableShell } from "@/components/ui/table";
 import { DocumentsTable } from "@/features/documents/documents-table";
 import { UploadDocumentDialog } from "@/features/documents/upload-document-dialog";
+import { RequestDocumentDialog } from "@/features/documents/request-document-dialog";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, oneOf } from "@/lib/labels";
@@ -52,20 +53,26 @@ export default async function DocumentsPage({
       <PageHeader
         title="Documentos"
         actions={
-          can(user, "document:upload") ? (
-            <UploadDocumentDialog
-              projects={projects.items.map((project) => ({ id: project.id, name: project.name }))}
-              accept={ACCEPT_ATTRIBUTE}
-              maxSizeMb={maxUploadMb()}
-            />
-          ) : null
+          <>
+            {/* Asking a supplier for a file is as common here as uploading one. */}
+            {can(user, "document:request") ? (
+              <RequestDocumentDialog variant="secondary" projects={projects.items.map((project) => ({ id: project.id, name: project.name, projectCode: project.projectCode, supplierName: project.supplier.name }))} />
+            ) : null}
+            {can(user, "document:upload") ? (
+              <UploadDocumentDialog
+                projects={projects.items.map((project) => ({ id: project.id, name: project.name }))}
+                accept={ACCEPT_ATTRIBUTE}
+                maxSizeMb={maxUploadMb()}
+              />
+            ) : null}
+          </>
         }
       />
 
       {/* Same toolbar as `/projects` and `/tasks`: the filters sit beside the search. */}
       <div className="mb-5 flex flex-wrap items-center gap-x-2">
         <SearchInput placeholder="Buscar documentos…" className="min-w-0 flex-1 sm:w-72 sm:flex-none" />
-        <FilterBar activeCount={activeFilters} className="contents">
+        <FilterBar activeCount={activeFilters}>
           <FilterSelect
             paramKey="project"
             label="Projeto"

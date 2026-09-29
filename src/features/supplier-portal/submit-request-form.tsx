@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Send } from "lucide-react";
+import { AlertCircle, Info, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -24,6 +24,10 @@ import { interpolate } from "@/lib/i18n/dictionary";
  * connection, hands Vionex the document it asked for. Three things follow from
  * that and are deliberate here — the fields survive a failure, the wait is
  * visible, and a success clears the field for real.
+ *
+ * Everything the browser can check is checked before a byte leaves it: the
+ * file's type, size and emptiness in the drop zone, and "nothing to send" here
+ * — each in the supplier's language, where the server would answer in ours.
  */
 export function SubmitRequestForm({
   requestId,
@@ -31,6 +35,7 @@ export function SubmitRequestForm({
   dict,
   accept,
   maxSizeMb,
+  resubmission = false,
 }: {
   requestId: string;
   /** Needed to authorise the upload before the file leaves the browser. */
@@ -38,28 +43,47 @@ export function SubmitRequestForm({
   dict: Dictionary;
   accept: string;
   maxSizeMb: number;
+  /** A new version after "changes requested" — only the wording differs. */
+  resubmission?: boolean;
 }) {
+  const t = dict.portal.requests;
   const router = useRouter();
   const [clearedAt, setClearedAt] = React.useState(0);
-  const { prepare, progress } = useDirectUpload();
-  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const [hasFile, setHasFile] = React.useState(false);
+  const { prepare, progress } = useDirectUpload({
+    connectionFailed: t.connectionFailed,
+    storageRefused: t.storageRefused,
+  });
+  const [localError, setLocalError] = React.useState<string | null>(null);
+  const errorRef = React.useRef<HTMLDivElement>(null);
 
   const handleSuccess = React.useCallback(
     (_result: ActionState, form: HTMLFormElement) => {
-      toast.success(dict.portal.requests.submitSuccess);
+      toast.success(t.submitSuccess);
       form.reset();
       // `form.reset()` empties the native input; the dropzone keeps its own
       // copy in React state, so it is remounted to clear both at once.
       setClearedAt((value) => value + 1);
+      setHasFile(false);
       router.refresh();
+      // The page is about to swap the form for the "under review" callout at
+      // the top; take the reader there instead of leaving them facing the
+      // space where the form used to be.
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [dict, router],
+    [t, router],
   );
 
-  const { state, pending, onSubmit } = useFormAction(
-    submitDocumentRequestAction,
-    handleSuccess,
-  );
+  const { state, pending, onSubmit } = useFormAction(submitDocumentRequestAction, handleSuccess, {
+    unreachableError: t.sendFailed,
+  });
+
+  const busy = pending || progress !== null;
+  const shownError = localError ?? (state.error ? state.error : null);
+
+  React.useEffect(() => {
+    if (shownError) errorRef.current?.focus();
+  }, [shownError]);
 
   /**
    * The file goes to storage first when it is large, and the form then carries
@@ -75,15 +99,23 @@ export function SubmitRequestForm({
       const form = event.currentTarget;
       const input = form.elements.namedItem("file") as HTMLInputElement | null;
       const file = input?.files?.[0];
+      const message = (form.elements.namedItem("message") as HTMLTextAreaElement | null)?.value;
+
+      setLocalError(null);
+
+      if (!file && !message?.trim()) {
+        event.preventDefault();
+        setLocalError(t.nothingToSend);
+        return;
+      }
 
       if (!file) return onSubmit(event);
 
       event.preventDefault();
-      setUploadError(null);
 
       const prepared = await prepare(file, projectId);
       if (!prepared.ok) {
-        setUploadError(prepared.error);
+        setLocalError(prepared.error);
         return;
       }
 
@@ -100,70 +132,96 @@ export function SubmitRequestForm({
         preventDefault: () => {},
       } as unknown as React.FormEvent<HTMLFormElement>);
     },
-    [onSubmit, prepare, projectId],
+    [onSubmit, prepare, projectId, t],
   );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       <input type="hidden" name="requestId" value={requestId} />
       <input type="hidden" name="uploadToken" defaultValue="" />
 
-      {uploadError ? (
+      {shownError ? (
         <div
+          ref={errorRef}
           role="alert"
-          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-meta text-risk"
+          tabIndex={-1}
+          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-meta text-risk outline-none"
         >
-          <AlertCircle className="mt-px size-4 shrink-0" />
-          <span>{uploadError}</span>
-        </div>
-      ) : null}
-
-      {progress !== null ? (
-        <div>
-          <p className="mb-1.5 text-meta text-muted">{progress}%</p>
-          <div className="h-1.5 overflow-hidden rounded-full bg-raised">
-            <div
-              className="h-full rounded-full bg-brand transition-[width]"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {state.error ? (
-        <div
-          role="alert"
-          className="flex items-start gap-2.5 rounded-sm border border-risk/25 bg-risk-soft px-3 py-2.5 text-meta text-risk"
-        >
-          <AlertCircle className="mt-px size-4 shrink-0" />
-          <span>{state.error}</span>
+          <AlertCircle className="mt-px size-4 shrink-0" aria-hidden />
+          <span>
+            {/* A server refusal can arrive in another language; our sentence
+                says what to do, theirs says why. */}
+            {localError ? (
+              localError
+            ) : (
+              <>
+                <span className="block font-medium">{t.sendFailed}</span>
+                {state.error !== t.sendFailed ? (
+                  <span className="mt-0.5 block">{state.error}</span>
+                ) : null}
+              </>
+            )}
+          </span>
         </div>
       ) : null}
 
       <div>
-        <Label className="mb-2 block">{dict.portal.requests.uploadTitle}</Label>
+        {/* The panel title above already says "Upload document"; this names the field for assistive tech only. */}
+        <Label className="sr-only">{t.uploadTitle}</Label>
         <FileDropzone
           key={clearedAt}
           accept={accept}
           maxSizeMb={maxSizeMb}
-          disabled={pending}
-          hint={interpolate(dict.portal.requests.allowedTypes, { size: maxSizeMb })}
+          disabled={busy}
+          onFileChange={(next) => {
+            setHasFile(Boolean(next));
+            if (next) setLocalError(null);
+          }}
+          hint={interpolate(t.allowedTypes, { size: maxSizeMb })}
           labels={{
-            title: dict.portal.requests.uploadTitle,
-            dropHint: dict.portal.requests.uploadHint,
-            choose: dict.portal.requests.chooseFile,
+            title: t.uploadTitle,
+            dropHint: t.uploadHint,
+            choose: t.chooseFile,
+            remove: dict.portal.messages.removeFile,
+            typeError: t.fileTypeError,
+            sizeError: t.fileSizeError,
+            emptyError: t.fileEmptyError,
           }}
         />
+
+        {progress !== null ? (
+          <div className="mt-3" role="status" aria-live="polite">
+            <p className="mb-1.5 text-meta text-ink-soft tabular-nums">
+              {interpolate(t.uploadingPercent, { percent: progress })}
+            </p>
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-raised"
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t.uploadTitle}
+            >
+              <div
+                className="h-full rounded-full bg-brand transition-[width]"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="message">{dict.portal.requests.replyLabel}</Label>
+        <Label htmlFor="message">{t.replyLabel}</Label>
         <Textarea
           id="message"
           name="message"
           rows={4}
-          disabled={pending}
-          placeholder={dict.portal.requests.replyPlaceholder}
+          disabled={busy}
+          placeholder={t.replyPlaceholder}
+          onChange={() => {
+            if (localError === t.nothingToSend) setLocalError(null);
+          }}
         />
       </div>
 
@@ -174,7 +232,7 @@ export function SubmitRequestForm({
         button reading "…" amounts to — is what makes people give up or submit
         twice.
       */}
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-4">
         {pending ? (
           <p
             role="status"
@@ -186,15 +244,21 @@ export function SubmitRequestForm({
               className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-brand"
             />
             <span>
-              <span className="font-medium text-ink">{dict.portal.requests.sending}</span>{" "}
-              {dict.portal.requests.sendingHint}
+              <span className="font-medium text-ink">{t.sending}</span> {t.sendingHint}
             </span>
           </p>
-        ) : null}
+        ) : (
+          <p className="mr-auto flex max-w-md items-start gap-2 text-meta text-muted">
+            <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+            <span>
+              <span className="font-medium text-ink-soft">{t.nextStepsTitle}:</span> {t.nextSteps}
+            </span>
+          </p>
+        )}
 
-        <Button type="submit" variant="primary" size="lg" disabled={pending}>
+        <Button type="submit" variant="primary" size="lg" disabled={busy} className="max-sm:w-full">
           <Send />
-          {pending ? dict.portal.requests.sending : dict.common.submit}
+          {busy ? t.sending : resubmission && hasFile ? t.resubmit : t.sendToVionex}
         </Button>
       </div>
     </form>

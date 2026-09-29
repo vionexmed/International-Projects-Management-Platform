@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Download, FileText, Share2 } from "lucide-react";
 import type { DocumentCycleStatus, DocumentType, DocumentVisibility } from "@/generated/prisma";
 import type { DocumentStatus } from "@/server/services/documents";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { Tone } from "@/lib/status";
 import {
   CellStack,
   Table,
@@ -38,6 +39,15 @@ export type DocumentRow = {
     createdAt: Date;
   } | null;
   _count: { versions: number };
+};
+
+/** A generic tone → glyph map: dense rows read status as a shape first, the tone gives its colour. */
+const TONE_ICON: Record<Tone, StatusIconKind> = {
+  ok: "done",
+  warn: "waiting",
+  risk: "blocked",
+  info: "in-progress",
+  neutral: "open",
 };
 
 export function DocumentsTable({
@@ -122,7 +132,10 @@ export function DocumentsTable({
 
                 <TD label="Tipo">{label.documentType(document.type, dict)}</TD>
                 <TD label="Status">
-                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                    {status.label}
+                  </span>
                 </TD>
                 <TD label="Enviado" align="right">
                   <CellStack

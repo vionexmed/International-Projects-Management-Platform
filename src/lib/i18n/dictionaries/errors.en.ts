@@ -1,0 +1,63 @@
+import type { ErrorCatalog } from "@/lib/i18n/dictionaries/errors.pt-BR";
+
+/** English refusals. Keys and placeholders mirror `errors.pt-BR.ts`. */
+export const errorsEn: ErrorCatalog = {
+  validation: "Please check the highlighted fields.",
+  generic: "Something went wrong. Please try again.",
+  duplicate: "A record with these details already exists.",
+  invalidReference: "A related record is invalid.",
+
+  forbidden: "You don't have permission to do this.",
+  roleNotAllowed: "Your role doesn't allow this action.",
+  sessionExpired: "Your session has expired. Please sign in again.",
+  notFound: "Record not found.",
+  projectNotFound: "Project not found.",
+  taskNotFound: "Task not found.",
+  documentNotFound: "Document not found.",
+  fileNotFound: "File not found.",
+  requestNotFound: "Request not found.",
+  supplierNotFound: "Supplier not found.",
+  threadNotFound: "Conversation not found.",
+
+  fileMissing: "No file was sent.",
+  fileEmpty: "The file is empty.",
+  fileTooLarge: "The file exceeds the {size} MB limit.",
+  fileTypeNotAllowed: "This file type is not allowed.",
+  fileExtensionMismatch: "The file extension does not match its type.",
+  uploadExpired: "The upload expired. Please try again.",
+  uploadOtherSession: "This upload belongs to another session.",
+  uploadNotReceived: "The file did not reach storage. Please try again.",
+  uploadOtherProject: "This upload belongs to another project.",
+  uploadOtherThread: "This upload belongs to another conversation.",
+  uploadPrepareFailed: "The upload could not be prepared.",
+  projectRequired: "Select a project.",
+
+  requestCancelled: "This request was cancelled.",
+  requestInReview: "This request is under review. Please wait for Vionex's reply.",
+  requestApproved: "This request has already been approved.",
+  requestEmpty: "Attach a file or write a reply.",
+
+  messageEmpty: "Write a message or attach a file.",
+
+  portalRolesOnlyCreate: "You can only create portal users.",
+  ownCompanyCreate: "You can only create users for your own company.",
+  ownCompanyManage: "You can only manage users of your own company.",
+  portalRolesOnlyAssign: "You can only assign portal roles.",
+  supplierLinkRequired: "A supplier user must be linked to a supplier.",
+  internalWithSupplier: "An internal user cannot be linked to a supplier.",
+  supplierInvalid: "Invalid supplier.",
+  emailTaken: "A user with this email already exists.",
+  userNotFound: "User not found.",
+  roleSwitch: "You can't switch between internal and supplier roles.",
+  lastAdmin: "Your company would be left without an active administrator. Promote another user first.",
+
+  nameRequired: "Enter the name.",
+  emailInvalid: "Invalid email address.",
+  passwordMin: "The password must be at least 8 characters.",
+  currentPasswordRequired: "Enter your current password.",
+  currentPasswordWrong: "The current password is incorrect.",
+  newPasswordMin: "The new password must be at least 8 characters.",
+  confirmPasswordRequired: "Confirm the new password.",
+  passwordMismatch: "The passwords don't match.",
+  passwordUnchanged: "The new password must be different from the current one.",
+};

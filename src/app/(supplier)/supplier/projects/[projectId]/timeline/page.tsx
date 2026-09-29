@@ -27,7 +27,8 @@ export default async function SupplierProjectTimelinePage({
       <div className="p-5">
         <Timeline
           locale={locale}
-          emptyTitle={dict.common.noResults}
+          emptyTitle={dict.portal.project.noActivity}
+          emptyDescription={dict.portal.project.noActivityHint}
           items={events.map((event) => ({
             id: event.id,
             description: event.description,

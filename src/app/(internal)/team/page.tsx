@@ -4,7 +4,7 @@ import { requireInternalUser, can } from "@/server/auth/current-user";
 import { listTeam } from "@/server/services/users";
 import { PageHeader } from "@/components/app/page-header";
 import { UserAvatar } from "@/components/ui/avatar";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusIcon } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   CellStack,
@@ -36,7 +36,12 @@ export default async function TeamPage() {
 
   return (
     <>
-      <PageHeader title="Equipe" actions={manageable ? <InviteMemberDialog /> : null} />
+      {/* Reached from the account menu, not the rail: a trail back. */}
+      <PageHeader
+        breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Equipe" }]}
+        title="Equipe"
+        actions={manageable ? <InviteMemberDialog /> : null}
+      />
 
       <TableShell>
         {members.length === 0 ? (
@@ -74,9 +79,13 @@ export default async function TeamPage() {
                         {member.lastLoginAt ? formatRelative(member.lastLoginAt, locale) : ""}
                       </TD>
                       <TD label="Status">
-                        <StatusBadge tone={member.status === "ACTIVE" ? "ok" : "neutral"}>
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                          <StatusIcon
+                            kind={member.status === "ACTIVE" ? "done" : "open"}
+                            tone={member.status === "ACTIVE" ? "ok" : "neutral"}
+                          />
                           {dict.enums.userStatus[member.status]}
-                        </StatusBadge>
+                        </span>
                       </TD>
                       <TD className="text-right">
                         {manageable ? (

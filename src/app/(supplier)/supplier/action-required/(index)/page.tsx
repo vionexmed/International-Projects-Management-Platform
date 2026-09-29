@@ -4,15 +4,15 @@ import { ArrowRight, CircleCheck, Clock, FileText, ListChecks } from "lucide-rea
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { listSupplierQueue, type QueueItem } from "@/server/services/supplier-queue";
 import { PageHeader } from "@/components/app/page-header";
-import { TabsNav } from "@/components/app/tabs-nav";
+import { SegmentedToggle } from "@/components/app/view-toolbar";
 import { Panel } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getDictionary, plural, type Dictionary } from "@/lib/i18n/dictionary";
+import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage, type Locale } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
-import { daysUntil, formatDate } from "@/lib/format";
+import { DUE_TONE_CLASS, dueLabel } from "@/features/supplier-portal/due-label";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Action Required" };
@@ -56,17 +56,17 @@ export default async function ActionRequiredPage({
   const visibleWaiting = waiting.filter(matches);
   const visibleDone = done.filter(matches);
 
-  const countFor = (key: string) =>
-    key === "all"
-      ? open.length
-      : open.filter((item) => (key === "document" ? item.type === "DOCUMENT" : item.type === "TASK"))
-          .length;
-
   return (
     <>
       <PageHeader title={dict.portal.requests.title} description={dict.portal.requests.subtitle} />
 
-      <TabsNav
+      {/*
+        The page's one option row: three short choices, so a segmented switch.
+        No counts on it — the open total is on the sidebar badge and the rows
+        themselves; repeating it here was the same number twice.
+      */}
+      <SegmentedToggle
+        label={dict.common.filters}
         className="mb-5"
         items={FILTERS.map((filter) => ({
           href:
@@ -74,7 +74,6 @@ export default async function ActionRequiredPage({
               ? "/supplier/action-required"
               : `/supplier/action-required?type=${filter.key}`,
           label: filter.label(dict),
-          count: countFor(filter.key),
           active: filter.key === active.key,
         }))}
       />
@@ -143,10 +142,17 @@ function QueueRow({
   locale: Locale;
   muted?: boolean;
 }) {
-  const remaining = daysUntil(item.dueDate);
-  const overdue = remaining !== null && remaining < 0 && item.state === "open";
+  const due = dueLabel(item.dueDate, dict, locale, { open: item.state === "open" });
   const Icon = item.type === "DOCUMENT" ? FileText : ListChecks;
-  const status = item.requestStatus ? meta.request(item.requestStatus, dict) : null;
+  /**
+   * "Rejected" on a badge sounds final, and it is not: the request is open
+   * again and waiting on a new version. The portal says what it means.
+   */
+  const status = item.requestStatus
+    ? item.requestStatus === "REJECTED"
+      ? { label: dict.portal.requests.changesRequested, tone: "warn" as const }
+      : meta.request(item.requestStatus, dict)
+    : null;
 
   return (
     <li>
@@ -163,11 +169,11 @@ function QueueRow({
             muted ? "border-line bg-subtle text-muted" : "border-brand-line bg-brand-soft text-brand-strong",
           )}
         >
-          <Icon className="size-4" />
+          <Icon className="size-4" aria-hidden />
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-body font-medium text-ink">{item.title}</span>
+          <span className="block truncate text-body font-medium text-ink max-sm:whitespace-normal">{item.title}</span>
           <span className="mt-0.5 block truncate text-meta text-muted">
             {item.type === "DOCUMENT"
               ? dict.portal.requests.typeDocument
@@ -176,25 +182,15 @@ function QueueRow({
           </span>
         </span>
 
-        {item.dueDate ? (
+        {due ? (
           <span
             className={cn(
-              "shrink-0 text-meta whitespace-nowrap",
-              overdue ? "font-medium text-risk" : "text-muted",
+              "inline-flex shrink-0 items-center gap-1.5 text-meta whitespace-nowrap",
+              DUE_TONE_CLASS[due.tone],
             )}
           >
-            {overdue ? (
-              dict.portal.requests.overdue
-            ) : remaining !== null && remaining <= 7 && item.state === "open" ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="size-3.5" />
-                {remaining === 0
-                  ? dict.portal.requests.dueToday
-                  : plural(dict.portal.requests.dueInDays, remaining)}
-              </span>
-            ) : (
-              formatDate(item.dueDate, locale)
-            )}
+            {due.tone === "soon" ? <Clock className="size-3.5" aria-hidden /> : null}
+            {due.text}
           </span>
         ) : null}
 
@@ -204,7 +200,7 @@ function QueueRow({
           </span>
         ) : null}
 
-        <ArrowRight className="size-4 shrink-0 text-faint" />
+        <ArrowRight className="size-4 shrink-0 text-faint max-sm:hidden" aria-hidden />
       </Link>
     </li>
   );

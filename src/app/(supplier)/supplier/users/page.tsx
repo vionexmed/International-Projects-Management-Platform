@@ -4,6 +4,7 @@ import { Users } from "lucide-react";
 import { can, requireSupplierUser } from "@/server/auth/current-user";
 import { listPortalUsers } from "@/server/services/users";
 import { PageHeader } from "@/components/app/page-header";
+import { trailLabels } from "@/components/app/trail-labels";
 import { UserAvatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,7 +24,7 @@ import {
   AddPortalUserDialog,
   EditPortalUserDialog,
 } from "@/features/supplier-portal/portal-user-dialogs";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { getDictionary, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
 export const metadata: Metadata = { title: "Users" };
@@ -49,7 +50,10 @@ export default async function SupplierUsersPage() {
 
   return (
     <>
+      {/* Reached from the account menu, not the sidebar: a trail back home. */}
       <PageHeader
+        breadcrumb={[{ label: dict.nav.home, href: "/supplier" }, { label: dict.portal.team.title }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
         title={dict.portal.team.title}
         description={dict.portal.team.subtitle}
         actions={<AddPortalUserDialog dict={dict} />}
@@ -115,7 +119,7 @@ export default async function SupplierUsersPage() {
               </Table>
             </TableScroll>
             <TableFooter>
-              <span>{users.length}</span>
+              <span>{plural(dict.portal.team.countLabel, users.length)}</span>
             </TableFooter>
           </>
         )}

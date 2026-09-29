@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { countUnread, listNotifications } from "@/server/services/notifications";
-import {
-  markAllNotificationsReadAction,
-  markNotificationReadAction,
-} from "@/server/actions/notifications";
+import { markNotificationReadAction } from "@/server/actions/notifications";
+import { MarkAllReadButton } from "@/features/supplier-portal/mark-all-read-button";
 import { PageHeader } from "@/components/app/page-header";
-import { Button } from "@/components/ui/button";
+import { trailLabels } from "@/components/app/trail-labels";
 import { Panel } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -39,19 +37,20 @@ export default async function SupplierNotificationsPage() {
 
   return (
     <>
+      {/* Reached from the header bell, not the sidebar: a trail back home. */}
       <PageHeader
+        breadcrumb={[{ label: dict.nav.home, href: "/supplier" }, { label: dict.nav.notifications }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
         title={dict.nav.notifications}
         description={
           unread > 0 ? dict.portal.notifications.unread : dict.portal.notifications.upToDate
         }
         actions={
           unread > 0 ? (
-            <form action={markAllNotificationsReadAction}>
-              <Button type="submit" variant="secondary">
-                <CheckCheck />
-                {dict.portal.notifications.markAllRead}
-              </Button>
-            </form>
+            <MarkAllReadButton
+              label={dict.portal.notifications.markAllRead}
+              done={dict.portal.notifications.upToDate}
+            />
           ) : null
         }
       />

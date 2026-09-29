@@ -27,16 +27,34 @@ export function FileDropzone({
   required,
   className,
   disabled,
+  onFileChange,
 }: {
   name?: string;
   accept: string;
   maxSizeMb: number;
   hint: string;
-  labels: { title: string; dropHint: string; choose: string };
+  /**
+   * The error strings are optional so existing callers keep their wording; the
+   * Supplier Portal passes its own, because a manufacturer reading English
+   * should not be told "Formato não permitido".
+   */
+  labels: {
+    title: string;
+    dropHint: string;
+    choose: string;
+    remove?: string;
+    /** Shown when the extension is not accepted. */
+    typeError?: string;
+    /** `{size}` is replaced with the limit in MB. */
+    sizeError?: string;
+    emptyError?: string;
+  };
   required?: boolean;
   className?: string;
   /** Blocks picking a different file while the current one is being sent. */
   disabled?: boolean;
+  /** Told about every accepted change, so a form can adapt its button or checks. */
+  onFileChange?: (file: File | null) => void;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = React.useState<File | null>(null);
@@ -48,29 +66,42 @@ export function FileDropzone({
     [accept],
   );
 
+  const reject = (message: string) => {
+    setError(message);
+    setFile(null);
+    onFileChange?.(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
   const assign = (next: File | null) => {
     if (!next) {
       setFile(null);
       setError(null);
+      onFileChange?.(null);
       return;
     }
 
+    // Checked here, before anything is uploaded, so a wrong file costs the
+    // person a second rather than a long upload and a server refusal.
     const lower = next.name.toLowerCase();
     if (accepted.length > 0 && !accepted.some((extension) => lower.endsWith(extension))) {
-      setError(`Formato não permitido. Use: ${accepted.join(", ")}.`);
-      setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
+      reject(labels.typeError ?? `Formato não permitido. Use: ${accepted.join(", ")}.`);
+      return;
+    }
+    if (next.size === 0) {
+      reject(labels.emptyError ?? "O arquivo está vazio.");
       return;
     }
     if (next.size > maxSizeMb * 1024 * 1024) {
-      setError(`O arquivo excede ${maxSizeMb} MB.`);
-      setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
+      reject(
+        (labels.sizeError ?? "O arquivo excede {size} MB.").replace("{size}", String(maxSizeMb)),
+      );
       return;
     }
 
     setError(null);
     setFile(next);
+    onFileChange?.(next);
   };
 
   const handleDrop = (event: React.DragEvent) => {
@@ -115,7 +146,7 @@ export function FileDropzone({
       >
         {file ? (
           <div className="flex items-center justify-center gap-3">
-            <FileText className="size-5 shrink-0 text-brand-strong" />
+            <FileText className="size-5 shrink-0 text-brand-strong" aria-hidden />
             <div className="min-w-0 text-left">
               <p className="truncate text-sm font-medium text-ink">{file.name}</p>
               <p className="text-[12px] text-muted">{formatFileSize(file.size)}</p>
@@ -124,21 +155,22 @@ export function FileDropzone({
               type="button"
               disabled={disabled}
               onClick={clear}
-              className="rounded-sm p-1 text-muted transition-colors hover:bg-raised hover:text-ink"
-              aria-label="Remover arquivo"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink"
+              aria-label={labels.remove ?? "Remover arquivo"}
             >
               <X className="size-4" />
             </button>
           </div>
         ) : (
           <>
-            <Upload className="mx-auto mb-2.5 size-5 text-muted" />
-            <p className="text-sm font-medium text-ink">{labels.dropHint}</p>
+            <Upload className="mx-auto mb-2.5 size-5 text-muted" aria-hidden />
+            {/* Nothing can be dragged on a phone; there the button is the whole affordance. */}
+            <p className="text-sm font-medium text-ink pointer-coarse:hidden">{labels.dropHint}</p>
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              className="mt-3"
+              className="mt-3 pointer-coarse:mt-0 pointer-coarse:h-10"
               disabled={disabled}
               onClick={() => inputRef.current?.click()}
             >
@@ -160,9 +192,13 @@ export function FileDropzone({
         />
       </div>
 
-      <p className={cn("mt-1.5 text-[12px]", error ? "text-risk" : "text-muted")} role={error ? "alert" : undefined}>
+      <p
+        className={cn("mt-1.5 text-[12px]", error ? "font-medium text-risk" : "text-muted")}
+        role={error ? "alert" : undefined}
+      >
         {error ?? hint}
       </p>
+      {error ? <p className="mt-0.5 text-[12px] text-muted">{hint}</p> : null}
     </div>
   );
 }

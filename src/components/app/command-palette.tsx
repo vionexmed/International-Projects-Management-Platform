@@ -22,14 +22,49 @@ const ICONS = {
   supplier: Building2,
 } as const;
 
+const OPEN_EVENT = "vionex:search";
+
+/**
+ * Opens the one mounted palette from anywhere (the rail, the mobile header).
+ * An event rather than a second palette: two instances would both answer ⌘K
+ * and toggle each other shut.
+ */
+export function openCommandPalette() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
+/** Icon-only search button (mobile header) that opens the mounted palette. */
+export function SearchTrigger({ label, className }: { label: string; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={openCommandPalette}
+      aria-label={label}
+      aria-keyshortcuts="Meta+K Control+K"
+      className={cn(
+        "inline-flex size-9 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink",
+        className,
+      )}
+    >
+      <Search className="size-[18px]" />
+    </button>
+  );
+}
+
 /**
  * Cross-entity search reachable from anywhere with ⌘K / Ctrl+K. Results are
  * scoped server-side, so the same component serves both environments.
+ *
+ * `trigger="field"` (default) renders its own search-field button;
+ * `trigger="none"` renders only the dialog, opened by ⌘K or
+ * `openCommandPalette()`.
  */
 export function CommandPalette({
   labels,
+  trigger = "field",
 }: {
   labels: { placeholder: string; empty: string; hint: string; groups: Record<Hit["kind"], string> };
+  trigger?: "field" | "none";
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -46,8 +81,13 @@ export function CommandPalette({
         setOpen((value) => !value);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, []);
 
   const ready = term.trim().length >= 2;
@@ -102,20 +142,22 @@ export function CommandPalette({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "inline-flex h-9 items-center gap-2 rounded-sm border border-line bg-surface px-3 text-[13px] text-muted transition-colors",
-          "hover:border-line-strong hover:text-ink-soft",
-        )}
-      >
-        <Search className="size-4" />
-        <span className="hidden sm:inline">{labels.placeholder}</span>
-        <kbd className="ml-2 hidden rounded-xs border border-line bg-subtle px-1.5 py-0.5 font-sans text-[10px] text-faint sm:inline">
-          ⌘K
-        </kbd>
-      </button>
+      {trigger === "field" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-sm border border-line bg-surface px-3 text-[13px] text-muted transition-colors",
+            "hover:border-line-strong hover:text-ink-soft",
+          )}
+        >
+          <Search className="size-4" />
+          <span className="hidden sm:inline">{labels.placeholder}</span>
+          <kbd className="ml-2 hidden rounded-xs border border-line bg-subtle px-1.5 py-0.5 font-sans text-[10px] text-faint sm:inline">
+            ⌘K
+          </kbd>
+        </button>
+      ) : null}
 
       <Dialog
         open={open}

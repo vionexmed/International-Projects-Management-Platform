@@ -12,6 +12,7 @@ import {
 } from "@/server/authz/scopes";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
 import { SUPPLIER_PROJECT_SELECT, type SupplierProject } from "@/server/authz/projections";
+import { errorText } from "@/lib/i18n/error-text";
 
 /**
  * The guards a single render calls more than once (metadata, layout, page)
@@ -53,7 +54,7 @@ export const requireProjectAccess = cache(async (user: SessionUser, projectId: s
       owner: { select: { id: true, name: true, jobTitle: true } },
     },
   });
-  if (!project) throw new NotFoundError("Projeto não encontrado.");
+  if (!project) throw new NotFoundError(errorText("projectNotFound"));
   return project;
 });
 
@@ -72,7 +73,7 @@ export async function requireSharedProjectAccess(
     where: { AND: [projectScope(user), { id: projectId }] },
     select: SUPPLIER_PROJECT_SELECT,
   });
-  if (!project) throw new NotFoundError("Projeto não encontrado.");
+  if (!project) throw new NotFoundError(errorText("projectNotFound"));
   return project;
 }
 
@@ -86,7 +87,7 @@ export const requireTaskAccess = cache(async (user: SessionUser, taskId: string)
       createdBy: { select: { id: true, name: true } },
     },
   });
-  if (!task) throw new NotFoundError("Tarefa não encontrada.");
+  if (!task) throw new NotFoundError(errorText("taskNotFound"));
   return task;
 });
 
@@ -104,7 +105,7 @@ export async function requireDocumentAccess(user: SessionUser, documentId: strin
       },
     },
   });
-  if (!document) throw new NotFoundError("Documento não encontrado.");
+  if (!document) throw new NotFoundError(errorText("documentNotFound"));
   return document;
 }
 
@@ -114,7 +115,7 @@ export async function requireDocumentVersionAccess(user: SessionUser, versionId:
     where: { id: versionId, document: documentScope(user) },
     include: { document: { select: { id: true, name: true } } },
   });
-  if (!version) throw new NotFoundError("Arquivo não encontrado.");
+  if (!version) throw new NotFoundError(errorText("fileNotFound"));
   return version;
 }
 
@@ -146,7 +147,7 @@ export const requireDocumentRequestAccess = cache(async (user: SessionUser, requ
       },
     },
   });
-  if (!request) throw new NotFoundError("Solicitação não encontrada.");
+  if (!request) throw new NotFoundError(errorText("requestNotFound"));
   return request;
 });
 
@@ -154,7 +155,7 @@ export async function requireSupplierAccess(user: SessionUser, supplierId: strin
   const supplier = await db.supplier.findFirst({
     where: { AND: [supplierScope(user), { id: supplierId }] },
   });
-  if (!supplier) throw new NotFoundError("Fornecedor não encontrado.");
+  if (!supplier) throw new NotFoundError(errorText("supplierNotFound"));
   return supplier;
 }
 
@@ -163,6 +164,6 @@ export async function requireThreadAccess(user: SessionUser, threadId: string) {
     where: { AND: [threadScope(user), { id: threadId }] },
     include: { project: { select: { id: true, name: true, projectCode: true, supplierId: true } } },
   });
-  if (!thread) throw new NotFoundError("Conversa não encontrada.");
+  if (!thread) throw new NotFoundError(errorText("threadNotFound"));
   return thread;
 }

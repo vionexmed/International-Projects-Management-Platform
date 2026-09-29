@@ -6,7 +6,19 @@ import {
   redeemUploadTicket,
   validateDescribedUpload,
 } from "@/server/services/upload-tickets";
-import { uploadDocument } from "@/server/services/documents";
+import {
+  createDocumentRequest,
+  submitDocumentRequest,
+  uploadDocument,
+} from "@/server/services/documents";
+import {
+  ensureProjectThread,
+  getThread,
+  issueAttachmentTicket,
+  sendMessage,
+} from "@/server/services/messages";
+import { requireDocumentVersionAccess } from "@/server/authz/access";
+import { NotFoundError } from "@/server/authz/errors";
 import type { SessionUser } from "@/types/auth";
 import { createProject, createSupplier, createTestOrg, createUser, destroyOrg } from "../factories";
 
@@ -27,6 +39,7 @@ let organizationId: string;
 let admin: SessionUser;
 let other: SessionUser;
 let supplierUser: SessionUser;
+let otherSupplierUser: SessionUser;
 let projectId: string;
 let otherProjectId: string;
 
@@ -43,6 +56,11 @@ beforeAll(async () => {
     organizationId,
     role: "SUPPLIER_USER",
     supplierId: supplier.id,
+  });
+  otherSupplierUser = await createUser({
+    organizationId,
+    role: "SUPPLIER_USER",
+    supplierId: second.id,
   });
 
   projectId = (
@@ -185,5 +203,185 @@ describe("the round trip, end to end", () => {
   it("does not let a supplier get a ticket for another company's project", async () => {
     const { requireSharedProjectAccess } = await import("@/server/authz/access");
     await expect(requireSharedProjectAccess(supplierUser, otherProjectId)).rejects.toThrow();
+  });
+});
+
+/** Stand-in for the browser's PUT: put the object where the ticket says. */
+async function putFor(token: string, bytes = Buffer.alloc(64 * 1024, 7)) {
+  const claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+  await storage().put(claims.key, bytes, "application/pdf");
+  return { claims, bytes };
+}
+
+describe("a large file answering a request", () => {
+  it("counts as an answer even without a note", async () => {
+    const request = await createDocumentRequest(admin, {
+      projectId,
+      title: "Big certificate",
+      type: "CERTIFICATE",
+    });
+    const ticket = await issueUploadTicket(supplierUser, { ...described, projectId });
+    await putFor(ticket.token);
+    const redeemed = await redeemUploadTicket(supplierUser, ticket.token);
+
+    // Used to be refused with "attach a file or write a reply": the file had
+    // gone straight to storage, so the form carried no bytes.
+    await submitDocumentRequest(supplierUser, request.id, {
+      file: null,
+      uploaded: {
+        storageKey: redeemed.key,
+        fileName: redeemed.fileName,
+        contentType: redeemed.contentType,
+        size: redeemed.size,
+      },
+      message: null,
+    });
+
+    const after = await db.documentRequest.findUniqueOrThrow({
+      where: { id: request.id },
+      select: { status: true },
+    });
+    expect(after.status).toBe("SUBMITTED");
+    await storage().delete(redeemed.key);
+  });
+});
+
+/**
+ * Message attachments take the same road as documents: above the platform's
+ * body limit the bytes cannot travel with the send. The ticket is issued for a
+ * conversation the caller can see and is bound to it.
+ */
+describe("a large attachment on a message", () => {
+  let threadId: string;
+  let otherThreadId: string;
+  const attachment = { fileName: "packing-list.pdf", contentType: "application/pdf", size: 6 * 1024 * 1024 };
+
+  beforeAll(async () => {
+    threadId = await ensureProjectThread(projectId, "Upload Project");
+    otherThreadId = await ensureProjectThread(otherProjectId, "Other Project");
+  });
+
+  it("is approved for the thread, under a key the server chose in its project", async () => {
+    const ticket = await issueAttachmentTicket(supplierUser, threadId, attachment);
+    const claims = JSON.parse(Buffer.from(ticket.token.split(".")[1], "base64url").toString("utf8"));
+    expect(claims.threadId).toBe(threadId);
+    expect(claims.projectId).toBe(projectId);
+    expect(claims.userId).toBe(supplierUser.id);
+    expect(claims.key).toContain(`projects/${projectId}/`);
+    expect(claims.key).not.toContain("packing");
+  });
+
+  it("applies the same type and size rules as documents", async () => {
+    await expect(
+      issueAttachmentTicket(supplierUser, threadId, { ...attachment, fileName: "list.exe" }),
+    ).rejects.toThrow(/extensão/i);
+    await expect(
+      issueAttachmentTicket(supplierUser, threadId, { ...attachment, size: 900 * 1024 * 1024 }),
+    ).rejects.toThrow(/limite/i);
+  });
+
+  it("is never issued for another supplier's conversation", async () => {
+    await expect(
+      issueAttachmentTicket(supplierUser, otherThreadId, attachment),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("cannot be spent on another thread, as a document, or by someone else", async () => {
+    const ticket = await issueAttachmentTicket(admin, threadId, attachment);
+    await putFor(ticket.token);
+
+    await expect(
+      redeemUploadTicket(admin, ticket.token, { threadId: otherThreadId }),
+    ).rejects.toThrow(/outra conversa/i);
+    // Without a thread it is being redeemed as a document upload.
+    await expect(redeemUploadTicket(admin, ticket.token)).rejects.toThrow(/outra conversa/i);
+    await expect(
+      redeemUploadTicket(other, ticket.token, { threadId }),
+    ).rejects.toThrow(/outra sessão/i);
+
+    // And a document ticket is not an attachment ticket.
+    const documentTicket = await issueUploadTicket(admin, { ...described, projectId });
+    await putFor(documentTicket.token);
+    await expect(
+      redeemUploadTicket(admin, documentTicket.token, { threadId }),
+    ).rejects.toThrow(/outra conversa/i);
+  });
+
+  it("refuses a file that never arrived", async () => {
+    const ticket = await issueAttachmentTicket(supplierUser, threadId, attachment);
+    await expect(
+      redeemUploadTicket(supplierUser, ticket.token, { threadId }),
+    ).rejects.toThrow(/não chegou/i);
+  });
+
+  it("arrives attached, recorded at the size storage reports, and audited", async () => {
+    const ticket = await issueAttachmentTicket(supplierUser, threadId, attachment);
+    const { claims, bytes } = await putFor(ticket.token);
+    const redeemed = await redeemUploadTicket(supplierUser, ticket.token, { threadId });
+
+    const message = await sendMessage(supplierUser, threadId, "", {
+      projectId: redeemed.projectId,
+      storageKey: redeemed.key,
+      fileName: redeemed.fileName,
+      contentType: redeemed.contentType,
+      size: redeemed.size,
+    });
+    // No text: the file name stands in, as it does for a small file.
+    expect(message.body).toBe("packing-list.pdf");
+
+    const { messages } = await getThread(admin, threadId);
+    const sent = messages.find((entry) => entry.id === message.id)!;
+    const versionId = sent.attachments[0]!.documentVersion.id;
+
+    const version = await db.documentVersion.findUniqueOrThrow({
+      where: { id: versionId },
+      select: {
+        storageKey: true,
+        fileSize: true,
+        fileName: true,
+        document: { select: { visibility: true, projectId: true } },
+      },
+    });
+    expect(version.storageKey).toBe(claims.key);
+    expect(version.fileSize).toBe(bytes.byteLength);
+    expect(version.fileName).toBe("packing-list.pdf");
+    expect(version.document).toEqual({ visibility: "SHARED_WITH_SUPPLIER", projectId });
+
+    const audit = await db.auditLog.findMany({
+      where: { organizationId, actorId: supplierUser.id, action: { in: ["message.send", "document.upload"] } },
+      select: { action: true },
+    });
+    expect(audit.map((entry) => entry.action)).toEqual(
+      expect.arrayContaining(["message.send", "document.upload"]),
+    );
+
+    // The project owner hears about it; the file stays inside the tenancy.
+    const notified = await db.notification.findFirst({
+      where: { userId: admin.id, type: "MESSAGE_RECEIVED" },
+    });
+    expect(notified).not.toBeNull();
+    await expect(requireDocumentVersionAccess(supplierUser, versionId)).resolves.toBeDefined();
+    await expect(
+      requireDocumentVersionAccess(otherSupplierUser, versionId),
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    await storage().delete(version.storageKey);
+  });
+
+  it("refuses a stored object that belongs to another project", async () => {
+    const ticket = await issueUploadTicket(admin, { ...described, projectId: otherProjectId });
+    const { claims } = await putFor(ticket.token);
+
+    await expect(
+      sendMessage(admin, threadId, "Wrong place", {
+        projectId: otherProjectId,
+        storageKey: claims.key,
+        fileName: "certificado.pdf",
+        contentType: "application/pdf",
+        size: 64 * 1024,
+      }),
+    ).rejects.toThrow(/outro projeto/i);
+
+    await storage().delete(claims.key);
   });
 });

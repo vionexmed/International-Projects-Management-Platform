@@ -3,13 +3,11 @@ import type { GtmCategory } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
-import { Panel } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
+import { WorkBlock, DenseList, DenseRow } from "@/features/projects/work-block";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress";
 import { GtmItemDialog } from "@/features/projects/gtm-item-dialog";
 import { StatusMenu, type StatusOption } from "@/components/app/status-menu";
-import { CanvasList, CanvasRow } from "@/features/projects/canvas-list";
 import { updateGtmItemAction } from "@/server/actions/stages";
 import { orNotFound } from "@/server/authz/rsc";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -52,54 +50,54 @@ export default async function ProjectGoToMarketPage({
     ...meta.task(value, dict),
   }));
 
-  // The launch date is in the record header; this page is about the checklist.
+  // The launch date is in the overview; this page is about the checklist.
   return (
-    <Section
+    <WorkBlock
       title="Itens de lançamento"
       count={items.length > 0 ? `${completed} de ${items.length} concluídos` : undefined}
       action={editable ? <GtmItemDialog projectId={projectId} /> : null}
     >
       {grouped.length === 0 ? (
-        <Panel>
-          <EmptyState
-            icon={Megaphone}
-            title="Nenhum item de Go-to-Market."
-            description="Adicione itens para acompanhar estratégia, preço, canais e lançamento."
-          />
-        </Panel>
+        <EmptyState
+          icon={Megaphone}
+          title="Nenhum item de Go-to-Market."
+          description="Adicione itens para acompanhar estratégia, preço, canais e lançamento."
+        />
       ) : (
         <>
-          <ProgressBar
-            value={progress}
-            tone={progress === 100 ? "ok" : "neutral"}
-            label="Progresso do Go-to-Market"
-            className="mb-8 max-w-md"
-          />
+          <div className="flex items-center gap-3 border-b border-line-faint px-4 py-3">
+            <ProgressBar
+              value={progress}
+              tone={progress === 100 ? "ok" : "neutral"}
+              label="Progresso do Go-to-Market"
+              barClassName="h-1.5"
+              className="max-w-md"
+            />
+            <span className="text-meta font-semibold text-ink tabular-nums">{progress}%</span>
+          </div>
 
-          {/*
-            Two columns of groups on a desktop: each group is a short list,
-            and at full width its titles and status menus sat 1000px apart.
-          */}
-          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
-            {grouped.map((group) => (
-              <div key={group.category}>
-                <h3 className="mb-2 text-title text-ink-soft">
-                  {label.gtmCategory(group.category, dict)}
-                </h3>
-                <CanvasList>
-                  {group.items.map((item) => (
-                    <CanvasRow
-                      key={item.id}
-                      href={`/tasks/${item.id}`}
-                      title={item.title}
-                      subtitle={[
-                        item.description,
-                        item.assignedTo?.name,
-                        item.dueDate ? formatDateShort(item.dueDate, locale) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                      trailing={
+          {/* Each category is a phase row with its items under it, like the plan. */}
+          {grouped.map((group) => (
+            <div key={group.category}>
+              <h3 className="flex h-10 items-center gap-2 border-b border-line-faint bg-subtle px-4 text-body font-semibold text-ink">
+                {label.gtmCategory(group.category, dict)}
+                <span className="text-meta font-normal text-muted tabular-nums">
+                  {group.items.filter((item) => item.status === "COMPLETED").length}/{group.items.length}
+                </span>
+              </h3>
+              <DenseList className="border-b border-line-faint last:border-b-0">
+                {group.items.map((item) => (
+                  <DenseRow
+                    key={item.id}
+                    href={`/tasks/${item.id}`}
+                    className="pl-10"
+                    title={item.title}
+                    meta={[item.description, item.assignedTo?.name].filter(Boolean).join(" · ")}
+                    trailing={
+                      <>
+                        <span className="hidden w-12 text-right tabular-nums sm:inline">
+                          {item.dueDate ? formatDateShort(item.dueDate, locale) : ""}
+                        </span>
                         <StatusMenu
                           action={updateGtmItemAction}
                           hidden={{ projectId, itemId: item.id }}
@@ -110,15 +108,15 @@ export default async function ProjectGoToMarketPage({
                           readOnly={!editable}
                           align="end"
                         />
-                      }
-                    />
-                  ))}
-                </CanvasList>
-              </div>
-            ))}
-          </div>
+                      </>
+                    }
+                  />
+                ))}
+              </DenseList>
+            </div>
+          ))}
         </>
       )}
-    </Section>
+    </WorkBlock>
   );
 }

@@ -11,6 +11,8 @@ import {
   toActionError,
   type ActionState,
 } from "@/server/actions/utils";
+import { toCallerActionError } from "@/server/actions/caller-locale";
+import { errorText } from "@/lib/i18n/error-text";
 
 const ROLES = [
   "ADMIN", "MANAGER", "REGULATORY", "IMPORT", "MARKETING", "VIEWER",
@@ -19,9 +21,9 @@ const ROLES = [
 const LANGUAGES = ["PT_BR", "EN", "ZH"] as const;
 
 const baseSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome.").max(120),
-  email: z.string().trim().toLowerCase().email("E-mail inválido."),
-  password: z.string().min(8, "A senha deve ter ao menos 8 caracteres."),
+  name: z.string().trim().min(2, errorText("nameRequired")).max(120),
+  email: z.string().trim().toLowerCase().email(errorText("emailInvalid")),
+  password: z.string().min(8, errorText("passwordMin")),
   role: z.enum(ROLES),
   jobTitle: optionalText,
   department: optionalText,
@@ -108,7 +110,7 @@ export async function addPortalUserAction(
     revalidatePath("/supplier/users");
     return { ok: true, createdId: user.id };
   } catch (error) {
-    return toActionError(error);
+    return toCallerActionError(error);
   }
 }
 
@@ -142,6 +144,6 @@ export async function updateUserAction(
     revalidatePath("/supplier/users");
     return { ok: true };
   } catch (error) {
-    return toActionError(error);
+    return toCallerActionError(error);
   }
 }

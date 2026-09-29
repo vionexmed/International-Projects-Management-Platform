@@ -30,6 +30,7 @@ export function NewTaskDialog({
   supplierName,
   defaultCategory = "GENERAL",
   variant = "primary",
+  size,
 }: {
   projects?: { id: string; name: string }[];
   projectId?: string;
@@ -38,11 +39,13 @@ export function NewTaskDialog({
   supplierName?: string;
   defaultCategory?: string;
   variant?: "primary" | "secondary";
+  /** Defaults to 36 px for a primary and 32 px for a secondary; toolbars pass "sm". */
+  size?: "sm" | "md";
 }) {
   return (
     <FormDialog
       trigger={
-        <Button variant={variant} size={variant === "primary" ? "md" : "sm"}>
+        <Button variant={variant} size={size ?? (variant === "primary" ? "md" : "sm")}>
           <Plus />
           Nova tarefa
         </Button>

@@ -25,6 +25,8 @@ export function ChangePasswordButton({ dict }: { dict: Dictionary }) {
         hint: dict.account.passwordRule,
         submit: dict.account.changePassword,
         success: dict.account.passwordChanged,
+        cancel: dict.common.cancel,
+        saving: dict.common.saving,
       }}
     />
   );

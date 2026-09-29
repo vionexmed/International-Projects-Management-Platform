@@ -1,27 +1,16 @@
-import Link from "next/link";
-import { MessageSquare } from "lucide-react";
-import { requireInternalUser, can } from "@/server/auth/current-user";
+import { requireInternalUser } from "@/server/auth/current-user";
 import { requireTaskAccess } from "@/server/authz/access";
 import { orNotFound } from "@/server/authz/rsc";
-import { listTaskComments } from "@/server/services/tasks";
 import { listInternalUserOptions } from "@/server/services/users";
-import { db } from "@/server/db";
-import { PageHeader } from "@/components/app/page-header";
-import { Section } from "@/components/ui/section";
-import { Panel, PanelHeader, PropertyList, type PropertyItem } from "@/components/ui/card";
-import { PriorityBadge, SolidBadge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { UserAvatar } from "@/components/ui/avatar";
-import { TaskStatusControl } from "@/features/tasks/task-status-control";
-import { EditTaskDialog } from "@/features/tasks/edit-task-dialog";
-import { TaskCommentForm } from "@/features/tasks/task-comment-form";
+import { Breadcrumb } from "@/components/app/breadcrumb";
+import {
+  TaskComments,
+  TaskDetailActions,
+  TaskDetailMain,
+  loadTaskDetail,
+} from "@/features/tasks/task-detail";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { deriveTaskStatus } from "@/lib/status";
-import { label, meta } from "@/lib/labels";
-import { daysUntil, formatDate, formatDateTime, formatRelative } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import type { TaskStatus } from "@/server/services/tasks";
 
 export async function generateMetadata({ params }: { params: Promise<{ taskId: string }> }) {
   const { taskId } = await params;
@@ -34,6 +23,11 @@ export async function generateMetadata({ params }: { params: Promise<{ taskId: s
   }
 }
 
+/**
+ * The full-page fallback of the plan's task sheet (notifications and old
+ * links point here): the same record, the same split — details on the left,
+ * comments in the right column.
+ */
 export default async function TaskDetailPage({
   params,
 }: {
@@ -42,152 +36,45 @@ export default async function TaskDetailPage({
   const { taskId } = await params;
   const user = await requireInternalUser();
 
-  const task = await orNotFound(requireTaskAccess(user, taskId));
-
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [comments, owners, project] = await Promise.all([
-    listTaskComments(task.id, true),
+  const [data, owners] = await Promise.all([
+    orNotFound(loadTaskDetail(user, taskId)),
     listInternalUserOptions(user),
-    db.project.findUnique({
-      where: { id: task.projectId },
-      select: { supplier: { select: { name: true } } },
-    }),
   ]);
-
-  const derived = deriveTaskStatus(task.status as TaskStatus, task.dueDate);
-  const status = meta.task(derived, dict);
-  const priority = meta.priority(task.priority, dict);
-  const editable = can(user, "task:update");
-  const late = derived === "OVERDUE";
-  const remaining = daysUntil(task.dueDate);
-
-  const waiting = task.supplier
-    ? task.supplier.name
-    : project?.supplier.name
-      ? "Equipe interna"
-      : undefined;
-
-  const properties: PropertyItem[] = [
-    {
-      label: "Projeto",
-      value: (
-        <Link href={`/projects/${task.project.id}`} className="text-brand-strong hover:underline">
-          {task.project.name}
-        </Link>
-      ),
-    },
-    { label: "Categoria", value: label.taskCategory(task.category, dict) },
-    { label: "Responsável", value: task.assignedTo?.name },
-    { label: "Aguardando", value: waiting },
-    { label: "Prazo", value: formatDate(task.dueDate, locale) },
-    {
-      label: "Prioridade",
-      value: <PriorityBadge tone={priority.tone}>{priority.label}</PriorityBadge>,
-    },
-    {
-      label: "Criada por",
-      value: `${task.createdBy.name} · ${formatDateTime(task.createdAt, locale)}`,
-    },
-    {
-      label: "Concluída em",
-      value: task.completedAt ? formatDateTime(task.completedAt, locale) : undefined,
-    },
-  ];
+  const { task } = data;
 
   return (
-    <>
-      <PageHeader
-        breadcrumb={[{ label: "Tarefas", href: "/tasks" }]}
-        title={task.title}
-        status={<SolidBadge tone={status.tone}>{status.label}</SolidBadge>}
-        meta={
-          task.dueDate ? (
-            <span className={cn(late && "font-medium text-risk")}>
-              Prazo: {formatDate(task.dueDate, locale)}
-              {late && remaining !== null ? ` · ${Math.abs(remaining)}d de atraso` : ""}
-            </span>
-          ) : undefined
-        }
-        actions={
-          editable ? (
-            <EditTaskDialog
-              task={{
-                id: task.id,
-                title: task.title,
-                description: task.description,
-                category: task.category,
-                priority: task.priority,
-                status: task.status,
-                assignedToId: task.assignedToId,
-                dueDate: task.dueDate?.toISOString().slice(0, 10) ?? "",
-              }}
-              owners={owners}
-            />
-          ) : null
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-8">
-          {editable ? (
-            <Panel variant="focal">
-              <PanelHeader title="Atualizar tarefa" />
-              <div className="space-y-4 p-5">
-                <div className="flex items-center gap-3">
-                  <span className="text-meta text-muted">Status</span>
-                  <TaskStatusControl taskId={task.id} status={task.status} />
-                </div>
-                <TaskCommentForm taskId={task.id} />
-              </div>
-            </Panel>
-          ) : null}
-
-          <Section title="Comentários" count={comments.length}>
-            {comments.length === 0 ? (
-              <EmptyState
-                icon={MessageSquare}
-                title="Nenhum comentário ainda."
-                description="Registre decisões e contexto para a equipe."
-                compact
-              />
-            ) : (
-              <ul className="divide-y divide-line-soft rounded-lg border border-line bg-surface">
-                {comments.map((comment) => (
-                  <li key={comment.id} className="flex gap-3 px-5 py-4">
-                    <UserAvatar name={comment.author.name} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-baseline gap-x-2 text-meta">
-                        <span className="font-medium text-ink">{comment.author.name}</span>
-                        <span className="text-muted">{formatRelative(comment.createdAt, locale)}</span>
-                      </p>
-                      <p className="mt-1 text-body whitespace-pre-wrap text-ink-soft">
-                        {comment.body}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-        </div>
-
-        <div className="space-y-6">
-          <PropertyList layout="stacked" items={properties} />
-
-          <div>
-            <p className="mb-2 text-meta text-muted">Descrição</p>
-            <div className="rounded-lg bg-raised/70 px-4 py-3">
-              {task.description ? (
-                <p className="text-body whitespace-pre-wrap text-ink">{task.description}</p>
-              ) : (
-                <p className="text-body text-muted">Nenhuma descrição informada.</p>
-              )}
+    <div className="-mx-4 -mt-5 -mb-5 flex min-h-[calc(100dvh-3rem)] flex-col bg-surface sm:-mx-6 sm:-mt-6 sm:-mb-6 lg:min-h-dvh">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="min-w-0 flex-1 px-4 pt-5 pb-8 sm:px-6">
+          {/*
+            Opened from many places (dashboard, notifications, /tasks,
+            regulatory), so the arrow steps back to wherever that was; on a
+            fresh tab it goes up to the plan.
+          */}
+          <Breadcrumb
+            history
+            className="mb-1"
+            items={[
+              { label: task.project.name, href: `/projects/${task.project.id}` },
+              { label: "Plano", href: `/projects/${task.project.id}/tasks` },
+            ]}
+          />
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <h1 className="min-w-0 text-[22px] leading-8 font-semibold text-ink">{task.title}</h1>
+            <div className="flex shrink-0 items-center gap-2 pt-0.5">
+              <TaskDetailActions data={data} owners={owners} />
             </div>
           </div>
+          <TaskDetailMain data={data} owners={owners} locale={locale} dict={dict} />
         </div>
+
+        <aside className="flex flex-col border-t border-line bg-subtle lg:sticky lg:top-0 lg:h-dvh lg:w-[32%] lg:max-w-[420px] lg:shrink-0 lg:border-t-0 lg:border-l">
+          <TaskComments data={data} locale={locale} />
+        </aside>
       </div>
-    </>
+    </div>
   );
 }

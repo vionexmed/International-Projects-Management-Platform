@@ -1,33 +1,32 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import type { StageKey } from "@/generated/prisma";
+import { RememberedLink } from "@/components/app/nav-memory";
 import { STAGE_ROUTES } from "@/features/projects/stage-routes";
-import { StatusDot } from "@/components/ui/badge";
-import type { Tone } from "@/lib/status";
-import { cn } from "@/lib/utils";
+import { StatusIcon } from "@/components/ui/badge";
+import { SegmentedToggle, ViewToolbar } from "@/components/app/view-toolbar";
+import type { StageProgress } from "@/lib/labels";
 
 export type StageSwitcherItem = {
   key: StageKey;
-  /** Stage status, for the dot and the accessible name. */
+  status: StageProgress;
+  /** Stage status, for the accessible name. */
   statusLabel: string;
-  tone: Tone;
 };
 
 /**
- * Rendered by the project layout under the tabs; it shows itself only on the
- * four stage routes, so the stage pages open with it without each one
- * fetching the stage statuses again.
+ * The stage pages are the plan's stage details. Rendered by the project
+ * layout, it shows itself only on the four stage routes: a way back to the
+ * plan and a segmented switch between the stages, each with its status glyph.
  */
 export function StageSwitcher({
   projectId,
   stages,
-  className,
 }: {
   projectId: string;
   stages: StageSwitcherItem[];
-  className?: string;
 }) {
   const pathname = usePathname();
   const base = `/projects/${projectId}`;
@@ -35,32 +34,33 @@ export function StageSwitcher({
   if (!active) return null;
 
   return (
-    <nav aria-label="Etapas do projeto" className={cn("scroll-slim overflow-x-auto", className)}>
-      <ul className="inline-flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 shadow-panel">
-        {STAGE_ROUTES.map((stage) => {
-          const status = stages.find((item) => item.key === stage.key);
-          const current = stage.segment === active.segment;
-          return (
-            <li key={stage.key}>
-              <Link
-                href={`${base}/${stage.segment}`}
-                aria-current={current ? "page" : undefined}
-                title={status ? `${stage.label}: ${status.statusLabel}` : stage.label}
-                className={cn(
-                  "inline-flex h-8 items-center gap-2 rounded-sm px-3 text-body whitespace-nowrap transition-colors",
-                  current
-                    ? "bg-raised font-medium text-ink"
-                    : "text-muted hover:bg-subtle hover:text-ink-soft",
-                )}
-              >
-                {status ? <StatusDot tone={status.tone} /> : null}
-                {stage.label}
-                {status ? <span className="sr-only">({status.statusLabel})</span> : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <ViewToolbar
+      className="px-4 sm:px-6"
+      left={
+        // Back to the plan in its remembered view (list/board, stage, assignee).
+        <RememberedLink
+          href={`${base}/tasks`}
+          className="inline-flex items-center gap-1.5 text-label font-medium text-muted transition-colors hover:text-ink"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Plano
+        </RememberedLink>
+      }
+      center={
+        <SegmentedToggle
+          label="Etapas do projeto"
+          className="scroll-slim max-w-full overflow-x-auto"
+          items={STAGE_ROUTES.map((stage) => {
+            const status = stages.find((item) => item.key === stage.key);
+            return {
+              href: `${base}/${stage.segment}`,
+              label: stage.label,
+              icon: <StatusIcon status={status?.status ?? "NOT_STARTED"} label={status?.statusLabel} />,
+              active: stage.segment === active.segment,
+            };
+          })}
+        />
+      }
+    />
   );
 }

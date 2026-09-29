@@ -5,8 +5,9 @@ import { requireInternalUser, can } from "@/server/auth/current-user";
 import { listSuppliers } from "@/server/services/suppliers";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchInput } from "@/components/app/search-filters";
-import { StatusBadge } from "@/components/ui/badge";
+import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { Tone } from "@/lib/status";
 import {
   CellStack,
   Table,
@@ -25,6 +26,15 @@ import { localeFromLanguage } from "@/lib/i18n/config";
 import { meta } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Fornecedores" };
+
+/** A generic tone → glyph map: dense rows read status as a shape first, the tone gives its colour. */
+const TONE_ICON: Record<Tone, StatusIconKind> = {
+  ok: "done",
+  warn: "waiting",
+  risk: "blocked",
+  info: "in-progress",
+  neutral: "open",
+};
 
 export default async function SuppliersPage({
   searchParams,
@@ -103,7 +113,10 @@ export default async function SuppliersPage({
                           ) : null}
                         </TD>
                         <TD label="Status">
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                            {status.label}
+                          </span>
                         </TD>
                         <TD className="max-md:hidden text-right">
                           <ChevronRight className="inline size-4 text-faint" />

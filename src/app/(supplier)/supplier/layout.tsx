@@ -8,7 +8,8 @@ import { SupplierSidebar } from "@/components/app/supplier-sidebar";
 import { SupplierMobileNav } from "@/components/app/supplier-mobile-nav";
 import { CommandPalette } from "@/components/app/command-palette";
 import { DemoBanner } from "@/components/app/demo-banner";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { NavMemory } from "@/components/app/nav-memory";
+import { getDictionary, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
 /**
@@ -36,6 +37,8 @@ export default async function SupplierLayout({ children }: { children: React.Rea
   return (
     <>
       <DemoBanner />
+      {/* Lets breadcrumbs and back arrows return to a list exactly as it was left. */}
+      <NavMemory />
     <div className="flex min-h-dvh bg-canvas">
       <SupplierSidebar
         user={user}
@@ -43,6 +46,9 @@ export default async function SupplierLayout({ children }: { children: React.Rea
         locale={locale}
         actionRequiredCount={actionRequired}
         messageCount={unreadMessages}
+        // It was only ever passed to the phone menu, so on a desktop a supplier
+        // administrator had no way to reach their own Users page.
+        manageUsers={can(user, "portal:manage-users")}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -63,7 +69,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
               groups: {
                 project: dict.common.project,
                 task: dict.nav.actionRequired,
-                document: dict.common.type,
+                document: dict.nav.documents,
                 supplier: dict.common.supplier,
               },
             }}
@@ -72,8 +78,12 @@ export default async function SupplierLayout({ children }: { children: React.Rea
           <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/supplier/notifications"
-              aria-label={dict.nav.notifications}
-              className="relative inline-flex size-9 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink"
+              aria-label={
+                notifications > 0
+                  ? plural(dict.portal.notificationsUnread, notifications)
+                  : dict.nav.notifications
+              }
+              className="relative inline-flex size-10 items-center justify-center rounded-sm text-muted transition-colors hover:bg-raised hover:text-ink"
             >
               <Bell className="size-[18px]" />
               {notifications > 0 ? (
@@ -87,7 +97,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
             <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
 
             <span className="inline-flex min-w-0 items-center gap-2 rounded-md border border-line px-2.5 py-2 text-meta font-medium text-ink sm:gap-2.5 sm:px-3">
-              <Building2 className="size-4 shrink-0 text-muted" />
+              <Building2 className="size-4 shrink-0 text-muted" aria-hidden />
               <span className="truncate">{user.supplierName}</span>
             </span>
           </div>
@@ -103,7 +113,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
             One honest link. "Privacy policy" and "Terms of use" both opened an
             email draft — labels promising pages that do not exist yet.
           */}
-          <a href="mailto:projects@vionex.com" className="hover:text-brand-strong">
+          <a href="mailto:projects@vionex.com" className="-my-3 inline-block py-3 hover:text-brand-strong">
             projects@vionex.com
           </a>
         </footer>

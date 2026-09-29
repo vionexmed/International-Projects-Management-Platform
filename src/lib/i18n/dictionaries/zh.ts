@@ -1,4 +1,5 @@
 import type { PartialDictionary } from "@/lib/i18n/dictionary";
+import { errorsZh } from "@/lib/i18n/dictionaries/errors.zh";
 
 /**
  * Chinese is intentionally partial for the MVP (§42): the Supplier Portal
@@ -45,6 +46,8 @@ export const zh: PartialDictionary = {
     description: "说明",
     somethingWentWrong: "出现问题。",
     tryAgain: "请重试。",
+    saving: "保存中…",
+    uploadingFile: "文件上传中…",
   },
   nav: {
     home: "首页",
@@ -109,9 +112,12 @@ export const zh: PartialDictionary = {
     greetingAfternoon: "下午好，{name}。",
     greetingEvening: "晚上好，{name}。",
     welcome: "欢迎使用 Vionex 供应商门户。",
+    notificationsUnread: "通知（{count} 条未读）|通知（{count} 条未读）",
+    mainNav: "主导航",
+    greetingNeutral: "您好，{name}。",
     home: {
       actionRequiredTitle: "待处理事项",
-      actionRequiredEmpty: "目前没有待处理的请求。",
+      actionRequiredEmpty: "全部处理完毕，目前没有需要您处理的事项。",
       actionRequiredCount: "有 {count} 项请求需要您处理。|有 {count} 项请求需要您处理。",
       viewRequests: "查看请求",
       updatesTitle: "Vionex 通知",
@@ -120,6 +126,12 @@ export const zh: PartialDictionary = {
       noDueDate: "未设置截止日期",
       activeProjects: "您的项目",
       viewProjects: "查看项目",
+      actionRequiredEmptyHint: "Vionex 需要您处理事项时，会在此处通知您。",
+      overdueCount: "{count} 项已逾期|{count} 项已逾期",
+      moreRequests: "另有 {count} 项|另有 {count} 项",
+      overallProgress: "总进度 {percent}%",
+      nowIn: "当前阶段：{stage}",
+      viewAllUpdates: "查看全部",
     },
     projects: {
       title: "项目",
@@ -128,6 +140,8 @@ export const zh: PartialDictionary = {
       empty: "暂无关联到贵公司的项目。",
       currentStage: "当前阶段",
       countLabel: "个项目",
+      stageBar: "各阶段进度",
+      stageSegment: "{stage}：{status}，{percent}%",
     },
     project: {
       overview: "概览",
@@ -138,6 +152,8 @@ export const zh: PartialDictionary = {
       milestones: "里程碑",
       stageProgress: "阶段进度",
       noMilestones: "暂无里程碑。",
+      noActivity: "暂无动态。",
+      noActivityHint: "该项目的最新动态将显示在此处。",
     },
     requests: {
       title: "待处理事项",
@@ -159,7 +175,8 @@ export const zh: PartialDictionary = {
       approvedLabel: "已批准",
       changesRequestedHint: "Vionex 要求修改。请阅读原因并提交新版本。",
       underReview: "Vionex 审核中",
-      underReviewHint: "您的提交正在审核中，结果将通知您。",
+      underReviewHint: "您的提交正在由 Vionex 审核，每项结果都会通知您。",
+      underReviewDetail: "感谢提交，Vionex 正在审核。审核结果将通知您，目前无需其他操作。",
       approvedHint: "文件已批准，无需其他操作。",
       resubmit: "提交新版本",
       fromVionex: "Vionex",
@@ -179,7 +196,25 @@ export const zh: PartialDictionary = {
       submittedOn: "提交于 {date}",
       history: "请求记录",
       allowedTypes: "PDF、DOCX、XLSX、PPTX、PNG 或 JPG · 最大 {size} MB",
-      submitSuccess: "文件已提交至 Vionex。",
+      submitSuccess: "已发送至 Vionex，审核后将通知您。",
+      overdueBy: "已逾期 {count} 天|已逾期 {count} 天",
+      dueOn: "截止：{date}",
+      dueTomorrow: "明天到期",
+      uploadIntro: "请上传所需文件，并可为 Vionex 团队添加备注。",
+      resubmitIntro: "请上传修改后的版本，之前的版本仍保留在记录中。",
+      sendToVionex: "发送给 Vionex",
+      nothingToSend: "发送前请附加文件或填写备注。",
+      sendFailed: "发送失败。您的文件和备注仍保留在此处，请重试。",
+      uploadingPercent: "文件上传中… {percent}%",
+      fileTypeError: "不支持此文件类型。请使用 PDF、DOCX、XLSX、PPTX、PNG 或 JPG。",
+      fileSizeError: "文件超过 {size} MB，请选择较小的文件。",
+      fileEmptyError: "该文件为空，请选择其他文件。",
+      connectionFailed: "上传完成前连接中断。请检查网络后重试。",
+      storageRefused: "文件无法保存（HTTP {status}）。请重试；如问题持续，请联系 Vionex。",
+      filesSent: "已发送的文件",
+      whatIsNeeded: "Vionex 需要的内容",
+      nextStepsTitle: "后续步骤",
+      nextSteps: "Vionex 将审核您的提交，并通知您审核结果。",
     },
     team: {
       title: "用户",
@@ -195,6 +230,7 @@ export const zh: PartialDictionary = {
       added: "用户已添加。",
       updated: "用户已更新。",
       lastAdmin: "必须至少保留一名在职管理员。",
+      countLabel: "{count} 位用户|{count} 位用户",
     },
     tasks: {
       title: "任务",
@@ -208,6 +244,7 @@ export const zh: PartialDictionary = {
       subtitle: "您的信息与偏好设置。",
       company: "公司",
       updated: "资料已更新。",
+      lastSignIn: "上次登录",
     },
     notifications: {
       unread: "您有未读通知。",
@@ -221,6 +258,14 @@ export const zh: PartialDictionary = {
       subtitle: "贵公司与 Vionex 之间共享的文件。",
       empty: "暂无共享文件。",
       uploadButton: "上传文件",
+      nameLabel: "文件名称",
+      namePlaceholder: "例如：分析证书",
+      nameHint: "留空则使用文件名。",
+      selectProject: "请选择项目",
+      downloadFile: "下载 {name}",
+      uploaded: "文件已共享给 Vionex。",
+      uploadIntro: "该文件将对贵公司和 Vionex 团队可见。",
+      fileRequired: "请选择要上传的文件。",
     },
     messages: {
       title: "消息",
@@ -234,6 +279,9 @@ export const zh: PartialDictionary = {
       attach: "添加附件",
       removeFile: "移除文件",
       attachments: "附件",
+      sendShortcut: "按 Ctrl + Enter 发送",
+      sending: "发送中…",
+      emptyMessage: "请输入消息或添加附件。",
     },
   },
   account: {
@@ -259,5 +307,7 @@ export const zh: PartialDictionary = {
     capsLockOn: "大写锁定已开启。",
     invalidCredentials: "邮箱或密码不正确。",
     accountInactive: "此账户已停用，请联系管理员。",
+    tooManyAttempts: "尝试次数过多。请等待 {minutes} 分钟后重试。",
   },
+  errors: errorsZh,
 };

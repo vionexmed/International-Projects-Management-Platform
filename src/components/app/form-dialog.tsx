@@ -35,6 +35,7 @@ export function FormDialog({
   redirectTo,
   beforeSubmit,
   size = "md",
+  labels,
   children,
 }: {
   /** Omit when the dialog is opened from elsewhere (e.g. a dropdown item). */
@@ -58,6 +59,12 @@ export function FormDialog({
    */
   beforeSubmit?: (form: HTMLFormElement) => Promise<string | null>;
   size?: "md" | "lg";
+  /**
+   * Chrome wording. Optional — the internal environment is Portuguese and keeps
+   * the defaults; the Supplier Portal passes its own locale's words, so a
+   * dialog in English does not end in "Cancelar".
+   */
+  labels?: { cancel?: string; saving?: string; uploading?: string; unreachable?: string };
   children: React.ReactNode | ((state: ActionState) => React.ReactNode);
 }) {
   const router = useRouter();
@@ -90,7 +97,9 @@ export function FormDialog({
     [successMessage, setOpen, redirectTo, router],
   );
 
-  const { state, pending, onSubmit, reset } = useFormAction(action, handleSuccess);
+  const { state, pending, onSubmit, reset } = useFormAction(action, handleSuccess, {
+    unreachableError: labels?.unreachable,
+  });
   const [blocked, setBlocked] = React.useState<string | null>(null);
   const [preparing, setPreparing] = React.useState(false);
 
@@ -159,11 +168,15 @@ export function FormDialog({
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="ghost">
-                Cancelar
+                {labels?.cancel ?? "Cancelar"}
               </Button>
             </DialogClose>
             <Button type="submit" variant="primary" disabled={pending || preparing}>
-              {preparing ? "Enviando arquivo…" : pending ? "Salvando…" : submitLabel}
+              {preparing
+                ? (labels?.uploading ?? "Enviando arquivo…")
+                : pending
+                  ? (labels?.saving ?? "Salvando…")
+                  : submitLabel}
             </Button>
           </DialogFooter>
         </form>

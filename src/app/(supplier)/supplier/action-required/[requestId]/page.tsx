@@ -1,18 +1,21 @@
+import Link from "next/link";
 import { AlertCircle, CircleCheck, Clock, Download, FileText } from "lucide-react";
 import { requireSupplierUser } from "@/server/auth/current-user";
 import { requireDocumentRequestAccess } from "@/server/authz/access";
 import { listRequestReviews, type RequestStatus } from "@/server/services/documents";
 import { orNotFound } from "@/server/authz/rsc";
 import { PageHeader } from "@/components/app/page-header";
+import { trailLabels } from "@/components/app/trail-labels";
 import { Panel, PanelHeader, PropertyList } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { SolidBadge } from "@/components/ui/badge";
 import { SubmitRequestForm } from "@/features/supplier-portal/submit-request-form";
 import { ReviewHistory } from "@/features/documents/review-history";
-import { getDictionary, interpolate, plural } from "@/lib/i18n/dictionary";
+import { getDictionary, interpolate } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label, meta } from "@/lib/labels";
-import { daysUntil, formatDate, formatDateTime, formatFileSize } from "@/lib/format";
+import { formatDate, formatDateTime, formatFileSize } from "@/lib/format";
+import { DUE_TONE_CLASS, dueLabel } from "@/features/supplier-portal/due-label";
 import { ACCEPT_ATTRIBUTE, maxUploadMb } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
@@ -52,9 +55,11 @@ export default async function SupplierRequestPage({
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
-  const status = meta.request(request.status as RequestStatus, dict);
-  const remaining = daysUntil(request.dueDate);
-  const overdue = remaining !== null && remaining < 0 && request.status === "PENDING";
+  // "Rejected" reads as final; the request is in fact open again, waiting on a new version.
+  const status =
+    request.status === "REJECTED"
+      ? { label: dict.portal.requests.changesRequested, tone: "warn" as const }
+      : meta.request(request.status as RequestStatus, dict);
   /**
    * Mirrors the rule the service enforces. Submitting while Vionex is reading
    * used to be allowed, which let a supplier replace the file underneath a
@@ -64,28 +69,26 @@ export default async function SupplierRequestPage({
   const canSubmit = request.status === "PENDING" || request.status === "REJECTED";
   const needsCorrection = request.status === "REJECTED";
   const underReview = request.status === "SUBMITTED" || request.status === "IN_REVIEW";
+  const due = dueLabel(request.dueDate, dict, locale, { open: canSubmit });
 
   return (
     <div className="mx-auto max-w-[1080px]">
       <PageHeader
         breadcrumb={[{ label: dict.portal.requests.title, href: "/supplier/action-required" }]}
+        trailLabels={trailLabels(locale, dict.common.back)}
         title={request.title}
         status={<SolidBadge tone={status.tone}>{status.label}</SolidBadge>}
         description={`${request.project.name} · ${label.documentType(request.type, dict)}`}
         meta={
-          <span className={cn(overdue && "font-medium text-risk")}>
-            {dict.portal.requests.due} {formatDate(request.dueDate, locale)}
-            {remaining !== null && request.status === "PENDING" ? (
-              <>
-                {" · "}
-                {overdue
-                  ? dict.portal.requests.overdue
-                  : remaining === 0
-                    ? dict.portal.requests.dueToday
-                    : plural(dict.portal.requests.dueInDays, remaining)}
-              </>
-            ) : null}
-          </span>
+          due ? (
+            <span className={DUE_TONE_CLASS[due.tone]}>
+              {due.tone === "later"
+                ? due.text
+                : `${interpolate(dict.portal.requests.dueOn, {
+                    date: formatDate(request.dueDate, locale),
+                  })} · ${due.text}`}
+            </span>
+          ) : null
         }
       />
 
@@ -121,7 +124,7 @@ export default async function SupplierRequestPage({
                   {needsCorrection
                     ? dict.portal.requests.changesRequestedHint
                     : underReview
-                      ? dict.portal.requests.underReviewHint
+                      ? dict.portal.requests.underReviewDetail
                       : dict.portal.requests.approvedHint}
                 </p>
                 {request.reviewNote ? (
@@ -143,11 +146,30 @@ export default async function SupplierRequestPage({
             </div>
           ) : null}
 
+          {/*
+            What was asked, right under the state. It used to sit in the side column, which
+            on a phone stacks *below* the form — so a supplier on mobile had to
+            upload before they could read what to upload.
+          */}
+          {request.description ? (
+            <section aria-labelledby="request-needs">
+              <h2 id="request-needs" className="text-meta font-medium text-muted">
+                {dict.portal.requests.whatIsNeeded}
+              </h2>
+              <p className="mt-1.5 max-w-prose text-body leading-relaxed whitespace-pre-wrap text-ink">
+                {request.description}
+              </p>
+            </section>
+          ) : null}
+
           {/* The focal element: the one form this page exists for. */}
           {canSubmit ? (
             <Panel>
               <PanelHeader
                 title={needsCorrection ? dict.portal.requests.resubmit : dict.portal.requests.uploadTitle}
+                description={
+                  needsCorrection ? dict.portal.requests.resubmitIntro : dict.portal.requests.uploadIntro
+                }
               />
               <div className="p-5">
                 <SubmitRequestForm
@@ -156,6 +178,7 @@ export default async function SupplierRequestPage({
                   dict={dict}
                   accept={ACCEPT_ATTRIBUTE}
                   maxSizeMb={maxUploadMb()}
+                  resubmission={needsCorrection}
                 />
               </div>
             </Panel>
@@ -163,12 +186,12 @@ export default async function SupplierRequestPage({
 
           {/* Files already submitted for this request */}
           {request.document && request.document.versions.length > 0 ? (
-            <Section title={dict.portal.documents.title}>
+            <Section title={dict.portal.requests.filesSent}>
               <ul className="divide-y divide-line-soft">
                 {request.document.versions.map((version) => (
                   <li key={version.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <FileText className="size-4 shrink-0 text-faint" />
+                      <FileText className="size-4 shrink-0 text-faint" aria-hidden />
                       <div className="min-w-0">
                         <p className="truncate text-body font-medium text-ink">{version.fileName}</p>
                         <p className="mt-0.5 text-meta text-muted">
@@ -179,9 +202,12 @@ export default async function SupplierRequestPage({
                     </div>
                     <a
                       href={`/api/files/${version.id}`}
-                      className="inline-flex shrink-0 items-center gap-1.5 text-meta font-medium text-brand-strong hover:underline"
+                      aria-label={interpolate(dict.portal.documents.downloadFile, {
+                        name: version.fileName,
+                      })}
+                      className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-sm px-2 text-meta font-medium text-brand-strong hover:bg-brand-soft/60 hover:underline"
                     >
-                      <Download className="size-3.5" />
+                      <Download className="size-3.5" aria-hidden />
                       {dict.common.download}
                     </a>
                   </li>
@@ -244,19 +270,32 @@ export default async function SupplierRequestPage({
                   </>
                 ),
               },
-              { label: dict.portal.requests.due, value: formatDate(request.dueDate, locale) },
-              { label: dict.common.project, value: request.project.name },
+              {
+                label: dict.portal.requests.due,
+                value: (
+                  <>
+                    {formatDate(request.dueDate, locale)}
+                    {due && due.tone !== "later" ? (
+                      <span className={cn("block text-meta", DUE_TONE_CLASS[due.tone])}>
+                        {due.text}
+                      </span>
+                    ) : null}
+                  </>
+                ),
+              },
+              {
+                label: dict.common.project,
+                value: (
+                  <Link
+                    href={`/supplier/projects/${request.project.id}`}
+                    className="text-brand-strong underline-offset-4 hover:underline"
+                  >
+                    {request.project.name}
+                  </Link>
+                ),
+              },
             ]}
           />
-
-          {request.description ? (
-            <div className="rounded-lg bg-raised/70 px-4 py-3">
-              <p className="text-meta text-muted">{dict.common.description}</p>
-              <p className="mt-1.5 text-body leading-relaxed whitespace-pre-wrap text-ink-soft">
-                {request.description}
-              </p>
-            </div>
-          ) : null}
         </div>
       </div>
     </div>

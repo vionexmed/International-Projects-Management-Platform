@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HistoryBackButton } from "@/components/app/nav-memory";
 import { Panel } from "@/components/ui/card";
 
 /**
@@ -30,7 +31,8 @@ export default function InternalError({
       {error.digest ? (
         <p className="mt-3 font-mono text-[11px] text-faint">Referência: {error.digest}</p>
       ) : null}
-      <div className="mt-5 flex items-center justify-center gap-2">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        <HistoryBackButton fallbackHref="/dashboard" label="Voltar" />
         <Button variant="primary" onClick={reset}>
           <RotateCw />
           Tentar novamente

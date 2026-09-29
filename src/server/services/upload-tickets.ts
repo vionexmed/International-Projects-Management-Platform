@@ -7,6 +7,7 @@ import { ALLOWED_FILE_TYPES, maxUploadMb } from "@/lib/upload";
 import { uploadMaxBytes } from "@/lib/env";
 import { ForbiddenError } from "@/server/authz/errors";
 import type { SessionUser } from "@/types/auth";
+import { errorText } from "@/lib/i18n/error-text";
 
 /**
  * Uploading a file without sending it through the application.
@@ -54,6 +55,11 @@ export type TicketClaims = {
   contentType: string;
   declaredSize: number;
   userId: string;
+  /**
+   * Set when the file is a message attachment: the ticket then serves that one
+   * conversation and nothing else — not another thread, not a document upload.
+   */
+  threadId?: string;
 };
 
 function signingKey() {
@@ -73,20 +79,20 @@ export function validateDescribedUpload(input: {
   size: number;
 }): string | null {
   if (!Number.isFinite(input.size) || input.size <= 0) {
-    return "O arquivo está vazio.";
+    return errorText("fileEmpty");
   }
   if (input.size > uploadMaxBytes()) {
-    return `O arquivo excede o limite de ${maxUploadMb()} MB.`;
+    return errorText("fileTooLarge", { size: maxUploadMb() });
   }
 
   const allowedExtensions = ALLOWED_FILE_TYPES[input.contentType];
   if (!allowedExtensions) {
-    return "Tipo de arquivo não permitido.";
+    return errorText("fileTypeNotAllowed");
   }
 
   const lower = input.fileName.toLowerCase();
   if (!allowedExtensions.some((extension) => lower.endsWith(extension))) {
-    return "A extensão do arquivo não corresponde ao seu tipo.";
+    return errorText("fileExtensionMismatch");
   }
 
   return null;
@@ -100,7 +106,13 @@ function buildKey(projectId: string, fileName: string) {
 
 export async function issueUploadTicket(
   user: SessionUser,
-  input: { projectId: string; fileName: string; contentType: string; size: number },
+  input: {
+    projectId: string;
+    fileName: string;
+    contentType: string;
+    size: number;
+    threadId?: string;
+  },
 ): Promise<UploadTicket> {
   const problem = validateDescribedUpload(input);
   if (problem) throw new Error(problem);
@@ -115,6 +127,7 @@ export async function issueUploadTicket(
     contentType: input.contentType,
     declaredSize: input.size,
     userId: user.id,
+    ...(input.threadId ? { threadId: input.threadId } : {}),
   } satisfies TicketClaims)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -138,28 +151,36 @@ export async function issueUploadTicket(
 export async function redeemUploadTicket(
   user: SessionUser,
   token: string,
+  /** The conversation the file is for; omitted for a document upload. */
+  expected: { threadId?: string } = {},
 ): Promise<TicketClaims & { size: number }> {
   let claims: TicketClaims;
   try {
     const { payload } = await jwtVerify(token, signingKey(), { issuer: ISSUER });
     claims = payload as unknown as TicketClaims;
   } catch {
-    throw new ForbiddenError("O envio expirou. Tente novamente.");
+    throw new ForbiddenError(errorText("uploadExpired"));
   }
 
   if (claims.userId !== user.id) {
-    throw new ForbiddenError("Este envio pertence a outra sessão.");
+    throw new ForbiddenError(errorText("uploadOtherSession"));
+  }
+
+  // A ticket is spent where it was issued for: an attachment ticket cannot
+  // become a document, nor land in a different conversation.
+  if ((claims.threadId ?? null) !== (expected.threadId ?? null)) {
+    throw new ForbiddenError(errorText("uploadOtherThread"));
   }
 
   const object = await storage().head(claims.key);
   if (!object) {
-    throw new Error("O arquivo não chegou ao armazenamento. Tente novamente.");
+    throw new Error(errorText("uploadNotReceived"));
   }
 
   if (object.size > uploadMaxBytes()) {
     // Approved as one size and uploaded as another: discard it.
     await storage().delete(claims.key);
-    throw new Error(`O arquivo excede o limite de ${maxUploadMb()} MB.`);
+    throw new Error(errorText("fileTooLarge", { size: maxUploadMb() }));
   }
 
   return { ...claims, size: object.size };

@@ -28,7 +28,7 @@ export function EditTaskDialog({
   return (
     <FormDialog
       trigger={
-        <Button variant="secondary">
+        <Button variant="secondary" size="sm">
           <Pencil />
           Editar
         </Button>

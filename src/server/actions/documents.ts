@@ -19,6 +19,8 @@ import {
   toActionError,
   type ActionState,
 } from "@/server/actions/utils";
+import { toCallerActionError } from "@/server/actions/caller-locale";
+import { errorText } from "@/lib/i18n/error-text";
 
 const DOCUMENT_TYPES = [
   "CONTRACT", "NDA", "CERTIFICATE", "IFU", "CLINICAL",
@@ -26,7 +28,7 @@ const DOCUMENT_TYPES = [
 ] as const;
 
 const uploadSchema = z.object({
-  projectId: z.string().min(1, "Selecione um projeto."),
+  projectId: z.string().min(1, errorText("projectRequired")),
   documentId: optionalText,
   name: optionalText,
   type: z.enum(DOCUMENT_TYPES).default("OTHER"),
@@ -70,11 +72,17 @@ export async function requestUploadTicketAction(input: {
      */
     await requireSharedProjectAccess(user, input.projectId);
 
-    const ticket = await issueUploadTicket(user, input);
+    // Only the four described fields: a document ticket is never thread-bound.
+    const ticket = await issueUploadTicket(user, {
+      projectId: input.projectId,
+      fileName: input.fileName,
+      contentType: input.contentType,
+      size: input.size,
+    });
     return { ok: true, url: ticket.url, token: ticket.token, contentType: ticket.contentType };
   } catch (error) {
-    const state = toActionError(error);
-    return { ok: false, error: state.error ?? "Não foi possível preparar o envio." };
+    const state = await toCallerActionError(error);
+    return { ok: false, error: state.error ?? errorText("uploadPrepareFailed") };
   }
 }
 
@@ -96,7 +104,7 @@ export async function uploadDocumentAction(
       : null;
 
     if (uploaded && uploaded.projectId !== input.projectId) {
-      throw new Error("O envio pertence a outro projeto.");
+      throw new Error(errorText("uploadOtherProject"));
     }
 
     const document = await uploadDocument(user, {
@@ -124,7 +132,7 @@ export async function uploadDocumentAction(
     revalidatePath(`/supplier/projects/${input.projectId}/documents`);
     return { ok: true, createdId: document.id };
   } catch (error) {
-    return toActionError(error);
+    return toCallerActionError(error);
   }
 }
 
@@ -199,7 +207,7 @@ export async function submitDocumentRequestAction(
     revalidatePath("/supplier/documents");
     return { ok: true };
   } catch (error) {
-    return toActionError(error);
+    return toCallerActionError(error);
   }
 }
 

@@ -59,7 +59,14 @@ export default async function SupplierDocumentsPage({
 
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <SearchInput placeholder={dict.common.search} className="w-full sm:w-[320px]" />
-        <FilterBar activeCount={activeFilters}>
+        <FilterBar
+          activeCount={activeFilters}
+          labels={{
+            filters: dict.common.filters,
+            clear: dict.common.clearFilters,
+            apply: dict.common.close,
+          }}
+        >
           <FilterSelect
             paramKey="project"
             label={dict.common.project}

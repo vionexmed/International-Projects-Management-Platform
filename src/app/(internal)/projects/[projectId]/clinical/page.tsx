@@ -3,8 +3,8 @@ import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
 import { orNotFound } from "@/server/authz/rsc";
-import { Panel, PropertyList } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
+import { PropertyList } from "@/components/ui/card";
+import { WorkBlock } from "@/features/projects/work-block";
 import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ClinicalStudyDialog } from "@/features/projects/clinical-form";
@@ -47,9 +47,9 @@ export default async function ProjectClinicalPage({
   const pending = tasks.filter((task) => task.status !== "COMPLETED" && task.status !== "CANCELLED");
 
   return (
-    <div className="space-y-10">
-      {/* The study is this stage's own record, so it is the one box here. */}
-      <Section
+    <div className="space-y-6">
+      {/* The study is this stage's own record. */}
+      <WorkBlock
         title="Estudo clínico"
         action={
           editable ? (
@@ -71,7 +71,7 @@ export default async function ProjectClinicalPage({
         }
       >
         {study ? (
-          <Panel className="space-y-5 p-5">
+          <div className="space-y-4 p-4">
             <PropertyList
               layout="grid"
               items={[
@@ -96,41 +96,38 @@ export default async function ProjectClinicalPage({
               ]}
             />
             {study.notes ? (
-              <div className="rounded-lg bg-raised/70 px-4 py-3">
+              <div className="border-t border-line-faint pt-3">
                 <p className="text-meta text-muted">Observações</p>
                 <p className="mt-1 text-body text-ink-soft">{study.notes}</p>
               </div>
             ) : null}
-          </Panel>
+          </div>
         ) : (
-          <Panel>
-            <EmptyState
-              icon={FlaskConical}
-              title="Nenhum estudo cadastrado."
-              description="Adicione o estudo clínico para acompanhar instituição, protocolo e prazos."
-              compact
-            />
-          </Panel>
+          <EmptyState
+            icon={FlaskConical}
+            title="Nenhum estudo cadastrado."
+            description="Adicione o estudo clínico para acompanhar instituição, protocolo e prazos."
+            compact
+          />
         )}
-      </Section>
+      </WorkBlock>
 
-      {/* Side by side, like the import stage: two short lists, not two full-width strips. */}
-      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-8">
-        <Section
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+        <WorkBlock
           title="Tarefas clínicas"
           count={pending.length > 0 ? `${pending.length} em aberto` : undefined}
-          action={{ label: "Ver todas", href: `/projects/${projectId}/tasks?category=CLINICAL` }}
+          action={{ label: "Abrir no plano", href: `/projects/${projectId}/tasks?category=CLINICAL` }}
         >
           <StageTaskList tasks={tasks} locale={locale} dict={dict} />
-        </Section>
+        </WorkBlock>
 
-        <Section
+        <WorkBlock
           title="Documentos clínicos"
           count={documents.length || undefined}
           action={{ label: "Ver todos", href: `/projects/${projectId}/documents?type=CLINICAL` }}
         >
           <StageDocumentList documents={documents} locale={locale} dict={dict} />
-        </Section>
+        </WorkBlock>
       </div>
     </div>
   );

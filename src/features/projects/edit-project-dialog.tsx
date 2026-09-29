@@ -39,9 +39,9 @@ export function EditProjectDialog({
   return (
     <FormDialog
       trigger={
-        <Button variant="secondary">
+        <Button variant="secondary" size="sm" aria-label="Editar projeto">
           <Pencil />
-          Editar projeto
+          <span className="max-sm:hidden">Editar</span>
         </Button>
       }
       title="Editar projeto"

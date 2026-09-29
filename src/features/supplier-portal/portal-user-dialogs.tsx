@@ -6,6 +6,7 @@ import { Input, Select } from "@/components/ui/input";
 import { Field, FieldGrid, FormDialog } from "@/components/app/form-dialog";
 import { addPortalUserAction, updateUserAction } from "@/server/actions/users";
 import type { Dictionary } from "@/lib/i18n/dictionary";
+import { dialogLabels } from "@/features/supplier-portal/portal-labels";
 
 export type PortalUser = {
   id: string;
@@ -38,6 +39,7 @@ export function AddPortalUserDialog({ dict }: { dict: Dictionary }) {
       action={addPortalUserAction}
       submitLabel={dict.portal.team.add}
       successMessage={dict.portal.team.added}
+      labels={dialogLabels(dict)}
     >
       {(state) => (
         <>
@@ -46,7 +48,14 @@ export function AddPortalUserDialog({ dict }: { dict: Dictionary }) {
               <Input id="name" name="name" required defaultValue="" />
             </Field>
             <Field name="email" label={dict.auth.email} required state={state}>
-              <Input id="email" name="email" type="email" required defaultValue="" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="off"
+                required
+                defaultValue=""
+              />
             </Field>
           </FieldGrid>
 
@@ -74,7 +83,15 @@ export function AddPortalUserDialog({ dict }: { dict: Dictionary }) {
             required
             state={state}
           >
-            <Input id="password" name="password" type="password" required defaultValue="" />
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+              defaultValue=""
+            />
           </Field>
         </>
       )}
@@ -86,7 +103,12 @@ export function EditPortalUserDialog({ user, dict }: { user: PortalUser; dict: D
   return (
     <FormDialog
       trigger={
-        <Button variant="ghost" size="iconSm" aria-label={`${dict.portal.team.editTitle}: ${user.name}`}>
+        <Button
+          variant="ghost"
+          size="iconSm"
+          className="max-md:size-10"
+          aria-label={`${dict.portal.team.editTitle}: ${user.name}`}
+        >
           <Pencil />
         </Button>
       }
@@ -95,6 +117,7 @@ export function EditPortalUserDialog({ user, dict }: { user: PortalUser; dict: D
       action={updateUserAction}
       submitLabel={dict.common.save}
       successMessage={dict.portal.team.updated}
+      labels={dialogLabels(dict)}
     >
       {(state) => (
         <>

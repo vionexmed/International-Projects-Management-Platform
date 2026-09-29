@@ -85,7 +85,7 @@ export function SupplierSidebar({
         <VionexLogo subtitle={dict.portal.brandLine} />
       </div>
 
-      <nav className="flex-1 px-3" aria-label={dict.nav.projects}>
+      <nav className="flex-1 px-3" aria-label={dict.portal.mainNav}>
         <ul className="space-y-0.5">
           {items.map((item) => {
             const active = isActive(item.href, item.exact);
@@ -185,6 +185,8 @@ export function SupplierSidebar({
             hint: dict.account.passwordRule,
             submit: dict.account.changePassword,
             success: dict.account.passwordChanged,
+            cancel: dict.common.cancel,
+            saving: dict.common.saving,
           }}
         />
 

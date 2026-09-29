@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
 import { updateOwnProfileAction } from "@/server/actions/account";
 import type { Dictionary } from "@/lib/i18n/dictionary";
+import { dialogLabels } from "@/features/supplier-portal/portal-labels";
 
 /**
  * What a person may change about themselves: how they are named, and what they
@@ -34,6 +35,7 @@ export function ProfileForm({
       action={updateOwnProfileAction}
       submitLabel={dict.common.save}
       successMessage={dict.portal.profile.updated}
+      labels={dialogLabels(dict)}
     >
       {(state) => (
         <FieldGrid>

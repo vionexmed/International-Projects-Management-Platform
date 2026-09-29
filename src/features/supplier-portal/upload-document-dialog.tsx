@@ -11,6 +11,7 @@ import { useDirectUpload } from "@/components/app/use-direct-upload";
 import { uploadDocumentAction } from "@/server/actions/documents";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionary";
 import { OPTIONS, label } from "@/lib/labels";
+import { dialogLabels } from "@/features/supplier-portal/portal-labels";
 
 /**
  * Lets a supplier send a document without waiting for a request — the case the
@@ -31,7 +32,11 @@ export function SupplierUploadDialog({
   accept: string;
   maxSizeMb: number;
 }) {
-  const { prepare } = useDirectUpload();
+  const t = dict.portal.requests;
+  const { prepare, progress } = useDirectUpload({
+    connectionFailed: t.connectionFailed,
+    storageRefused: t.storageRefused,
+  });
 
   /**
    * Large files go straight to storage before the form is sent.
@@ -44,12 +49,14 @@ export function SupplierUploadDialog({
     async (form: HTMLFormElement) => {
       const input = form.elements.namedItem("file") as HTMLInputElement | null;
       const file = input?.files?.[0];
-      if (!file) return null;
+      // Checked here rather than with `required`: the real input is visually
+      // hidden, so the browser's own bubble would point at nothing.
+      if (!file) return dict.portal.documents.fileRequired;
 
       const target =
         projectId ??
         (form.elements.namedItem("projectId") as HTMLSelectElement | null)?.value;
-      if (!target) return "Selecione um projeto.";
+      if (!target) return dict.portal.documents.selectProject;
 
       const prepared = await prepare(file, target);
       if (!prepared.ok) return prepared.error;
@@ -61,7 +68,7 @@ export function SupplierUploadDialog({
       }
       return null;
     },
-    [prepare, projectId],
+    [prepare, projectId, dict],
   );
 
   return (
@@ -73,11 +80,12 @@ export function SupplierUploadDialog({
         </Button>
       }
       title={dict.portal.documents.uploadButton}
-      description={dict.portal.documents.subtitle}
+      description={dict.portal.documents.uploadIntro}
       action={uploadDocumentAction}
       beforeSubmit={beforeSubmit}
-      submitLabel={dict.common.submit}
-      successMessage={dict.portal.requests.submitSuccess}
+      submitLabel={t.sendToVionex}
+      successMessage={dict.portal.documents.uploaded}
+      labels={dialogLabels(dict)}
     >
       {(state) => (
         <>
@@ -90,7 +98,7 @@ export function SupplierUploadDialog({
             <Field name="projectId" label={dict.common.project} required state={state}>
               <Select id="projectId" name="projectId" required defaultValue="">
                 <option value="" disabled>
-                  {dict.common.search}…
+                  {dict.portal.documents.selectProject}
                 </option>
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
@@ -102,8 +110,13 @@ export function SupplierUploadDialog({
           ) : null}
 
           <FieldGrid>
-            <Field name="name" label={dict.portal.documents.title} state={state}>
-              <Input id="name" name="name" placeholder="Certificate of Analysis" />
+            <Field
+              name="name"
+              label={dict.portal.documents.nameLabel}
+              hint={dict.portal.documents.nameHint}
+              state={state}
+            >
+              <Input id="name" name="name" placeholder={dict.portal.documents.namePlaceholder} />
             </Field>
             <Field name="type" label={dict.common.type} required state={state}>
               <Select id="type" name="type" defaultValue="CERTIFICATE">
@@ -120,14 +133,37 @@ export function SupplierUploadDialog({
             <FileDropzone
               accept={accept}
               maxSizeMb={maxSizeMb}
-              required
               hint={interpolate(dict.portal.requests.allowedTypes, { size: maxSizeMb })}
               labels={{
-                title: dict.portal.requests.uploadTitle,
-                dropHint: dict.portal.requests.uploadHint,
-                choose: dict.portal.requests.chooseFile,
+                title: t.uploadTitle,
+                dropHint: t.uploadHint,
+                choose: t.chooseFile,
+                remove: dict.portal.messages.removeFile,
+                typeError: t.fileTypeError,
+                sizeError: t.fileSizeError,
+                emptyError: t.fileEmptyError,
               }}
             />
+            {progress !== null ? (
+              <div className="mt-3" role="status" aria-live="polite">
+                <p className="mb-1.5 text-meta text-ink-soft tabular-nums">
+                  {interpolate(t.uploadingPercent, { percent: progress })}
+                </p>
+                <div
+                  className="h-1.5 overflow-hidden rounded-full bg-raised"
+                  role="progressbar"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={t.uploadTitle}
+                >
+                  <div
+                    className="h-full rounded-full bg-brand transition-[width]"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </Field>
         </>
       )}
