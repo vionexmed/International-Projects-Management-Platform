@@ -3,8 +3,10 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { AvatarStack } from "@/components/ui/avatar";
 import { StatusIcon } from "@/components/ui/badge";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
-import { FLAGGED_PRIORITY, type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
+import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
 import { PlanValueCell } from "@/features/tasks/plan-value-cell";
+import { InlineTaskTitleCell } from "@/features/tasks/inline-task-title-cell";
+import { InlineTaskPriorityCell } from "@/features/tasks/inline-task-priority-cell";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { meta } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -37,10 +39,10 @@ export function PlanList({
   editable: boolean;
   projectId: string;
   columns: PlanColumn[];
-  /** Link that opens a task in the side sheet, keeping the current view. */
   taskHref: (taskId: string) => string;
   dict: Dictionary;
 }) {
+  void taskHref;
   const visibleColumns = columns.filter((column) => column.visible);
   const expanded = visibleColumns.length > 0;
   const gridClass = expanded ? "grid" : COLUMNS;
@@ -134,13 +136,7 @@ export function PlanList({
                         title={task.title}
                         readOnly={!editable}
                       />
-                      <Link
-                        href={taskHref(task.id)}
-                        scroll={false}
-                        className="min-w-0 truncate text-body text-ink after:absolute after:inset-0 hover:underline"
-                      >
-                        {task.title}
-                      </Link>
+                      <InlineTaskTitleCell taskId={task.id} title={task.title} editable={editable} />
                       {task.supplierName ? (
                         <span className="hidden shrink-0 text-meta text-muted lg:inline">
                           · aguardando {task.supplierName}
@@ -169,11 +165,7 @@ export function PlanList({
                       />
                     </span>
                     <span className={sideCell}>
-                      {FLAGGED_PRIORITY.includes(task.priority) ? (
-                        <span className="text-body font-medium text-risk">
-                          {meta.priority(task.priority, dict).label}
-                        </span>
-                      ) : null}
+                      <InlineTaskPriorityCell taskId={task.id} priority={task.priority} editable={editable} />
                     </span>
                     {visibleColumns.map((column) => {
                       const value = column.values.find((entry) => entry.taskId === task.id)?.value ?? null;

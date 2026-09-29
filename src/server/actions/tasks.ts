@@ -111,6 +111,27 @@ export async function setTaskStatusAction(
   }
 }
 
+/** Single-field priority change for the inline plan cell. */
+export async function setTaskPriorityAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("task:update");
+    const input = parseForm(
+      z.object({ taskId: z.string().min(1), priority: z.enum(PRIORITIES) }),
+      formData,
+    );
+    await updateTask(user, input.taskId, { priority: input.priority });
+    revalidatePath("/tasks");
+    revalidatePath(`/tasks/${input.taskId}`);
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
 /**
  * Single-field due-date change for the plan's inline date cell.
  *
