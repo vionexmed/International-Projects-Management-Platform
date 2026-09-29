@@ -92,11 +92,19 @@ async function lockPlanColumn(tx: Prisma.TransactionClient, columnId: string, pr
 export async function listProjectPlanColumns(user: SessionUser, projectId: string) {
   assertInternal(user, "project:read");
   await requirePlanProject(user, projectId);
-  return db.projectPlanColumn.findMany({
-    where: { projectId },
-    include: { values: { select: { taskId: true, value: true } } },
-    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-  });
+  try {
+    return await db.projectPlanColumn.findMany({
+      where: { projectId },
+      include: { values: { select: { taskId: true, value: true } } },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    });
+  } catch (error) {
+    // A deploy can receive the application before its additive migration. The
+    // established plan still works without custom fields, so keep it usable
+    // instead of turning a missing optional table into a full-page failure.
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2021") return [];
+    throw error;
+  }
 }
 
 export async function createProjectPlanColumn(
