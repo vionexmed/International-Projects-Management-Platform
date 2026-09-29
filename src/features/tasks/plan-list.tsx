@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { AvatarStack } from "@/components/ui/avatar";
 import { StatusIcon } from "@/components/ui/badge";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
 import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
@@ -51,7 +50,7 @@ export function PlanList({
     : undefined;
   const sideCell = expanded ? cn("flex items-center px-3", RULE) : SIDE_CELL;
   return (
-    <div className={cn("bg-surface", expanded && "overflow-x-auto")}>
+    <div className={cn("rounded-b-md border-x border-b border-line bg-surface", expanded && "overflow-x-auto")}>
       <div style={expanded ? { minWidth: `${620 + visibleColumns.length * 160}px` } : undefined}>
       <div
         className={cn(
@@ -79,7 +78,7 @@ export function PlanList({
             <summary
               className={cn(
                 gridClass,
-                "h-12 cursor-pointer list-none border-y border-line bg-subtle/70 hover:bg-subtle [&::-webkit-details-marker]:hidden",
+                "h-12 cursor-pointer list-none border-y border-line bg-surface hover:bg-raised [&::-webkit-details-marker]:hidden",
               )}
               style={gridStyle}
             >
@@ -107,12 +106,8 @@ export function PlanList({
                   </Link>
                 ) : null}
               </span>
-              <span className="flex items-center px-3">
-                <AvatarStack people={group.people} size={20} max={4} />
-              </span>
-              <span className="flex items-center px-3 text-meta text-muted tabular-nums">
-                <span className="truncate">{group.span ?? ""}</span>
-              </span>
+              <span />
+              <span />
               <span className="flex items-center px-3" />
               {visibleColumns.map((column) => <span key={column.id} />)}
             </summary>

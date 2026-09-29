@@ -26,7 +26,7 @@ import {
   TaskEyebrow,
   loadTaskDetail,
 } from "@/features/tasks/task-detail";
-import { PROJECT_FLUSH } from "@/features/projects/project-frame";
+import { PROJECT_GUTTER } from "@/features/projects/project-frame";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, oneOf } from "@/lib/labels";
@@ -110,9 +110,9 @@ export default async function ProjectPlanPage({
   const openTask = sheet && sheet.task.projectId === projectId ? sheet : null;
 
   return (
-    <div className={PROJECT_FLUSH}>
+    <div className={PROJECT_GUTTER}>
       <ViewToolbar
-        className="bg-surface px-4 sm:px-6"
+        className="rounded-t-md border border-line bg-surface px-4 sm:px-6"
         left={
           <>
             <Dropdown>
