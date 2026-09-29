@@ -7,7 +7,7 @@ import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
 import { ProgressBar, type ProgressTone } from "@/components/ui/progress";
-import { SolidBadge, StatusIcon } from "@/components/ui/badge";
+import { StatusIcon } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/avatar";
 import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
 import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
@@ -79,7 +79,6 @@ export default async function ProjectOverviewPage({
   const milestoneLate = (milestone: (typeof milestones)[number]) =>
     milestone.status === "DELAYED" || (daysUntil(milestone.dueDate) ?? 0) < 0;
 
-  const launchIn = daysUntil(project.targetLaunchDate);
   const base = `/projects/${projectId}`;
   const canAddMilestone =
     can(user, "project:update") || OPTIONS.stageKey.some((key) => can(user, STAGE_PERMISSION[key]));
@@ -126,52 +125,23 @@ export default async function ProjectOverviewPage({
         </div>
       ) : null}
 
-      {/* KPI strip: flat cards, one number each. */}
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Kpi label="Saúde" className="col-span-2 lg:col-span-1">
-          <SolidBadge tone={health.tone}>{health.label}</SolidBadge>
-          <p className="mt-2 text-meta text-muted">{healthReason}</p>
-        </Kpi>
-        <Kpi label="Progresso geral">
-          <p className="text-kpi-sm text-ink tabular-nums">{progress}%</p>
-          <ProgressBar value={progress} tone={progress === 100 ? "ok" : "neutral"} label="Progresso geral" className="mt-2" barClassName="h-1.5" />
-        </Kpi>
-        <Kpi label="Tarefas em aberto">
-          <p className="text-kpi-sm text-ink tabular-nums">{open.length}</p>
-          <p className={cn("mt-1 text-meta", overdue.length > 0 ? "font-medium text-risk" : "text-muted")}>
-            {overdue.length > 0 ? `${overdue.length} atrasada${overdue.length === 1 ? "" : "s"}` : "Nenhuma atrasada"}
-          </p>
-        </Kpi>
-        <Kpi label="Próximo marco">
-          {nextMilestone ? (
-            <>
-              <p className="truncate text-body font-semibold text-ink" title={nextMilestone.title}>
-                {nextMilestone.title}
-              </p>
-              <p className={cn("mt-1 text-meta tabular-nums", milestoneLate(nextMilestone) ? "font-medium text-risk" : "text-muted")}>
-                {formatDate(nextMilestone.dueDate, locale)}
-                {milestoneLate(nextMilestone) ? " · atrasado" : ""}
-              </p>
-            </>
-          ) : (
-            <p className="text-body text-muted">Nenhum pendente</p>
-          )}
-        </Kpi>
-        <Kpi label="Lançamento previsto">
-          {project.targetLaunchDate ? (
-            <>
-              <p className="text-body font-semibold text-ink tabular-nums">
-                {formatDate(project.targetLaunchDate, locale)}
-              </p>
-              <p className={cn("mt-1 text-meta", launchIn !== null && launchIn < 0 ? "font-medium text-risk" : "text-muted")}>
-                {launchIn === null ? "" : launchIn < 0 ? `${Math.abs(launchIn)} dias atrás` : launchIn === 0 ? "Hoje" : `em ${launchIn} dias`}
-              </p>
-            </>
-          ) : (
-            <p className="text-body text-muted">Sem data</p>
-          )}
-        </Kpi>
-      </dl>
+      <section className="border-b border-line pb-6" aria-label="Resumo do projeto">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-meta font-medium text-brand-strong">Progresso geral</p>
+            <div className="mt-1 flex items-baseline gap-3">
+              <p className="text-kpi text-ink tabular-nums">{progress}%</p>
+              <span className="text-body text-muted">{label.stageKey(project.currentStage, dict)} · {health.label}</span>
+            </div>
+            <p className="mt-1 text-meta text-muted">{healthReason}</p>
+          </div>
+          <div className="text-meta text-muted sm:text-right">
+            <p>{open.length} tarefa{open.length === 1 ? "" : "s"} em aberto{overdue.length ? ` · ${overdue.length} atrasada${overdue.length === 1 ? "" : "s"}` : ""}</p>
+            <p className="mt-1">{nextMilestone ? `Próximo marco: ${nextMilestone.title}` : "Nenhum marco pendente"}</p>
+          </div>
+        </div>
+        <ProgressBar value={progress} tone={progress === 100 ? "ok" : "neutral"} label="Progresso geral" className="mt-4" barClassName="h-2" />
+      </section>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
@@ -314,23 +284,6 @@ export default async function ProjectOverviewPage({
           </WorkBlock>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Kpi({
-  label: kpiLabel,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("min-w-0 rounded-sm border border-line bg-surface px-4 py-3", className)}>
-      <dt className="mb-1.5 text-meta font-medium text-muted">{kpiLabel}</dt>
-      <dd className="min-w-0">{children}</dd>
     </div>
   );
 }
