@@ -203,7 +203,7 @@ export default async function ProjectPlanPage({
       {view === "board" ? (
         <PlanBoard groups={groups} owners={owners} editable={editable} taskHref={taskHref} dict={dict} />
       ) : (
-        <PlanList groups={groups} owners={owners} editable={editable} projectId={projectId} columns={columns} taskHref={taskHref} dict={dict} />
+        <PlanList groups={groups} owners={owners} editable={editable} projectId={projectId} columns={columns} dict={dict} />
       )}
 
       {openTask ? (
