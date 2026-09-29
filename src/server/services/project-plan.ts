@@ -79,6 +79,16 @@ async function requirePlanColumn(user: SessionUser, columnId: string) {
   return column;
 }
 
+/** Keep column-schema changes and value writes in the same PostgreSQL row-lock queue. */
+async function lockPlanColumn(tx: Prisma.TransactionClient, columnId: string, projectId: string) {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "ProjectPlanColumn"
+    WHERE "id" = ${columnId} AND "projectId" = ${projectId}
+    FOR UPDATE
+  `;
+  if (rows.length !== 1) throw new NotFoundError();
+}
+
 export async function listProjectPlanColumns(user: SessionUser, projectId: string) {
   assertInternal(user, "project:read");
   await requirePlanProject(user, projectId);
@@ -118,26 +128,37 @@ export async function updateProjectPlanColumn(
   input: { name?: string; visible?: boolean; options?: string[] },
 ) {
   assertInternal(user, "task:update");
-  const column = await requirePlanColumn(user, columnId);
-  const definition = parsePlanColumnDefinition({
-    name: input.name ?? column.name,
-    type: column.type,
-    options: input.options ?? column.options,
-  });
-  const visible = input.visible === undefined ? column.visible : z.boolean().parse(input.visible);
-  if (column.type === "SELECT" && input.options !== undefined) {
-    const used = await db.taskPlanValue.findMany({
-      where: { columnId: column.id },
-      select: { value: true },
+  const accessible = await requirePlanColumn(user, columnId);
+  return db.$transaction(async (tx) => {
+    await lockPlanColumn(tx, columnId, accessible.projectId);
+    const column = await tx.projectPlanColumn.findFirst({
+      where: { id: columnId, project: projectScope(user) },
     });
-    if (used.some(({ value }) => typeof value !== "string" || !definition.options.includes(value))) {
-      throw new Error("Uma opção removida ainda está em uso.");
+    if (!column) throw new NotFoundError();
+
+    const data: Prisma.ProjectPlanColumnUpdateInput = {};
+    if (input.name !== undefined) data.name = z.string().trim().min(1).max(80).parse(input.name);
+    if (input.visible !== undefined) data.visible = z.boolean().parse(input.visible);
+    if (input.options !== undefined) {
+      const definition = parsePlanColumnDefinition({
+        name: input.name ?? column.name,
+        type: column.type,
+        options: input.options,
+      });
+      if (column.type === "SELECT") {
+        const used = await tx.taskPlanValue.findMany({
+          where: { columnId: column.id },
+          select: { value: true },
+        });
+        if (used.some(({ value }) => typeof value !== "string" || !definition.options.includes(value))) {
+          throw new Error("Uma opção removida ainda está em uso.");
+        }
+      }
+      data.options = definition.options;
     }
-  }
-  return db.projectPlanColumn.update({
-    where: { id: column.id },
-    data: { name: definition.name, visible, options: definition.options },
-  });
+    if (Object.keys(data).length === 0) return column;
+    return tx.projectPlanColumn.update({ where: { id: column.id }, data });
+  }, { timeout: 10_000 });
 }
 
 export async function reorderProjectPlanColumns(user: SessionUser, projectId: string, columnIds: string[]) {
@@ -166,31 +187,32 @@ export async function setTaskPlanValue(
 ) {
   assertInternal(user, "task:update");
   await requirePlanProject(user, input.projectId);
-  const [task, column] = await Promise.all([
-    db.task.findFirst({
+  return db.$transaction(async (tx) => {
+    await lockPlanColumn(tx, input.columnId, input.projectId);
+    const task = await tx.task.findFirst({
       where: { id: input.taskId, projectId: input.projectId, organizationId: user.organizationId },
       select: { id: true },
-    }),
-    db.projectPlanColumn.findFirst({
-      where: { id: input.columnId, projectId: input.projectId },
-    }),
-  ]);
-  if (!task || !column) throw new NotFoundError();
-  if (input.value === null) {
-    await db.taskPlanValue.deleteMany({ where: { taskId: task.id, columnId: column.id } });
-    return null;
-  }
-  const value = parsePlanValue(column, input.value);
-  if (column.type === "PERSON") {
-    const person = await db.user.findFirst({
-      where: { id: value as string, organizationId: user.organizationId, status: "ACTIVE", supplierId: null },
-      select: { id: true },
     });
-    if (!person) throw new NotFoundError();
-  }
-  return db.taskPlanValue.upsert({
-    where: { taskId_columnId: { taskId: task.id, columnId: column.id } },
-    create: { taskId: task.id, columnId: column.id, value: value as Prisma.InputJsonValue },
-    update: { value: value as Prisma.InputJsonValue },
-  });
+    const column = await tx.projectPlanColumn.findFirst({
+      where: { id: input.columnId, projectId: input.projectId, project: projectScope(user) },
+    });
+    if (!task || !column) throw new NotFoundError();
+    if (input.value === null) {
+      await tx.taskPlanValue.deleteMany({ where: { taskId: task.id, columnId: column.id } });
+      return null;
+    }
+    const value = parsePlanValue(column, input.value);
+    if (column.type === "PERSON") {
+      const person = await tx.user.findFirst({
+        where: { id: value as string, organizationId: user.organizationId, status: "ACTIVE", supplierId: null },
+        select: { id: true },
+      });
+      if (!person) throw new NotFoundError();
+    }
+    return tx.taskPlanValue.upsert({
+      where: { taskId_columnId: { taskId: task.id, columnId: column.id } },
+      create: { taskId: task.id, columnId: column.id, value: value as Prisma.InputJsonValue },
+      update: { value: value as Prisma.InputJsonValue },
+    });
+  }, { timeout: 10_000 });
 }
