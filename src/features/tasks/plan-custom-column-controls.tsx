@@ -6,7 +6,6 @@ import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { Field, FormDialog } from "@/components/app/form-dialog";
 import type { PlanColumn } from "@/features/tasks/plan-data";
 import {
   createProjectPlanColumnAction,
@@ -26,51 +25,38 @@ const COLUMN_TYPES = [
   { value: "PERSON", label: "Pessoa" },
 ] as const;
 
-function AddPlanColumn({ projectId }: { projectId: string }) {
+function AddPlanColumn({
+  projectId,
+  pending,
+  submit,
+}: {
+  projectId: string;
+  pending: boolean;
+  submit: (action: PlanAction, fields: Record<string, string>, success: string) => void;
+}) {
   const [type, setType] = React.useState<PlanColumn["type"]>("TEXT");
+  const [name, setName] = React.useState("");
+  const [options, setOptions] = React.useState("");
 
   return (
-    <FormDialog
-      trigger={<Button type="button" size="sm" variant="secondary"><Plus /> Nova coluna</Button>}
-      title="Nova coluna do plano"
-      action={createProjectPlanColumnAction}
-      submitLabel="Criar coluna"
-      successMessage="Coluna criada."
-      beforeSubmit={async (form) => {
-        const input = form.elements.namedItem("options") as HTMLInputElement | null;
-        const textarea = form.elements.namedItem("selectOptions") as HTMLTextAreaElement | null;
-        if (!input) return "Não foi possível preparar as opções.";
-        const options = type === "SELECT"
-          ? (textarea?.value ?? "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
-          : [];
-        if (type === "SELECT" && options.length === 0) return "Informe ao menos uma opção.";
-        input.value = JSON.stringify(options);
-        return null;
+    <form
+      className="grid gap-2 rounded-sm bg-raised p-2.5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const parsed = type === "SELECT" ? options.split(/\r?\n/).map((item) => item.trim()).filter(Boolean) : [];
+        if (!name.trim() || (type === "SELECT" && parsed.length === 0)) return;
+        submit(createProjectPlanColumnAction, { projectId, name: name.trim(), type, options: JSON.stringify(parsed) }, "Coluna criada.");
+        setName(""); setOptions(""); setType("TEXT");
       }}
     >
-      {(state) => (
-        <>
-          <input type="hidden" name="projectId" value={projectId} />
-          <input type="hidden" name="options" defaultValue="[]" />
-          <Field name="name" label="Nome" required state={state}>
-            <Input name="name" id="plan-column-name" maxLength={80} required />
-          </Field>
-          <Field name="type" label="Tipo" required state={state}>
-            <Select name="type" id="plan-column-type" value={type} onChange={(event) => setType(event.target.value as PlanColumn["type"])}>
-              {COLUMN_TYPES.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </Select>
-          </Field>
-          {type === "SELECT" ? (
-            <div>
-              <label htmlFor="plan-column-options" className="text-label font-medium text-ink-soft">Opções, uma por linha</label>
-              <Textarea id="plan-column-options" name="selectOptions" className="mt-1" required />
-            </div>
-          ) : null}
-        </>
-      )}
-    </FormDialog>
+      <div className="flex items-center gap-2"><Plus className="size-4 text-brand-strong" /><span className="text-label font-semibold text-ink">Nova coluna</span></div>
+      <Input aria-label="Nome da coluna" fieldSize="sm" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Documento" disabled={pending} />
+      <Select aria-label="Tipo da coluna" value={type} onChange={(event) => setType(event.target.value as PlanColumn["type"])} disabled={pending}>
+        {COLUMN_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </Select>
+      {type === "SELECT" ? <Textarea aria-label="Opções" value={options} onChange={(event) => setOptions(event.target.value)} placeholder="Uma opção por linha" className="min-h-16" disabled={pending} /> : null}
+      <Button type="submit" size="sm" disabled={pending}>Adicionar ao plano</Button>
+    </form>
   );
 }
 
@@ -115,10 +101,11 @@ export function PlanCustomColumnControls({
       <div className="absolute right-0 z-30 mt-1 w-[min(28rem,calc(100vw-2rem))] rounded-md border border-line bg-surface p-4 shadow-overlay">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-label font-semibold text-ink">Colunas do plano</span>
-          <AddPlanColumn projectId={projectId} />
+          <span className="text-meta text-muted">Edite no próprio plano</span>
         </div>
+        <AddPlanColumn projectId={projectId} pending={pending} submit={submit} />
         {columns.length === 0 ? (
-          <p className="text-meta text-muted">Nenhuma coluna personalizada.</p>
+          <p className="mt-3 text-meta text-muted">Crie uma coluna acima para preencher cada tarefa diretamente na tabela.</p>
         ) : (
           <ul className="max-h-80 space-y-3 overflow-y-auto">
             {columns.map((column, index) => (
