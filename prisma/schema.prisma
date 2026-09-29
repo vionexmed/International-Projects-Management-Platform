@@ -61,6 +61,14 @@ enum TaskCategory {
   GENERAL
 }
 
+enum PlanColumnType {
+  TEXT
+  SELECT
+  DATE
+  NUMBER
+  PERSON
+}
+
 enum DocumentType {
   CONTRACT
   NDA
@@ -343,6 +351,7 @@ model Project {
   shipments     ImportShipment[]
   threads       MessageThread[]
   timeline      TimelineEvent[]
+  planColumns   ProjectPlanColumn[]
 
   @@unique([organizationId, projectCode])
   @@index([organizationId, status])
@@ -370,6 +379,25 @@ model ProjectStage {
 
   @@unique([projectId, key])
   @@index([projectId])
+}
+
+model ProjectPlanColumn {
+  id        String         @id @default(cuid())
+  projectId String
+  key       String
+  name      String
+  type      PlanColumnType
+  position  Int
+  visible   Boolean        @default(true)
+  options   Json           @default("[]")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  values  TaskPlanValue[]
+
+  @@unique([projectId, key])
+  @@index([projectId, position])
 }
 
 model Milestone {
@@ -438,6 +466,7 @@ model Task {
 
   comments TaskComment[]
   requests DocumentRequest[]
+  planValues TaskPlanValue[]
 
   @@index([organizationId, status, dueDate])
   @@index([projectId])
@@ -459,6 +488,21 @@ model TaskComment {
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
+}
+
+model TaskPlanValue {
+  id        String   @id @default(cuid())
+  taskId    String
+  columnId  String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  column ProjectPlanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, columnId])
+  @@index([columnId])
 }
 
 // ---------------------------------------------------------------------------

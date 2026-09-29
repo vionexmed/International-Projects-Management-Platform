@@ -11,6 +11,7 @@ import {
 } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { recordTimelineEvent } from "@/server/services/timeline";
+import { createProjectPlanColumn, setTaskPlanValue } from "@/server/services/project-plan";
 import type { SessionUser } from "@/types/auth";
 import { createProject, createSupplier, createTestOrg, createUser, destroyOrg } from "../factories";
 
@@ -94,6 +95,32 @@ describe("supplier project payload", () => {
     for (const [field, secret] of Object.entries(SECRETS)) {
       expect(payload, `${field} reached the supplier payload`).not.toContain(secret);
     }
+  });
+
+  it("omits custom plan column names and values from the supplier workspace", async () => {
+    const column = await createProjectPlanColumn(internalUser, {
+      projectId,
+      name: "SENTINEL-internal-plan-column",
+      type: "TEXT",
+    });
+    const task = await db.task.create({
+      data: {
+        organizationId,
+        projectId,
+        createdById: internalUser.id,
+        title: "Visible supplier task",
+      },
+    });
+    await setTaskPlanValue(internalUser, {
+      projectId,
+      taskId: task.id,
+      columnId: column.id,
+      value: "SENTINEL-internal-plan-value",
+    });
+
+    const payload = JSON.stringify(await getSupplierProjectWorkspace(supplierUser, projectId));
+    expect(payload).not.toContain("SENTINEL-internal-plan-column");
+    expect(payload).not.toContain("SENTINEL-internal-plan-value");
   });
 
   it("carries none of the internal field names either", async () => {

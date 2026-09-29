@@ -1,4 +1,4 @@
-import type { StageKey, TaskCategory, TaskPriority } from "@/generated/prisma";
+import type { PlanColumnType, StageKey, TaskCategory, TaskPriority } from "@/generated/prisma";
 import { STAGE_ROUTES } from "@/features/projects/stage-routes";
 import { daysUntil, formatDateShort } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
@@ -28,6 +28,36 @@ export type PlanTask = {
   assignee: { id: string; name: string } | null;
   supplierName: string | null;
 };
+
+/** The internal plan's serializable custom schema, including values for visible tasks. */
+export type PlanColumn = {
+  id: string;
+  name: string;
+  type: PlanColumnType;
+  visible: boolean;
+  options: string[];
+  values: { taskId: string; value: unknown }[];
+};
+
+export function toPlanColumns(columns: {
+  id: string;
+  name: string;
+  type: PlanColumnType;
+  visible: boolean;
+  options: unknown;
+  values: { taskId: string; value: unknown }[];
+}[]): PlanColumn[] {
+  return columns.map((column) => ({
+    id: column.id,
+    name: column.name,
+    type: column.type,
+    visible: column.visible,
+    options: Array.isArray(column.options)
+      ? column.options.filter((option): option is string => typeof option === "string")
+      : [],
+    values: column.values,
+  }));
+}
 
 export type PlanGroup = {
   category: TaskCategory;

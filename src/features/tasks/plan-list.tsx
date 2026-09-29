@@ -3,7 +3,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { AvatarStack } from "@/components/ui/avatar";
 import { StatusIcon } from "@/components/ui/badge";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
-import { FLAGGED_PRIORITY, type PlanGroup } from "@/features/tasks/plan-data";
+import { FLAGGED_PRIORITY, type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
+import { PlanValueCell } from "@/features/tasks/plan-value-cell";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { meta } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -26,29 +27,47 @@ export function PlanList({
   groups,
   owners,
   editable,
+  projectId,
+  columns,
   taskHref,
   dict,
 }: {
   groups: PlanGroup[];
   owners: OwnerOption[];
   editable: boolean;
+  projectId: string;
+  columns: PlanColumn[];
   /** Link that opens a task in the side sheet, keeping the current view. */
   taskHref: (taskId: string) => string;
   dict: Dictionary;
 }) {
+  const visibleColumns = columns.filter((column) => column.visible);
+  const expanded = visibleColumns.length > 0;
+  const gridClass = expanded ? "grid" : COLUMNS;
+  const gridStyle = expanded
+    ? { gridTemplateColumns: `minmax(16rem, 1fr) 13rem 8.5rem 6.5rem repeat(${visibleColumns.length}, minmax(10rem, 1fr))` }
+    : undefined;
+  const sideCell = expanded ? cn("flex items-center px-3", RULE) : SIDE_CELL;
   return (
-    <div className="bg-surface">
+    <div className={cn("bg-surface", expanded && "overflow-x-auto")}>
+      <div style={expanded ? { minWidth: `${620 + visibleColumns.length * 160}px` } : undefined}>
       <div
         className={cn(
-          COLUMNS,
+          gridClass,
           "h-[38px] border-b border-line bg-subtle text-label font-semibold text-ink-soft",
         )}
-        aria-hidden
+        style={gridStyle}
+        aria-hidden={expanded ? undefined : true}
       >
         <span className="flex items-center pl-4">Tarefa</span>
-        <span className={SIDE_CELL}>Responsável</span>
+        <span className={sideCell}>Responsável</span>
         <span className={cn("flex items-center px-3", RULE)}>Prazo</span>
-        <span className={SIDE_CELL}>Prioridade</span>
+        <span className={sideCell}>Prioridade</span>
+        {visibleColumns.map((column) => (
+          <span key={column.id} className={cn("flex min-w-0 items-center truncate px-3", RULE)}>
+            {column.name}
+          </span>
+        ))}
       </div>
 
       {groups.map((group) => {
@@ -57,9 +76,10 @@ export function PlanList({
           <details key={group.category} open className="group/phase">
             <summary
               className={cn(
-                COLUMNS,
+                gridClass,
                 "h-10 cursor-pointer list-none border-b border-line-faint hover:bg-subtle [&::-webkit-details-marker]:hidden",
               )}
+              style={gridStyle}
             >
               <span className="flex min-w-0 items-center gap-2 pl-4">
                 <ChevronDown
@@ -84,13 +104,14 @@ export function PlanList({
                   </Link>
                 ) : null}
               </span>
-              <span className={SIDE_CELL}>
+              <span className={sideCell}>
                 <AvatarStack people={group.people} size={20} max={4} />
               </span>
               <span className={cn("flex items-center px-3 text-meta text-muted tabular-nums", RULE)}>
                 <span className="truncate">{group.span ?? ""}</span>
               </span>
-              <span className={SIDE_CELL} />
+              <span className={sideCell} />
+              {visibleColumns.map((column) => <span key={column.id} className={RULE} />)}
             </summary>
 
             {group.tasks.length === 0 ? (
@@ -102,7 +123,8 @@ export function PlanList({
                 {group.tasks.map((task) => (
                   <li
                     key={task.id}
-                    className={cn(COLUMNS, "relative h-10 border-b border-line-faint hover:bg-subtle")}
+                    className={cn(gridClass, "relative h-10 border-b border-line-faint hover:bg-subtle")}
+                    style={gridStyle}
                   >
                     <span className="flex min-w-0 items-center gap-2 pl-10 md:pl-14">
                       <TaskStatusCell
@@ -125,7 +147,7 @@ export function PlanList({
                         </span>
                       ) : null}
                     </span>
-                    <span className={cn(SIDE_CELL, "min-w-0")}>
+                    <span className={cn(sideCell, "min-w-0")}>
                       <TaskAssigneeCell
                         taskId={task.id}
                         assignee={task.assignee}
@@ -146,13 +168,28 @@ export function PlanList({
                         readOnly={!editable}
                       />
                     </span>
-                    <span className={SIDE_CELL}>
+                    <span className={sideCell}>
                       {FLAGGED_PRIORITY.includes(task.priority) ? (
                         <span className="text-body font-medium text-risk">
                           {meta.priority(task.priority, dict).label}
                         </span>
                       ) : null}
                     </span>
+                    {visibleColumns.map((column) => {
+                      const value = column.values.find((entry) => entry.taskId === task.id)?.value ?? null;
+                      return <span key={column.id} className={cn("flex min-w-0 items-center px-1", RULE)}>
+                        <PlanValueCell
+                          key={`${column.id}:${JSON.stringify(value)}`}
+                          projectId={projectId}
+                          taskId={task.id}
+                          taskTitle={task.title}
+                          column={column}
+                          value={value}
+                          owners={owners}
+                          editable={editable}
+                        />
+                      </span>;
+                    })}
                   </li>
                 ))}
               </ul>
@@ -160,6 +197,7 @@ export function PlanList({
           </details>
         );
       })}
+      </div>
     </div>
   );
 }
