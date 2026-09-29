@@ -22,16 +22,19 @@ import { dialogLabels } from "@/features/supplier-portal/portal-labels";
 export function SupplierUploadDialog({
   projects,
   projectId,
+  defaultOpen = false,
   dict,
   accept,
   maxSizeMb,
 }: {
   projects?: { id: string; name: string }[];
   projectId?: string;
+  defaultOpen?: boolean;
   dict: Dictionary;
   accept: string;
   maxSizeMb: number;
 }) {
+  const [open, setOpen] = React.useState(defaultOpen);
   const t = dict.portal.requests;
   const { prepare, progress } = useDirectUpload({
     connectionFailed: t.connectionFailed,
@@ -73,6 +76,8 @@ export function SupplierUploadDialog({
 
   return (
     <FormDialog
+      open={open}
+      onOpenChange={setOpen}
       trigger={
         <Button variant="primary" size="sm">
           <Upload />

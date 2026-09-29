@@ -238,6 +238,16 @@ describe("reports aggregate rather than list", () => {
 });
 
 describe("the supplier sees one queue", () => {
+  it("opens generic tasks in project upload and keeps document requests on their own route", async () => {
+    const queue = await listSupplierQueue(supplierUser);
+    const all = [...queue.open, ...queue.waiting, ...queue.done];
+    const task = all.find((item) => item.title === "Send the shipping plan");
+    const request = all.find((item) => item.title === "Overdue certificate");
+
+    expect(task?.href).toBe(`/supplier/projects/${projectId}/documents?upload=1`);
+    expect(request?.href).toBe(`/supplier/action-required/${await openRequestId()}`);
+  });
+
   it("puts documents and tasks in the same list", async () => {
     const queue = await listSupplierQueue(supplierUser);
     const types = queue.open.map((item) => item.type);
