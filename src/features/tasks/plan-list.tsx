@@ -1,3 +1,6 @@
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { StatusIcon } from "@/components/ui/badge";
@@ -14,9 +17,8 @@ import { cn } from "@/lib/utils";
   Task | Responsável | Prazo | Prioridade. On a phone only the task and its
   deadline remain; the other two are one tap away in the task sheet.
 */
-const COLUMNS = "grid grid-cols-[minmax(0,1fr)_7rem] md:grid-cols-[minmax(0,1fr)_13rem_8.5rem_6.5rem]";
 const RULE = "md:border-l md:border-line-soft";
-const SIDE_CELL = cn("hidden items-center px-3 md:flex", RULE);
+const BASE_WIDTHS = [208, 136, 104];
 
 /**
  * The plan as a flush grid: one 40-px phase row per stage (chevron, stage
@@ -43,30 +45,38 @@ export function PlanList({
 }) {
   void taskHref;
   const visibleColumns = columns.filter((column) => column.visible);
-  const expanded = visibleColumns.length > 0;
-  const gridClass = expanded ? "grid" : COLUMNS;
-  const gridStyle = expanded
-    ? { gridTemplateColumns: `minmax(16rem, 1fr) 13rem 8.5rem 6.5rem repeat(${visibleColumns.length}, minmax(10rem, 1fr))` }
-    : undefined;
-  const sideCell = expanded ? cn("flex items-center px-3", RULE) : SIDE_CELL;
+  const [widths, setWidths] = React.useState(() => {
+    if (typeof window === "undefined") return [...BASE_WIDTHS, ...visibleColumns.map(() => 160)];
+    const saved = window.localStorage.getItem(`vionex-plan-widths:${projectId}`);
+    const parsed = saved ? JSON.parse(saved) : null;
+    return Array.isArray(parsed) && parsed.length === 3 + visibleColumns.length ? parsed : [...BASE_WIDTHS, ...visibleColumns.map(() => 160)];
+  });
+  React.useEffect(() => window.localStorage.setItem(`vionex-plan-widths:${projectId}`, JSON.stringify(widths)), [projectId, widths]);
+  const resize = (index: number, startX: number) => {
+    const start = widths[index];
+    const move = (event: PointerEvent) => setWidths((current) => current.map((width, item) => item === index ? Math.max(96, start + event.clientX - startX) : width));
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop);
+  };
+  const gridClass = "grid";
+  const gridStyle = { gridTemplateColumns: `minmax(18rem, 1fr) ${widths.map((width) => `${width}px`).join(" ")}` };
+  const sideCell = cn("flex items-center px-3", RULE);
+  const headers = ["Responsável", "Prazo", "Prioridade", ...visibleColumns.map((column) => column.name)];
   return (
-    <div className={cn("rounded-b-md border-x border-b border-line bg-surface", expanded && "overflow-x-auto")}>
-      <div style={expanded ? { minWidth: `${620 + visibleColumns.length * 160}px` } : undefined}>
+    <div className="rounded-b-md border-x border-b border-line bg-surface overflow-x-auto">
+      <div style={{ minWidth: `${720 + visibleColumns.length * 160}px` }}>
       <div
         className={cn(
           gridClass,
           "h-[38px] border-b border-line bg-subtle text-label font-semibold text-ink-soft",
         )}
         style={gridStyle}
-        aria-hidden={expanded ? undefined : true}
       >
         <span className="flex items-center pl-4">Tarefa</span>
-        <span className={sideCell}>Responsável</span>
-        <span className={cn("flex items-center px-3", RULE)}>Prazo</span>
-        <span className={sideCell}>Prioridade</span>
-        {visibleColumns.map((column) => (
-          <span key={column.id} className={cn("flex min-w-0 items-center truncate px-3", RULE)}>
-            {column.name}
+        {headers.map((header, index) => (
+          <span key={header} className={cn("relative flex min-w-0 items-center truncate px-3", RULE)}>
+            {header}
+            <button type="button" aria-label={`Redimensionar coluna ${header}`} onPointerDown={(event) => { event.preventDefault(); resize(index, event.clientX); }} className="absolute -right-1 top-0 z-20 h-full w-2 cursor-col-resize touch-none" />
           </span>
         ))}
       </div>
