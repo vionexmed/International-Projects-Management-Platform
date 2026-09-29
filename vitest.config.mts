@@ -18,7 +18,7 @@ export default defineConfig({
     // Unit suites only: no database, no storage, nothing to start first.
     // The integration suites have their own config, which refuses to run
     // without a reachable database instead of skipping.
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/unit/**/*.test.tsx"],
     setupFiles: ["tests/setup.ts"],
     testTimeout: 30_000,
     hookTimeout: 30_000,
