@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { StatusIcon } from "@/components/ui/badge";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
 import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
-import { planColumnKeys, readPlanWidths, resizePlanWidth } from "@/features/tasks/plan-widths";
+import { planColumnKeys, readPlanWidths, resizePlanWidth, widthsForProject } from "@/features/tasks/plan-widths";
 import { PlanValueCell } from "@/features/tasks/plan-value-cell";
 import { InlineTaskTitleCell } from "@/features/tasks/inline-task-title-cell";
 import { InlineTaskPriorityCell } from "@/features/tasks/inline-task-priority-cell";
@@ -20,6 +20,12 @@ import { cn } from "@/lib/utils";
   deadline remain; the other two are one tap away in the task sheet.
 */
 const RULE = "md:border-l md:border-line-faint";
+
+function savedWidths(projectId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.localStorage.getItem(`vionex-plan-widths:${projectId}`); }
+  catch { return null; }
+}
 
 /**
  * An editable table grouped by stage. Group rows are full-width and task
@@ -45,12 +51,16 @@ export function PlanList({
   const visibleColumns = columns.filter((column) => column.visible);
   const keys = planColumnKeys(columns);
   const visibleKeys = planColumnKeys(visibleColumns);
-  const [widths, setWidths] = React.useState(() => {
-    if (typeof window === "undefined") return readPlanWidths(projectId, keys, null);
-    try {
-      return readPlanWidths(projectId, keys, window.localStorage.getItem(`vionex-plan-widths:${projectId}`));
-    } catch { return readPlanWidths(projectId, keys, null); }
-  });
+  const [widthsByProject, setWidthsByProject] = React.useState<Record<string, ReturnType<typeof readPlanWidths>>>(() => ({
+    [projectId]: readPlanWidths(projectId, keys, savedWidths(projectId)),
+  }));
+  const widths = widthsForProject(projectId, keys, widthsByProject, savedWidths(projectId));
+  const setWidths = (update: (current: typeof widths) => typeof widths) => {
+    setWidthsByProject((current) => ({
+      ...current,
+      [projectId]: update(widthsForProject(projectId, keys, current, savedWidths(projectId))),
+    }));
+  };
   React.useEffect(() => {
     try { window.localStorage.setItem(`vionex-plan-widths:${projectId}`, JSON.stringify(widths)); } catch { /* Keep resizing available in memory. */ }
   }, [projectId, widths]);
@@ -89,7 +99,7 @@ export function PlanList({
     </button>
   );
   const gridClass = "grid";
-  const gridStyle = { gridTemplateColumns: effectiveWidths.map((width) => `${width}px`).join(" ") };
+  const gridStyle = { gridTemplateColumns: `${effectiveWidths.map((width) => `${width}px`).join(" ")} minmax(0, 1fr)` };
   const tableWidth = effectiveWidths.reduce((total, width) => total + width, 0);
   const sideCell = cn("flex items-center px-3", RULE);
   const headers = ["Tarefa", "Responsável", "Prazo", "Prioridade", ...visibleColumns.map((column) => column.name)];

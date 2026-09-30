@@ -61,6 +61,8 @@ describe("project plan custom cells", () => {
     expect(markup).toContain('aria-label="Redimensionar coluna Score"');
     expect((markup.match(/aria-label="Redimensionar coluna /g) ?? [])).toHaveLength(5);
     expect(markup).toContain('aria-keyshortcuts="ArrowLeft ArrowRight"');
+    expect(markup).toContain('grid-template-columns:288px 208px 136px 104px 160px minmax(0, 1fr)');
+    expect(markup).toContain('class="col-[1/-1] flex');
   });
 
   it("serializes cleared and typed edits for the value action", () => {

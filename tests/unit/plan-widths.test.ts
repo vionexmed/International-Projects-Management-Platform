@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planColumnKeys, readPlanWidths, resizePlanWidth } from "@/features/tasks/plan-widths";
+import { planColumnKeys, readPlanWidths, resizePlanWidth, widthsForProject } from "@/features/tasks/plan-widths";
 import type { PlanColumn } from "@/features/tasks/plan-data";
 
 const column = (id: string, name: string, visible = true): PlanColumn => ({
@@ -45,5 +45,13 @@ describe("plan width preferences", () => {
     const hidden = readPlanWidths("project-1", ["task", "beta"], saved);
     expect(hidden.alpha).toBe(260);
     expect(readPlanWidths("project-1", ["task", "alpha", "beta"], JSON.stringify(hidden)).alpha).toBe(260);
+  });
+
+  it("selects the target project's saved widths when a mounted plan switches projects", () => {
+    const keys = ["task", "assignee", "due", "priority"];
+    const cached = { "project-a": { task: 420, assignee: 220, due: 136, priority: 104 } };
+    const rawB = JSON.stringify({ task: 320, assignee: 180, due: 140, priority: 104 });
+    expect(widthsForProject("project-b", keys, cached, rawB)).toEqual({ task: 320, assignee: 180, due: 140, priority: 104 });
+    expect(widthsForProject("project-a", keys, cached, null).task).toBe(420);
   });
 });

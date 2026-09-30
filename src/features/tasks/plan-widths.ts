@@ -32,6 +32,16 @@ export function readPlanWidths(projectId: string, keys: string[], raw: string | 
   return result;
 }
 
+/** Pick only this project's in-memory widths, or load its own saved preference. */
+export function widthsForProject(
+  projectId: string,
+  keys: string[],
+  cached: Record<string, PlanWidthMap>,
+  raw: string | null,
+): PlanWidthMap {
+  return cached[projectId] ?? readPlanWidths(projectId, keys, raw);
+}
+
 export function resizePlanWidth(widths: PlanWidthMap, key: string, delta: number): PlanWidthMap {
   if (!Number.isFinite(delta)) return widths;
   return { ...widths, [key]: Math.max(minimum(key), (widths[key] ?? fallback(key)) + delta) };
