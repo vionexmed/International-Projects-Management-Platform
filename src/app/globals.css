@@ -366,32 +366,33 @@
   Directional page transitions (components/app/page-transition.tsx): the old
   page leaves toward where you are going, the new one arrives from there.
   60px is enough to say "deeper" or "back" without asking the eye to follow.
+  The old one is gone (110ms) before the new one starts to show: never both.
 */
 ::view-transition-old(.nav-forward) {
   --vx-slide: -60px;
   animation:
-    150ms ease-in both vx-fade reverse,
+    110ms ease-in both vx-fade reverse,
     360ms cubic-bezier(0.22, 0.61, 0.36, 1) both vx-slide reverse;
 }
 
 ::view-transition-new(.nav-forward) {
   --vx-slide: 60px;
   animation:
-    210ms ease-out 120ms both vx-fade,
+    220ms ease-out 110ms both vx-fade,
     360ms cubic-bezier(0.22, 0.61, 0.36, 1) both vx-slide;
 }
 
 ::view-transition-old(.nav-back) {
   --vx-slide: 60px;
   animation:
-    150ms ease-in both vx-fade reverse,
+    110ms ease-in both vx-fade reverse,
     360ms cubic-bezier(0.22, 0.61, 0.36, 1) both vx-slide reverse;
 }
 
 ::view-transition-new(.nav-back) {
   --vx-slide: -60px;
   animation:
-    210ms ease-out 120ms both vx-fade,
+    220ms ease-out 110ms both vx-fade,
     360ms cubic-bezier(0.22, 0.61, 0.36, 1) both vx-slide;
 }
 
@@ -495,22 +496,16 @@
 }
 
 /*
-  Sidebar navigation: the old section fades and settles back a touch; the
-  new one is live DOM whose blocks rise in on their own (.vx-page below).
+  Any view transition (the sidebar highlight gliding, a stage sliding in):
+  the page underneath swaps at once. The browser's default cross-fade of the
+  whole page kept the old one visible over the new page while it faded.
 */
-::view-transition-old(.nav-page) {
-  animation: 160ms ease-in both vx-page-out;
+::view-transition-old(root) {
+  display: none;
 }
 
-::view-transition-new(.nav-page) {
+::view-transition-new(root) {
   animation: none;
-}
-
-@keyframes vx-page-out {
-  to {
-    opacity: 0;
-    scale: 0.985;
-  }
 }
 
 /*

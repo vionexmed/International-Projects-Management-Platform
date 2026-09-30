@@ -294,7 +294,6 @@ function RailLink({ entry, active }: { entry: NavEntry; active: boolean }) {
         href={entry.href}
         aria-label={label}
         aria-current={active ? "page" : undefined}
-        transitionTypes={["nav-page"]}
         className={cn(RAIL_ITEM, active && "text-white hover:bg-transparent")}
       >
         {active ? <ActivePill rail /> : null}
@@ -409,7 +408,6 @@ function ExpandedLink({ entry, active }: { entry: NavEntry; active: boolean }) {
       <Link
         href={entry.href}
         aria-current={active ? "page" : undefined}
-        transitionTypes={["nav-page"]}
         className={cn(
           "group relative flex h-9 items-center gap-3 rounded-md px-2.5 text-[13px] transition-colors duration-200",
           active ? "font-medium text-white" : "text-navy-ink hover:bg-white/[0.045] hover:text-white",
