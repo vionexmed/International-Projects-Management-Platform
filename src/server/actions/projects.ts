@@ -219,3 +219,47 @@ export async function updateStageAction(
     return toActionError(error);
   }
 }
+
+/**
+ * Clears a project's registered blocker in one step, from the notice that
+ * shows it. Leaves the reason in the timeline (who resolved what), then lets
+ * the status be derived again — a blocked stage still keeps it blocked.
+ */
+export async function resolveProjectBlockerAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    const user = await requirePermission("project:update");
+    const { projectId } = parseForm(z.object({ projectId: z.string().min(1) }), formData);
+    const existing = await requireProjectAccess(user, projectId);
+    const note = existing.blockerNote?.trim();
+    if (!note) return { ok: true };
+
+    await db.project.update({ where: { id: projectId }, data: { blockerNote: null } });
+
+    await recordTimelineEvent({
+      projectId,
+      actorId: user.id,
+      type: "PROJECT_UPDATED",
+      description: `Bloqueio resolvido: ${note}`,
+    });
+
+    await recordAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "project.blocker_resolve",
+      entity: "Project",
+      entityId: projectId,
+    });
+
+    await recalculateProject(projectId, user.id);
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/projects");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return toActionError(error);
+  }
+}

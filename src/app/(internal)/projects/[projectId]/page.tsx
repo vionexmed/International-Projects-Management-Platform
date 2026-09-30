@@ -9,6 +9,7 @@ import { StatusIcon } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/avatar";
 import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
 import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
+import { ResolveBlockerButton } from "@/features/projects/resolve-blocker-button";
 import { stageSegment } from "@/features/projects/stage-routes";
 import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { STAGE_PERMISSION } from "@/server/authz/permissions";
@@ -80,6 +81,7 @@ export default async function ProjectOverviewPage({
     .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity))
     .slice(0, 6);
 
+  const blockedStages = stages.filter((stage) => stage.status === "BLOCKED");
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");
   const nextMilestone = upcomingMilestones[0] ?? null;
   const milestoneLate = (milestone: (typeof milestones)[number]) =>
@@ -108,12 +110,32 @@ export default async function ProjectOverviewPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-4">
+      {/*
+        Why the project reads "Bloqueado", and the way out, where the reason is
+        shown: a registered blocker is resolved here; a blocked stage is
+        changed from that stage's adjust button on the track below.
+      */}
       {project.blockerNote ? (
+        <div role="alert" className="flex flex-wrap items-start gap-x-3 gap-y-3 rounded-xl border border-risk/20 bg-risk-soft px-5 py-4">
+          <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-title text-risk">Projeto bloqueado</p>
+            <p className="mt-0.5 text-body text-ink">{project.blockerNote}</p>
+          </div>
+          {can(user, "project:update") ? <ResolveBlockerButton projectId={project.id} /> : null}
+        </div>
+      ) : blockedStages.length > 0 ? (
         <div role="alert" className="flex items-start gap-3 rounded-xl border border-risk/20 bg-risk-soft px-5 py-4">
           <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
           <div className="min-w-0">
-            <p className="text-title text-risk">Bloqueio atual</p>
-            <p className="mt-0.5 text-body text-ink">{project.blockerNote}</p>
+            <p className="text-title text-risk">
+              {blockedStages.length === 1 ? "Etapa bloqueada" : "Etapas bloqueadas"}:{" "}
+              {blockedStages.map((stage) => label.stageKey(stage.key, dict)).join(", ")}
+            </p>
+            <p className="mt-0.5 text-body text-ink">
+              O projeto fica bloqueado enquanto a etapa estiver marcada assim. Para liberar, use o ajuste da etapa
+              (ícone ao passar o mouse sobre ela, logo abaixo) e troque o status.
+            </p>
           </div>
         </div>
       ) : null}

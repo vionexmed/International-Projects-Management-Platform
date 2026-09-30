@@ -7,6 +7,7 @@ export type AuditAction =
   | "project.update"
   | "project.status_change"
   | "project.archive"
+  | "project.blocker_resolve"
   | "stage.update"
   | "clinical.update"
   | "shipment.save"
