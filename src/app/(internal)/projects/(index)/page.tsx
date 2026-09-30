@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FolderKanban } from "lucide-react";
+import { ChevronRight, FolderKanban } from "lucide-react";
 import type { StageKey } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import {
@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatusFilter } from "@/components/app/status-filter";
 import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
-import { ProgressBar } from "@/components/ui/progress";
+import { UserAvatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { stageSegment } from "@/features/projects/stage-routes";
@@ -37,7 +37,7 @@ import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta, type StageProgress } from "@/lib/labels";
-import { formatDate } from "@/lib/format";
+import { daysUntil, formatDate } from "@/lib/format";
 import { initials, cn } from "@/lib/utils";
 import type { Tone } from "@/lib/status";
 
@@ -65,63 +65,83 @@ const TABS: {
   { key: "ARCHIVED", label: "Arquivados", archived: true },
 ];
 
-const STAGE_TONE: Record<ProjectStageSummary["status"], string> = {
-  NOT_STARTED: "bg-line-soft",
+/** The fill of a stage segment: done is green, held up is red, work under way is the brand. */
+const STAGE_FILL: Record<ProjectStageSummary["status"], string> = {
+  NOT_STARTED: "bg-brand",
   IN_PROGRESS: "bg-brand",
   COMPLETED: "bg-ok-dot",
   BLOCKED: "bg-risk-dot",
 };
 
 /**
- * The row's "Etapas" cell: one segment per stage, coloured by its status.
- * Hovering (or focusing) a segment names the stage and how it stands; the
- * current stage is the wider one, and each segment opens its stage page.
+ * The row's "Etapas" cell: the four stages stretched across the column, each
+ * filled as far as it has gone, with the current stage and the project's
+ * overall progress under it. Hovering (or focusing) a segment names that
+ * stage and how it stands; each segment opens its stage page.
  */
-function StageStrip({
+function StageTrack({
   projectId,
   stages,
   current,
+  progress,
   dict,
 }: {
   projectId: string;
   stages: ProjectStageSummary[];
   current: StageKey;
+  progress: number;
   dict: Dictionary;
 }) {
+  const index = stages.findIndex((stage) => stage.key === current);
   return (
-    <span className="relative z-10 inline-flex items-center gap-1">
-      {stages.map((stage) => {
-        const name = label.stageKey(stage.key, dict);
-        const status = meta.stage(stage.status as StageProgress, dict).label;
-        const isCurrent = stage.key === current;
-        return (
-          <Tooltip
-            key={stage.key}
-            content={
-              <span className="block text-left">
-                <span className="block font-semibold">{name}{isCurrent ? " · etapa atual" : ""}</span>
-                <span className="block font-normal opacity-80">{status} · {stage.progress}%</span>
-              </span>
-            }
-          >
-            <Link
-              href={`/projects/${projectId}/${stageSegment(stage.key)}`}
-              aria-label={`${name}: ${status}, ${stage.progress}%${isCurrent ? " (etapa atual)" : ""}`}
-              className="group/segment flex h-6 items-center rounded-sm px-0.5 focus-visible:outline-2 focus-visible:outline-brand"
+    <div className="min-w-0">
+      <span className="relative z-10 flex items-center gap-1">
+        {stages.map((stage) => {
+          const name = label.stageKey(stage.key, dict);
+          const status = meta.stage(stage.status as StageProgress, dict).label;
+          const isCurrent = stage.key === current;
+          const fill = stage.status === "COMPLETED" ? 100 : Math.max(0, Math.min(100, stage.progress));
+          return (
+            <Tooltip
+              key={stage.key}
+              content={
+                <span className="block text-left">
+                  <span className="block font-semibold">{name}{isCurrent ? " · etapa atual" : ""}</span>
+                  <span className="block font-normal opacity-80">{status} · {stage.progress}%</span>
+                </span>
+              }
             >
-              <span
-                className={cn(
-                  "block h-1.5 rounded-full transition-transform group-hover/segment:scale-y-150",
-                  isCurrent ? "w-7" : "w-4",
-                  STAGE_TONE[stage.status],
-                )}
-              />
-            </Link>
-          </Tooltip>
-        );
-      })}
-    </span>
+              <Link
+                href={`/projects/${projectId}/${stageSegment(stage.key)}`}
+                aria-label={`${name}: ${status}, ${stage.progress}%${isCurrent ? " (etapa atual)" : ""}`}
+                className="group/segment flex h-5 min-w-0 flex-1 items-center rounded-sm focus-visible:outline-2 focus-visible:outline-brand"
+              >
+                <span className="block h-1.5 w-full overflow-hidden rounded-full bg-line-soft transition-[height] group-hover/segment:h-2">
+                  <span className={cn("block h-full rounded-full", STAGE_FILL[stage.status])} style={{ width: `${fill}%` }} />
+                </span>
+              </Link>
+            </Tooltip>
+          );
+        })}
+      </span>
+      <div className="mt-1 flex items-baseline justify-between gap-3 text-meta">
+        <span className="min-w-0 truncate">
+          <span className="font-medium text-ink">{label.stageKey(current, dict)}</span>
+          {index >= 0 ? <span className="text-muted"> · etapa {index + 1} de {stages.length}</span> : null}
+        </span>
+        <span className="shrink-0 font-medium text-ink tabular-nums">{progress}%</span>
+      </div>
+    </div>
   );
+}
+
+/** "em 45 dias", "12 dias de atraso": how far the launch is. */
+function launchDistance(date: Date | null) {
+  const days = daysUntil(date);
+  if (days === null) return null;
+  if (days < 0) return { text: `${Math.abs(days)} ${Math.abs(days) === 1 ? "dia" : "dias"} de atraso`, late: true };
+  if (days === 0) return { text: "hoje", late: false };
+  return { text: `em ${days} ${days === 1 ? "dia" : "dias"}`, late: false };
 }
 
 export default async function ProjectsPage({
@@ -236,26 +256,26 @@ export default async function ProjectsPage({
                 <THead>
                   <TR>
                     {/* Shares, not "name takes the slack": the columns spread evenly across the row. */}
-                    <TH className="w-[30%] min-w-60">Nome</TH>
-                    <TH className="w-[20%]">Etapa atual</TH>
-                    <TH className="w-[20%]">Progresso</TH>
-                    <TH className="w-[14%]">Etapas</TH>
+                    <TH className="w-[30%] min-w-60">Projeto</TH>
+                    <TH className="w-[34%] min-w-64">Etapas</TH>
+                    <TH className="w-[16%]">Responsável</TH>
                     <TH className="w-[16%]" align="right">Lançamento</TH>
+                    <TH className="w-8 max-md:hidden" />
                     {activeTab.archived && canArchive ? <TH className="w-px" /> : null}
                   </TR>
                 </THead>
                 <TBody>
                   {result.items.map((project) => {
-
+                    const launch = launchDistance(project.targetLaunchDate);
                     return (
-                      <TR key={project.id} interactive>
+                      <TR key={project.id} interactive className="group">
                         <TD>
                           <Link
                             href={`/projects/${project.id}`}
                             className="flex items-center gap-2.5 after:absolute after:inset-0 after:content-['']"
                           >
                             <span
-                              className="flex size-6 shrink-0 items-center justify-center rounded-xs bg-brand-soft text-[10px] font-semibold text-brand-deep"
+                              className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-raised text-[11px] font-semibold text-ink-soft"
                               aria-hidden
                             >
                               {initials(project.name)}
@@ -266,25 +286,35 @@ export default async function ProjectsPage({
                             />
                           </Link>
                         </TD>
-                        <TD label="Etapa atual">
-                          <span className="inline-flex items-center rounded-xs bg-brand-soft px-2 py-1 text-xs font-medium whitespace-nowrap text-brand-deep">
-                            {label.stageKey(project.currentStage, dict)}
+                        <TD label="Etapas">
+                          <StageTrack
+                            projectId={project.id}
+                            stages={project.stages}
+                            current={project.currentStage}
+                            progress={project.progress}
+                            dict={dict}
+                          />
+                        </TD>
+                        <TD label="Responsável">
+                          <span className="inline-flex max-w-full items-center gap-2">
+                            <UserAvatar name={project.owner.name} size="xs" />
+                            <span className="truncate text-ink-soft">{project.owner.name}</span>
                           </span>
                         </TD>
-                        <TD label="Progresso">
-                          {/* Number beside the bar, not above it: one line, like every other cell. */}
-                          <div className="flex w-full max-w-52 items-center gap-2.5">
-                            <ProgressBar value={project.progress} label={`Progresso de ${project.name}`} />
-                            <span className="w-9 shrink-0 text-right text-meta font-medium text-ink tabular-nums">
-                              {project.progress}%
-                            </span>
-                          </div>
-                        </TD>
-                        <TD label="Etapas">
-                          <StageStrip projectId={project.id} stages={project.stages} current={project.currentStage} dict={dict} />
-                        </TD>
                         <TD label="Lançamento" align="right">
-                          {formatDate(project.targetLaunchDate, locale)}
+                          {project.targetLaunchDate ? (
+                            <CellStack
+                              title={<span className="font-normal text-ink-soft">{formatDate(project.targetLaunchDate, locale)}</span>}
+                              subtitle={
+                                launch ? <span className={cn(launch.late && "font-medium text-risk")}>{launch.text}</span> : null
+                              }
+                            />
+                          ) : (
+                            <span className="text-faint">Sem data</span>
+                          )}
+                        </TD>
+                        <TD className="w-8 pl-0 text-right max-md:hidden" aria-hidden>
+                          <ChevronRight className="inline size-4 text-faint opacity-0 transition-opacity group-hover:opacity-100" />
                         </TD>
                         {activeTab.archived && canArchive ? (
                           <TD className="text-right max-md:hidden">
