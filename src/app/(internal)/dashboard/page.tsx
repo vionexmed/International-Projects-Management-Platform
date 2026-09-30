@@ -8,12 +8,13 @@ import { countDocumentRequestsByQueue } from "@/server/services/documents";
 import { listProjects } from "@/server/services/projects";
 import { listSuppliers } from "@/server/services/suppliers";
 import { AttentionList } from "@/components/app/attention-list";
-import { WorldRoutes } from "@/components/app/world-routes";
+import { Globe } from "@/components/app/globe/globe";
 import { CardLink, CardSection } from "@/components/app/card-section";
 import { StageTrack } from "@/features/projects/stage-track";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { formatDateShort, daysUntil } from "@/lib/format";
+import { HOME, routesFrom } from "@/lib/geo/countries";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -69,6 +70,8 @@ export default async function DashboardPage() {
     listSuppliers(user),
   ]);
 
+  const routes = routesFrom(suppliers.map((supplier) => ({ country: supplier.country, projects: supplier.projectCount })));
+
   const stats = [
     { label: "Projetos ativos", value: summary.total - summary.completed, note: "Ver portfólio", href: "/projects" },
     {
@@ -97,42 +100,63 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-7xl">
       {/*
-        The welcome band, as large products open their home screen: a deep
-        ocean blue under a dotted world map with the routes from each supplier country to
-        Brazil, the day's one sentence and the two ways onward.
+        The opening: a deep-sea band with the day's one sentence and the two
+        ways onward, and the business itself — a globe, turning, a route from
+        every supplier country to Brazil (real data). The globe is larger than
+        the band and breaks out of it, top and bottom: nothing crops it.
       */}
-      <section className="relative mb-6 overflow-hidden rounded-2xl bg-[linear-gradient(115deg,#071726_0%,#0a2438_42%,#0f3f5f_78%,#14506f_100%)] px-6 py-8 sm:px-9 sm:py-12">
-        {/* The business at a glance: every supplier country routed to Brazil, from real data. */}
-        <WorldRoutes
-          origins={suppliers.map((supplier) => ({ country: supplier.country, projects: supplier.projectCount }))}
-          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[64%] [mask-image:linear-gradient(to_right,transparent,black_20%)]"
-        />
-        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#071726] via-[#071726]/75 to-transparent" />
-        <div className="relative flex max-w-xl flex-col gap-6">
-          <div className="min-w-0">
+      <section className="relative mt-2 mb-8 lg:mt-8 lg:mb-14">
+        <div className="relative overflow-hidden rounded-2xl bg-[#06121b] px-6 pt-8 pb-40 sm:px-10 sm:pt-11 lg:pb-11">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_130%_at_88%_50%,rgba(22,120,150,0.55),rgba(10,50,72,0.35)_45%,transparent_75%)]"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:radial-gradient(#fff_1px,transparent_1.2px)] [background-size:20px_20px] [mask-image:linear-gradient(100deg,#000_0%,transparent_65%)]"
+          />
+          <div className="relative max-w-xl lg:max-w-[min(36rem,calc(100%-430px))] xl:max-w-[min(36rem,calc(100%-480px))]">
             <p className="text-meta font-medium tracking-[0.14em] text-sky-200/70 uppercase">{today()}</p>
-            <h1 className="mt-2 text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white">{greeting(user.name)}</h1>
-            <p className="mt-2 max-w-xl text-body text-sky-100/75">
+            <h1 className="mt-2 text-[30px] leading-10 font-semibold tracking-[-0.025em] text-white">{greeting(user.name)}</h1>
+            <p className="mt-2 max-w-lg text-body text-sky-100/75">
               {counts.total > 0
                 ? `${counts.total} ${counts.total === 1 ? "item precisa" : "itens precisam"} da sua atenção hoje.`
                 : "Tudo em dia no portfólio. Nenhum atraso ou bloqueio."}
             </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link
+                href="/regulatory?view=pendencias"
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-white px-3.5 text-label font-medium text-ink transition-colors hover:bg-white/90"
+              >
+                Ver pendências
+                <ArrowRight className="size-4" aria-hidden />
+              </Link>
+              <Link
+                href="/reports"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-white/20 px-3.5 text-label font-medium text-white transition-colors hover:bg-white/10"
+              >
+                Relatórios
+              </Link>
+            </div>
+            {routes.length > 0 ? (
+              <p className="mt-7 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-meta text-sky-100/60">
+                <span className="font-medium text-sky-100/85">Rotas ativas</span>
+                {routes.map((route) => (
+                  <span key={route.label} className="inline-flex items-center gap-1.5">
+                    <span aria-hidden className="size-1.5 rounded-full bg-[#8ce8f0]" />
+                    {route.label}
+                  </span>
+                ))}
+                <span className="inline-flex items-center gap-1.5 font-medium text-white">
+                  <ArrowRight className="size-3" aria-hidden />
+                  Brasil
+                </span>
+              </p>
+            ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/regulatory?view=pendencias"
-              className="inline-flex h-9 items-center gap-2 rounded-sm bg-white px-3.5 text-label font-medium text-ink transition-colors hover:bg-white/90"
-            >
-              Ver pendências
-              <ArrowRight className="size-4" aria-hidden />
-            </Link>
-            <Link
-              href="/reports"
-              className="inline-flex h-9 items-center gap-2 rounded-sm border border-white/20 px-3.5 text-label font-medium text-white transition-colors hover:bg-white/10"
-            >
-              Relatórios
-            </Link>
-          </div>
+        </div>
+        <div className="relative mx-auto -mt-44 w-full max-w-[340px] lg:absolute lg:top-1/2 lg:right-[2%] lg:m-0 lg:w-[410px] lg:max-w-none lg:-translate-y-1/2 xl:w-[460px]">
+          <Globe routes={routes} home={HOME} />
         </div>
       </section>
 

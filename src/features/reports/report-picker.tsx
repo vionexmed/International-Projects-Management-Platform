@@ -12,7 +12,7 @@ export type PickerSupplier = { id: string; name: string; country: string };
 const normalize = (value: string) =>
   value
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
 const ITEM =

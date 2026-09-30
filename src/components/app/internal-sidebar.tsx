@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { ViewTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
   Building2,
+  ChevronsUpDown,
   KeyRound,
   FileText,
   FolderKanban,
@@ -47,6 +49,8 @@ type NavEntry = {
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
 };
+
+type NavGroup = { label: string; entries: NavEntry[] };
 
 type SidebarProps = {
   user: SessionUser;
@@ -115,20 +119,30 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
     landing on the portfolio-wide list made the number and the page answer
     two different questions.
   */
-  const primary: NavEntry[] = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/projects", label: "Projetos", icon: FolderKanban },
+  const primary: NavGroup[] = [
     {
-      href: `/tasks?assignee=${user.id}`,
-      match: "/tasks",
-      label: "Tarefas",
-      icon: ListChecks,
-      badge: taskCount,
+      label: "Trabalho",
+      entries: [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/projects", label: "Projetos", icon: FolderKanban },
+        {
+          href: `/tasks?assignee=${user.id}`,
+          match: "/tasks",
+          label: "Tarefas",
+          icon: ListChecks,
+          badge: taskCount,
+        },
+        { href: "/documents", label: "Documentos", icon: FileText },
+      ],
     },
-    { href: "/documents", label: "Documentos", icon: FileText },
-    { href: "/suppliers", label: "Fornecedores", icon: Building2 },
-    { href: "/regulatory", label: "Regulatório", icon: ShieldCheck },
-    { href: "/reports", label: "Relatórios", icon: PieChart },
+    {
+      label: "Gestão",
+      entries: [
+        { href: "/suppliers", label: "Fornecedores", icon: Building2 },
+        { href: "/regulatory", label: "Regulatório", icon: ShieldCheck },
+        { href: "/reports", label: "Relatórios", icon: PieChart },
+      ],
+    },
   ];
   /*
     Only the seven work areas live in the navigation. Equipe and
@@ -151,10 +165,15 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
   return (
     <aside
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col border-r border-navy-line bg-navy lg:flex print:hidden",
-        pinned ? "w-[232px]" : "w-12",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col border-r border-white/[0.06] bg-[linear-gradient(180deg,#161a1e_0%,#111417_42%,#0c0e10_100%)] lg:flex print:hidden",
+        pinned ? "w-[236px]" : "w-14",
       )}
     >
+      {/* A faint teal light from the top, behind the mark. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-[radial-gradient(90%_100%_at_50%_0%,rgba(13,127,138,0.2),transparent_70%)]"
+      />
       {pinned ? (
         <ExpandedSidebar
           {...{ user, roleLabel, primary, isActive }}
@@ -167,6 +186,33 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
   );
 }
 
+/* --------------------------------------------------------------- shared -- */
+
+/*
+  The active item's highlight is one element with a view-transition name:
+  moving to another section, the browser slides it from the old item to the
+  new one instead of switching it off here and on there.
+*/
+function ActivePill({ rail = false }: { rail?: boolean }) {
+  return (
+    <ViewTransition name="sidebar-active" share="sidebar-pill" default="none">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-r from-white/[0.11] to-white/[0.035] ring-1 ring-white/[0.07] ring-inset"
+      >
+        <span
+          className={cn(
+            "absolute w-[3px] rounded-r-full bg-[#4cc3cf] shadow-[0_0_10px_rgba(76,195,207,0.75)]",
+            rail ? "top-2.5 bottom-2.5 -left-2" : "top-2 bottom-2 -left-3",
+          )}
+        />
+      </span>
+    </ViewTransition>
+  );
+}
+
+const ICON_ACTIVE = "text-[#5fd0da]";
+
 /* ---------------------------------------------------------------- rail -- */
 
 function Rail({
@@ -176,28 +222,33 @@ function Rail({
   isActive,
 }: {
   user: SessionUser;
-  primary: NavEntry[];
+  primary: NavGroup[];
   notifications: NavEntry;
   isActive: (entry: NavEntry) => boolean;
 }) {
   return (
     <>
-      <div className="flex h-14 shrink-0 items-center justify-center">
-        <Link href="/dashboard" className="rounded-sm" aria-label="Vionex — Dashboard">
+      <div className="relative flex h-16 shrink-0 items-center justify-center">
+        <Link href="/dashboard" className="rounded-md" aria-label="Vionex — Dashboard">
           <VionexMarkColor className="size-9" />
         </Link>
       </div>
 
       <nav
-        className="scroll-slim flex flex-1 flex-col items-center gap-1 overflow-y-auto py-1"
+        className="scroll-slim relative flex flex-1 flex-col items-center overflow-y-auto py-1"
         aria-label="Navegação principal"
       >
-        {primary.map((entry) => (
-          <RailLink key={entry.href} entry={entry} active={isActive(entry)} />
+        {primary.map((group, index) => (
+          <div key={group.label} className="flex flex-col items-center gap-1">
+            {index > 0 ? <span aria-hidden className="my-2 h-px w-6 bg-white/[0.08]" /> : null}
+            {group.entries.map((entry) => (
+              <RailLink key={entry.href} entry={entry} active={isActive(entry)} />
+            ))}
+          </div>
         ))}
       </nav>
 
-      <div className="flex shrink-0 flex-col items-center gap-1 border-t border-navy-line py-2">
+      <div className="relative flex shrink-0 flex-col items-center gap-1 border-t border-white/[0.06] py-2.5">
         {/* The same magnifier as the full sidebar: it opens into a field that grows out over the page. */}
         <SidebarSearch variant="rail" />
         <RailLink entry={notifications} active={isActive(notifications)} />
@@ -215,7 +266,7 @@ function Rail({
           <button
             type="button"
             aria-label={`Conta de ${user.name}`}
-            className="mt-1 inline-flex size-10 items-center justify-center rounded-sm transition-colors hover:bg-navy-soft"
+            className="mt-1 inline-flex size-10 items-center justify-center rounded-full ring-1 ring-white/10 transition-shadow hover:ring-white/25"
           >
             <UserAvatar name={user.name} size="sm" tone="dark" />
           </button>
@@ -226,7 +277,7 @@ function Rail({
 }
 
 const RAIL_ITEM =
-  "relative inline-flex size-10 shrink-0 items-center justify-center rounded-sm text-navy-ink transition-colors hover:bg-navy-soft hover:text-white";
+  "relative inline-flex size-10 shrink-0 items-center justify-center rounded-md text-navy-ink transition-colors duration-200 hover:bg-white/[0.05] hover:text-white";
 
 function RailLink({ entry, active }: { entry: NavEntry; active: boolean }) {
   const Icon = entry.icon;
@@ -239,16 +290,14 @@ function RailLink({ entry, active }: { entry: NavEntry; active: boolean }) {
         aria-label={label}
         aria-current={active ? "page" : undefined}
         transitionTypes={["nav-page"]}
-        className={cn(RAIL_ITEM, active && "bg-navy-soft text-white")}
+        className={cn(RAIL_ITEM, active && "text-white hover:bg-transparent")}
       >
+        {active ? <ActivePill rail /> : null}
         <NavPending />
-        {active ? (
-          <span className="absolute top-2 bottom-2 -left-1 w-[2px] rounded-r-full bg-brand" aria-hidden />
-        ) : null}
-        <Icon className={cn("size-[18px]", active && "text-brand")} />
+        <Icon className={cn("relative size-[18px]", active && ICON_ACTIVE)} />
         {count ? (
           <span
-            className="absolute top-0.5 right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] leading-none font-bold text-on-brand ring-2 ring-navy tabular-nums"
+            className="absolute top-0.5 right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] leading-none font-bold text-white ring-2 ring-[#121518] tabular-nums"
             aria-hidden
           >
             {count > 9 ? "9+" : count}
@@ -270,31 +319,38 @@ function ExpandedSidebar({
 }: {
   user: SessionUser;
   roleLabel: string;
-  primary: NavEntry[];
+  primary: NavGroup[];
   secondary: NavEntry[];
   isActive: (entry: NavEntry) => boolean;
 }) {
   return (
     <>
       {/* The logo centred in the rail, as the mark is when it is collapsed. */}
-      <div className="flex justify-center px-4 pt-5 pb-4">
-        <Link href="/dashboard" aria-label="Vionex — Dashboard" className="rounded-sm">
-          <VionexLogo tone="rail" width={124} className="items-center" />
+      <div className="relative flex justify-center px-4 pt-6 pb-5">
+        <Link href="/dashboard" aria-label="Vionex — Dashboard" className="rounded-md">
+          <VionexLogo tone="rail" width={128} className="items-center" />
         </Link>
       </div>
 
       {/* A magnifier that opens into a field where it sits; ⌘K still opens the full palette. */}
-      <div className="px-2.5 pb-2 pl-3">
+      <div className="relative px-3 pb-1">
         <SidebarSearch />
       </div>
 
-      <nav className="scroll-slim flex-1 overflow-y-auto px-2.5 pb-3" aria-label="Navegação principal">
-        <ul className="space-y-0.5">
-          {primary.map((entry) => (
-            <ExpandedLink key={entry.href} entry={entry} active={isActive(entry)} />
-          ))}
-        </ul>
-        <div className="my-3 h-px bg-navy-line" />
+      <nav className="scroll-slim relative flex-1 overflow-y-auto px-3 pb-3" aria-label="Navegação principal">
+        {primary.map((group) => (
+          <div key={group.label}>
+            <p className="px-2.5 pt-4 pb-1.5 text-[10.5px] font-semibold tracking-[0.12em] text-white/30 uppercase">
+              {group.label}
+            </p>
+            <ul className="space-y-0.5">
+              {group.entries.map((entry) => (
+                <ExpandedLink key={entry.href} entry={entry} active={isActive(entry)} />
+              ))}
+            </ul>
+          </div>
+        ))}
+        <div className="mx-2.5 my-4 h-px bg-white/[0.07]" />
         <ul className="space-y-0.5">
           {secondary.map((entry) => (
             <ExpandedLink key={entry.href} entry={entry} active={isActive(entry)} />
@@ -302,11 +358,11 @@ function ExpandedSidebar({
         </ul>
       </nav>
 
-      <div className="border-t border-navy-line p-2.5">
+      <div className="relative flex items-center gap-1.5 border-t border-white/[0.06] p-3">
         <AccountMenu user={user} side="top">
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-sm p-1.5 text-left transition-colors hover:bg-navy-soft"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg bg-white/[0.03] p-2 text-left ring-1 ring-white/[0.06] transition-colors ring-inset hover:bg-white/[0.06]"
           >
             <UserAvatar name={user.name} size="sm" tone="dark" />
             <span className="min-w-0 flex-1 leading-tight">
@@ -315,18 +371,20 @@ function ExpandedSidebar({
                 {user.jobTitle ?? roleLabel}
               </span>
             </span>
+            <ChevronsUpDown className="size-3.5 shrink-0 text-white/35" aria-hidden />
           </button>
         </AccountMenu>
 
-        <button
-          type="button"
-          onClick={() => setPinned(false)}
-          aria-label="Recolher menu"
-          className="mt-1 flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-[12px] text-navy-ink transition-colors hover:bg-navy-soft hover:text-white"
-        >
-          <PanelLeftClose className="size-4" />
-          Recolher
-        </button>
+        <Tooltip content="Recolher menu" side="top">
+          <button
+            type="button"
+            onClick={() => setPinned(false)}
+            aria-label="Recolher menu"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-navy-ink transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            <PanelLeftClose className="size-4" />
+          </button>
+        </Tooltip>
       </div>
     </>
   );
@@ -341,20 +399,21 @@ function ExpandedLink({ entry, active }: { entry: NavEntry; active: boolean }) {
         aria-current={active ? "page" : undefined}
         transitionTypes={["nav-page"]}
         className={cn(
-          "relative flex h-9 items-center gap-2.5 rounded-sm px-2.5 text-[13px] transition-colors",
-          active
-            ? "bg-navy-soft font-medium text-white"
-            : "text-navy-ink hover:bg-navy-soft/70 hover:text-white",
+          "group relative flex h-9 items-center gap-3 rounded-md px-2.5 text-[13px] transition-colors duration-200",
+          active ? "font-medium text-white" : "text-navy-ink hover:bg-white/[0.045] hover:text-white",
         )}
       >
+        {active ? <ActivePill /> : null}
         <NavPending />
-        {active ? (
-          <span className="absolute top-1.5 bottom-1.5 -left-2.5 w-[3px] rounded-r-full bg-brand" aria-hidden />
-        ) : null}
-        <Icon className={cn("size-[17px] shrink-0", active ? "text-brand" : "text-current")} />
-        <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+        <Icon
+          className={cn(
+            "relative size-[17px] shrink-0 transition-transform duration-200",
+            active ? ICON_ACTIVE : "text-current group-hover:translate-x-px",
+          )}
+        />
+        <span className="relative min-w-0 flex-1 truncate">{entry.label}</span>
         {entry.badge ? (
-          <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-navy-line px-1.5 text-[11px] font-semibold text-white tabular-nums">
+          <span className="relative inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-semibold text-white tabular-nums">
             {badgeText(entry.badge)}
           </span>
         ) : null}
