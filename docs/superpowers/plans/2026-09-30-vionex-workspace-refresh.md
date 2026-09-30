@@ -37,7 +37,7 @@
 
 **Interfaces:** Consumes existing `PROJECT_GUTTER`, `Button`, `Input`, `EmptyState`, and Plan page. Produces the same public component props and a consistent page/container style; no business-data interface changes.
 
-- [ ] **Step 1: Write failing tests.** In `ui-foundation.test.tsx`, static-render `PlanList` and assert it has `role="region"` and `aria-label="Plano de trabalho"`; static-render `Button`, `Input` and `EmptyState` and assert existing labels/actions remain present. Add a browser assertion for 24/16 px gutters and reduced-motion behavior to Task 5.
+- [ ] **Step 1: Write failing tests.** In `ui-foundation.test.tsx`, static-render `PlanList` and assert it has `role="region"` and `aria-label="Plano de trabalho"`; static-render `Button`, `Input` and `EmptyState` and assert existing labels/actions remain present. Add a browser assertion for 24/16 px gutters and reduced-motion behavior to Task 7.
 - [ ] **Step 2: Confirm failure.** Run `npx vitest run tests/unit/ui-foundation.test.tsx`; the new workspace/style assertions fail.
 - [ ] **Step 3: Implement.** Use existing design tokens, restrained radii/shadows and aligned typography; remove duplicate gutters, ensure 24/16 px page spacing, lighten table separators and group primary/secondary actions. Preserve existing component exports and server page behavior.
 - [ ] **Step 4: Verify.** Run `npx vitest run tests/unit/ui-foundation.test.tsx`, `npm run typecheck`, and `npm run lint`; all pass.
@@ -61,7 +61,7 @@
 
 **Interfaces:** Produce `saveInlineDraft(draft: string, saved: string, submit: (value: string) => Promise<{error?: string}>): Promise<{draft: string; saved: string; error: string | null}>`; preserve `PlanValueCell`/`InlineTaskTitleCell` props and existing server actions. TEXT values and titles use auto-growing multiline editors; typed controls remain.
 
-- [ ] **Step 1: Write failing tests.** Assert long read-only text has wrap/break styling rather than truncation; TEXT/title static-render multiline editors with accessible names; `saveInlineDraft` keeps the draft and error on rejection, updates saved value on success, and skips unchanged text. Cover Enter/Ctrl+Enter/Escape behavior in Task 5 browser checks.
+- [ ] **Step 1: Write failing tests.** Assert long read-only text has wrap/break styling rather than truncation; TEXT/title static-render multiline editors with accessible names; `saveInlineDraft` keeps the draft and error on rejection, updates saved value on success, and skips unchanged text. Cover Enter/Ctrl+Enter/Escape behavior in Task 7 browser checks.
 - [ ] **Step 2: Confirm failure.** Run `npx vitest run tests/unit/plan-value-cell.test.tsx tests/unit/inline-task-title-cell.test.tsx`; new assertions fail.
 - [ ] **Step 3: Implement.** Use an auto-height textarea for TEXT/title, content-width wrapping for display, and row `min-height` rather than fixed height. Keep draft during pending/error, retry in place, and avoid row-click/navigation conflicts.
 - [ ] **Step 4: Verify.** Run targeted tests and `npm run typecheck`; all pass.
@@ -85,17 +85,29 @@
 
 **Interfaces:** Preserve existing component props, route data, permissions and actions. Shared headers/toolbars must wrap actions cleanly; WorkBlock rows must permit content wrapping; supplier/internal shells share the 24/16 px gutter rule.
 
-- [ ] **Step 1: Write failing tests.** Static-render `PageHeader`, `ViewToolbar` and `WorkBlock` with multiple actions/long labels and assert one clear primary action group, accessible labels and no truncation class on important content. Cover route-family visual assertions in Task 6.
+- [ ] **Step 1: Write failing tests.** Static-render `PageHeader`, `ViewToolbar` and `WorkBlock` with multiple actions/long labels and assert one clear primary action group, accessible labels and no truncation class on important content. Cover route-family visual assertions in Task 7.
 - [ ] **Step 2: Confirm failure.** Run `npx vitest run tests/unit/page-hierarchy.test.tsx`; new assertions fail.
 - [ ] **Step 3: Implement.** Group actions by the content they affect, keep one page identity, put secondary metadata below or behind existing disclosures, and normalize responsive gutters/spacing. Reuse `PageHeader`/`Section`/`Panel`; do not duplicate cards or change workflows.
 - [ ] **Step 4: Verify.** Run targeted tests, `npm run typecheck` and `npm run lint`; all pass.
 - [ ] **Step 5: Commit** Task 5 files with message `refactor: clarify page hierarchy across internal and supplier views`.
 
-### Task 6: Release verification and local review
+### Task 6: Presentation refinements approved from screenshots
+
+**Files:** Modify `src/app/(internal)/projects/(index)/page.tsx`, `src/app/(internal)/projects/[projectId]/page.tsx`, `src/app/(internal)/reports/page.tsx`, `src/features/tasks/inline-add-task-row.tsx`, `src/features/tasks/plan-custom-column-controls.tsx`, `src/features/projects/stage-switcher.tsx`, `src/app/(internal)/projects/[projectId]/tasks/page.tsx`; create `tests/unit/presentation-refinements.test.tsx`.
+
+**Interfaces:** Preserve project status calculations and all server actions. The Plan toolbar exposes only one `+ Coluna` entry (creation and existing management inside it); task rows keep inline creation; `StageSwitcher` also renders a subdued stage navigator on the Plan route.
+
+- [ ] **Step 1: Write failing tests.** Assert projects table no longer renders a `Saúde` column but keeps status, progress and stages; the Plan has one visible `+ Coluna` and no second `Colunas` control; inline `Adicionar tarefa` has a neutral-light appearance; the Plan route shows four stage links without an extra card. Verify the portfolio report renames health to status without dropping its numbers.
+- [ ] **Step 2: Confirm failure.** Run `npx vitest run tests/unit/presentation-refinements.test.tsx`; new assertions fail.
+- [ ] **Step 3: Implement.** Improve project name/supplier hierarchy and compact progress/stage presentation; remove redundant health UI (not the underlying status model); group column creation/management under the sole `+ Coluna` control; use quiet gray task-add rows; show a compact, horizontally scrollable stage strip on Plan.
+- [ ] **Step 4: Verify.** Run targeted tests, `npm run typecheck` and `npm run lint`; all pass.
+- [ ] **Step 5: Commit** Task 6 files with message `refactor: simplify project and plan presentation`.
+
+### Task 7: Release verification and local review
 
 **Files:** Test-only adjustments if regressions are found; no new product scope.
 
-**Interfaces:** Consumes Tasks 1–4. Produces a tested local demo on a separate port while the current demo stays available.
+**Interfaces:** Consumes Tasks 1–6. Produces a tested local demo on a separate port while the current demo stays available.
 
 - [ ] **Step 1: Run full checks.** `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run test:integration` against the local database, and a demo-mode Webpack production build; require all to pass.
 - [ ] **Step 2: Browser-check.** At desktop and narrow widths, verify Plan add/edit column/row, long text, resizing with mouse/keyboard, zoom/pan/reset, menus, no blank overscroll/sidebar cut-off, and representative internal/supplier pages including document upload.
