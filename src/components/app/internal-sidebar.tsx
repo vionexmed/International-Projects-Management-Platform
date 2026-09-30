@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { VionexLogo, VionexMark } from "@/components/app/logo";
 import { openCommandPalette } from "@/components/app/command-palette";
+import { SidebarSearch } from "@/components/app/sidebar-search";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -287,17 +288,9 @@ function ExpandedSidebar({
         <VionexLogo tone="rail" width={124} />
       </div>
 
-      <div className="px-2.5 pb-2">
-        <button
-          type="button"
-          onClick={openCommandPalette}
-          aria-keyshortcuts="Meta+K Control+K"
-          className="flex h-8 w-full items-center gap-2 rounded-sm bg-navy-soft px-2.5 text-[13px] text-navy-ink transition-colors hover:text-white"
-        >
-          <Search className="size-4" />
-          <span className="flex-1 text-left">Buscar…</span>
-          <kbd className="rounded-xs border border-navy-line px-1.5 font-sans text-[10px]">⌘K</kbd>
-        </button>
+      {/* A magnifier that opens into a field where it sits; ⌘K still opens the full palette. */}
+      <div className="px-2.5 pb-2 pl-3">
+        <SidebarSearch />
       </div>
 
       <nav className="scroll-slim flex-1 overflow-y-auto px-2.5 pb-3" aria-label="Navegação principal">

@@ -97,22 +97,22 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-7xl">
       {/*
-        The welcome band, as large products open their home screen: graphite,
-        a dotted world map with the routes from each supplier country to
+        The welcome band, as large products open their home screen: a deep
+        ocean blue under a dotted world map with the routes from each supplier country to
         Brazil, the day's one sentence and the two ways onward.
       */}
-      <section className="relative mb-6 overflow-hidden rounded-2xl bg-navy px-6 py-8 sm:px-9 sm:py-12">
+      <section className="relative mb-6 overflow-hidden rounded-2xl bg-[linear-gradient(115deg,#071726_0%,#0a2438_42%,#0f3f5f_78%,#14506f_100%)] px-6 py-8 sm:px-9 sm:py-12">
         {/* The business at a glance: every supplier country routed to Brazil, from real data. */}
         <WorldRoutes
           origins={suppliers.map((supplier) => ({ country: supplier.country, projects: supplier.projectCount }))}
           className="pointer-events-none absolute top-1/2 right-0 h-[115%] w-auto -translate-y-1/2 [mask-image:linear-gradient(to_right,transparent,black_30%)]"
         />
-        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-navy via-navy/80 to-transparent" />
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#071726] via-[#071726]/75 to-transparent" />
         <div className="relative flex max-w-xl flex-col gap-6">
           <div className="min-w-0">
-            <p className="text-meta font-medium tracking-[0.14em] text-navy-ink uppercase">{today()}</p>
+            <p className="text-meta font-medium tracking-[0.14em] text-sky-200/70 uppercase">{today()}</p>
             <h1 className="mt-2 text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white">{greeting(user.name)}</h1>
-            <p className="mt-2 max-w-xl text-body text-navy-ink">
+            <p className="mt-2 max-w-xl text-body text-sky-100/75">
               {counts.total > 0
                 ? `${counts.total} ${counts.total === 1 ? "item precisa" : "itens precisam"} da sua atenção hoje.`
                 : "Tudo em dia no portfólio. Nenhum atraso ou bloqueio."}
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
             </Link>
             <Link
               href="/reports"
-              className="inline-flex h-9 items-center gap-2 rounded-sm border border-navy-line px-3.5 text-label font-medium text-white transition-colors hover:bg-navy-soft"
+              className="inline-flex h-9 items-center gap-2 rounded-sm border border-white/20 px-3.5 text-label font-medium text-white transition-colors hover:bg-white/10"
             >
               Relatórios
             </Link>

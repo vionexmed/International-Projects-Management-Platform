@@ -38,41 +38,63 @@ const LAND: LonLat[][] = [
   [[172, -34], [178, -38], [175, -41], [168, -46], [167, -44]],
 ];
 
-/** Where a supplier's country sits on the map; unknown countries are simply not drawn. */
-const COUNTRY: Record<string, LonLat> = {
-  china: [114, 23],
-  "hong kong": [114, 22],
-  taiwan: [121, 24],
-  japan: [139, 36],
-  "south korea": [127, 37],
-  korea: [127, 37],
-  india: [77, 23],
-  singapore: [104, 1.3],
-  israel: [35, 32],
-  germany: [10, 51],
-  italy: [12.5, 42],
-  france: [2.3, 47],
-  spain: [-3.7, 40.4],
-  portugal: [-8.6, 39.5],
-  "united kingdom": [-1.5, 53],
-  uk: [-1.5, 53],
-  switzerland: [8, 47],
-  netherlands: [5, 52],
-  belgium: [4.5, 50.8],
-  austria: [14, 47.5],
-  sweden: [15, 60],
-  denmark: [10, 56],
-  ireland: [-8, 53],
-  poland: [19, 52],
-  "united states": [-95, 38],
-  usa: [-95, 38],
-  canada: [-79, 44],
-  mexico: [-100, 21],
-  argentina: [-64, -34],
-  chile: [-71, -33],
-  colombia: [-74, 5],
-  australia: [145, -30],
-};
+/**
+ * Where a supplier's country sits on the map, by the name it was registered
+ * with — Portuguese or English, any case, with or without accents. A country
+ * not listed here is simply not drawn.
+ */
+const COUNTRY_POINTS: [LonLat, string[]][] = [
+  [[114, 23], ["china", "china continental", "prc"]],
+  [[114, 22], ["hong kong"]],
+  [[121, 24], ["taiwan", "taiwan (roc)"]],
+  [[139, 36], ["japan", "japao"]],
+  [[127, 37], ["south korea", "korea", "coreia do sul", "coreia"]],
+  [[77, 23], ["india"]],
+  [[104, 1.3], ["singapore", "singapura"]],
+  [[101, 15], ["thailand", "tailandia"]],
+  [[106, 16], ["vietnam", "vietna", "vietname"]],
+  [[102, 3], ["malaysia", "malasia"]],
+  [[35, 32], ["israel"]],
+  [[35, 39], ["turkey", "turquia", "turkiye"]],
+  [[54, 24], ["united arab emirates", "uae", "emirados arabes unidos", "emirados arabes"]],
+  [[10, 51], ["germany", "alemanha", "deutschland"]],
+  [[12.5, 42], ["italy", "italia"]],
+  [[2.3, 47], ["france", "franca"]],
+  [[-3.7, 40.4], ["spain", "espanha"]],
+  [[-8.6, 39.5], ["portugal"]],
+  [[-1.5, 53], ["united kingdom", "uk", "reino unido", "england", "inglaterra"]],
+  [[-8, 53], ["ireland", "irlanda"]],
+  [[8, 47], ["switzerland", "suica"]],
+  [[5, 52], ["netherlands", "holanda", "paises baixos"]],
+  [[4.5, 50.8], ["belgium", "belgica"]],
+  [[14, 47.5], ["austria"]],
+  [[15, 60], ["sweden", "suecia"]],
+  [[10, 56], ["denmark", "dinamarca"]],
+  [[10, 61], ["norway", "noruega"]],
+  [[26, 62], ["finland", "finlandia"]],
+  [[19, 52], ["poland", "polonia"]],
+  [[15.5, 49.8], ["czech republic", "czechia", "republica tcheca", "tchequia"]],
+  [[19, 47], ["hungary", "hungria"]],
+  [[-95, 38], ["united states", "usa", "us", "estados unidos", "eua", "estados unidos da america"]],
+  [[-79, 44], ["canada"]],
+  [[-100, 21], ["mexico"]],
+  [[-64, -34], ["argentina"]],
+  [[-71, -33], ["chile"]],
+  [[-74, 5], ["colombia"]],
+  [[-56, -34.8], ["uruguay", "uruguai"]],
+  [[-77, -12], ["peru"]],
+  [[145, -30], ["australia"]],
+  [[174, -41], ["new zealand", "nova zelandia"]],
+  [[24, -29], ["south africa", "africa do sul"]],
+];
+
+/** "Alemanha", "ALEMANHA" and "alemanha " all find the same point. */
+const normalize = (name: string) =>
+  name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+
+const COUNTRY = new Map<string, LonLat>(
+  COUNTRY_POINTS.flatMap(([point, names]) => names.map((name) => [normalize(name), point] as const)),
+);
 
 const HOME: LonLat = [-46.6, -23.5]; // São Paulo
 
@@ -120,9 +142,10 @@ export function WorldRoutes({ origins, className }: { origins: RouteOrigin[]; cl
   const home = project(HOME);
   const byCountry = new Map<string, { point: [number, number]; label: string; projects: number }>();
   for (const origin of origins) {
-    const coords = COUNTRY[origin.country.trim().toLowerCase()];
+    const coords = COUNTRY.get(normalize(origin.country));
     if (!coords) continue;
-    const key = origin.country.trim().toLowerCase();
+    // Two spellings of one country are one route.
+    const key = coords.join(",");
     const entry = byCountry.get(key);
     if (entry) entry.projects += origin.projects;
     else byCountry.set(key, { point: project(coords), label: origin.country, projects: origin.projects });
@@ -138,7 +161,7 @@ export function WorldRoutes({ origins, className }: { origins: RouteOrigin[]; cl
         </radialGradient>
       </defs>
 
-      <g fill="white" fillOpacity="0.22">
+      <g fill="#cfe6f2" fillOpacity="0.26">
         {landDots().map(([x, y]) => (
           <circle key={`${x}-${y}`} cx={x} cy={y} r={1.55} />
         ))}

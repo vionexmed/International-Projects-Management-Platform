@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 
-type Hit = {
+export type Hit = {
   id: string;
   kind: "project" | "task" | "document" | "supplier";
   title: string;
@@ -15,7 +15,7 @@ type Hit = {
   href: string;
 };
 
-const ICONS = {
+export const ICONS = {
   project: FolderKanban,
   task: ListChecks,
   document: FileText,
@@ -31,6 +31,46 @@ const OPEN_EVENT = "vionex:search";
  */
 export function openCommandPalette() {
   window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
+/**
+ * The debounced cross-entity lookup behind both search surfaces (the ⌘K
+ * palette and the sidebar's magnifier). The result carries the term it
+ * belongs to, so "no results" only shows once that term was searched, and a
+ * stale flag keeps out-of-order responses from winning.
+ */
+export function useSearchHits(term: string, onResults?: () => void) {
+  const [result, setResult] = React.useState<{ term: string; hits: Hit[] } | null>(null);
+  const ready = term.trim().length >= 2;
+  const visible = ready ? (result?.hits ?? []) : [];
+  const settled = result?.term === term;
+  const notify = React.useRef(onResults);
+  React.useEffect(() => {
+    notify.current = onResults;
+  });
+
+  React.useEffect(() => {
+    if (!ready) return;
+    let stale = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+        const data = (await res.json()) as { results?: Hit[] };
+        if (!stale) {
+          setResult({ term, hits: data.results ?? [] });
+          notify.current?.();
+        }
+      } catch {
+        if (!stale) setResult({ term, hits: [] });
+      }
+    }, 200);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [term, ready]);
+
+  return { ready, visible, settled };
 }
 
 /** Icon-only search button (mobile header) that opens the mounted palette. */
@@ -69,9 +109,6 @@ export function CommandPalette({
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [term, setTerm] = React.useState("");
-  // The result carries the term it belongs to, so "no results" is only shown
-  // once the current term has actually been searched.
-  const [result, setResult] = React.useState<{ term: string; hits: Hit[] } | null>(null);
   const [active, setActive] = React.useState(0);
 
   React.useEffect(() => {
@@ -90,34 +127,7 @@ export function CommandPalette({
     };
   }, []);
 
-  const ready = term.trim().length >= 2;
-  // Everything below is derived from state rather than written back into it.
-  const visible = ready ? (result?.hits ?? []) : [];
-  const settled = result?.term === term;
-
-  // Debounced lookup; a stale flag keeps out-of-order responses from winning.
-  React.useEffect(() => {
-    if (!ready) return;
-
-    let stale = false;
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
-        const data = (await res.json()) as { results?: Hit[] };
-        if (!stale) {
-          setResult({ term, hits: data.results ?? [] });
-          setActive(0);
-        }
-      } catch {
-        if (!stale) setResult({ term, hits: [] });
-      }
-    }, 200);
-
-    return () => {
-      stale = true;
-      clearTimeout(timer);
-    };
-  }, [term, ready]);
+  const { ready, visible, settled } = useSearchHits(term, () => setActive(0));
 
   const go = (hit: Hit) => {
     setOpen(false);
