@@ -422,6 +422,79 @@
 }
 
 /*
+  World routes on the dashboard band. Each route draws in once, one after
+  another; then a short bright segment — a shipment — travels it toward
+  Brazil and fades, on a loop, staggered per route. Paths use pathLength=1,
+  so the dash values are fractions of each route.
+*/
+.vx-route-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: vx-route-draw 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes vx-route-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.vx-route-comet {
+  stroke-dasharray: 0.07 0.93;
+  stroke-dashoffset: 0.07;
+  opacity: 0;
+  animation: vx-route-comet 4.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+@keyframes vx-route-comet {
+  0% {
+    stroke-dashoffset: 0.07;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  62% {
+    stroke-dashoffset: -0.93;
+    opacity: 1;
+  }
+  70%,
+  100% {
+    stroke-dashoffset: -0.93;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-route-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .vx-route-comet,
+  .vx-route-pulse {
+    display: none;
+  }
+}
+
+@keyframes vx-route-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.vx-route-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vx-route-pulse 2.8s ease-out infinite;
+}
+
+/*
   Sidebar navigation: the old section fades and settles back a touch; the
   new one is live DOM whose blocks rise in on their own (.vx-page below).
 */
