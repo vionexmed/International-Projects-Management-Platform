@@ -33,6 +33,8 @@ The existing server actions, permission checks, task schema and document-request
 
 The first implementation updates design tokens and shared page/container, button, table, input, menu and empty-state patterns where they serve the design. It applies them to the internal project Plan and verifies representative internal and supplier pages. It must not blindly rewrite every page or introduce a second full UI framework. Subsequent page-by-page work can adopt the same system without changing business logic.
 
+Every page should use the same content logic: a clear title and brief context, primary action beside the title or relevant section, secondary actions grouped, and related information placed together with deliberate space. Do not simply add margins around crowded content; remove repeated labels/cards and use disclosure or sectioning for secondary detail. Audit internal and supplier route families for clipped edges, scattered controls and information density, then correct the shared pattern and presentation-critical outliers without changing permissions or workflows.
+
 The Regulatory folder view is a second deliverable: supplier → project → regulatory documents, backed by existing document relationships and authorization. It will be specified and tested separately. No physical storage paths or records change merely to produce folders.
 
 ## Verification and release
