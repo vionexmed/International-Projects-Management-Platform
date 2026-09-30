@@ -57,6 +57,10 @@ describe("project plan custom cells", () => {
     expect(markup).toContain("Responsável");
     expect(markup).toContain("Prazo");
     expect(markup).toContain("Prioridade");
+    expect(markup).toContain('aria-label="Redimensionar coluna Tarefa"');
+    expect(markup).toContain('aria-label="Redimensionar coluna Score"');
+    expect((markup.match(/aria-label="Redimensionar coluna /g) ?? [])).toHaveLength(5);
+    expect(markup).toContain('aria-keyshortcuts="ArrowLeft ArrowRight"');
   });
 
   it("serializes cleared and typed edits for the value action", () => {

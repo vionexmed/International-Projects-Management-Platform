@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { StatusIcon } from "@/components/ui/badge";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
 import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
+import { planColumnKeys, readPlanWidths, resizePlanWidth } from "@/features/tasks/plan-widths";
 import { PlanValueCell } from "@/features/tasks/plan-value-cell";
 import { InlineTaskTitleCell } from "@/features/tasks/inline-task-title-cell";
 import { InlineTaskPriorityCell } from "@/features/tasks/inline-task-priority-cell";
@@ -19,7 +20,6 @@ import { cn } from "@/lib/utils";
   deadline remain; the other two are one tap away in the task sheet.
 */
 const RULE = "md:border-l md:border-line-faint";
-const BASE_WIDTHS = [208, 136, 104];
 
 /**
  * An editable table grouped by stage. Group rows are full-width and task
@@ -43,35 +43,60 @@ export function PlanList({
   dict: Dictionary;
 }) {
   const visibleColumns = columns.filter((column) => column.visible);
+  const keys = planColumnKeys(columns);
+  const visibleKeys = planColumnKeys(visibleColumns);
   const [widths, setWidths] = React.useState(() => {
-    if (typeof window === "undefined") return [...BASE_WIDTHS, ...visibleColumns.map(() => 160)];
+    if (typeof window === "undefined") return readPlanWidths(projectId, keys, null);
     try {
-      const saved = window.localStorage.getItem(`vionex-plan-widths:${projectId}`);
-      const parsed: unknown = saved ? JSON.parse(saved) : null;
-      if (Array.isArray(parsed) && parsed.length === 3 + visibleColumns.length && parsed.every((width) => typeof width === "number" && Number.isFinite(width) && width >= 96)) return parsed;
-    } catch { /* Browser storage may be unavailable or contain an older value. */ }
-    return [...BASE_WIDTHS, ...visibleColumns.map(() => 160)];
+      return readPlanWidths(projectId, keys, window.localStorage.getItem(`vionex-plan-widths:${projectId}`));
+    } catch { return readPlanWidths(projectId, keys, null); }
   });
   React.useEffect(() => {
     try { window.localStorage.setItem(`vionex-plan-widths:${projectId}`, JSON.stringify(widths)); } catch { /* Keep resizing available in memory. */ }
   }, [projectId, widths]);
-  const effectiveWidths = widths.length === 3 + visibleColumns.length
-    ? widths
-    : [...BASE_WIDTHS, ...visibleColumns.map(() => 160)];
-  const resize = (index: number, startX: number) => {
-    const start = effectiveWidths[index];
-    const move = (event: PointerEvent) => setWidths(effectiveWidths.map((width, item) => item === index ? Math.max(96, start + event.clientX - startX) : width));
-    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
-    window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop);
-  };
+  const effectiveWidths = visibleKeys.map((key) => widths[key] ?? readPlanWidths(projectId, [key], null)[key]);
+  const drag = React.useRef<{ key: string; lastX: number } | null>(null);
+  const resizeHandle = (key: string, label: string) => (
+    <button
+      type="button"
+      aria-label={`Redimensionar coluna ${label}`}
+      aria-keyshortcuts="ArrowLeft ArrowRight"
+      onKeyDown={(event) => {
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          event.preventDefault();
+          setWidths((current) => resizePlanWidth(current, key, event.key === "ArrowRight" ? 8 : -8));
+        }
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        drag.current = { key, lastX: event.clientX };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (!drag.current || drag.current.key !== key) return;
+        const delta = event.clientX - drag.current.lastX;
+        drag.current.lastX = event.clientX;
+        setWidths((current) => resizePlanWidth(current, key, delta));
+      }}
+      onPointerUp={(event) => {
+        drag.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onLostPointerCapture={() => { drag.current = null; }}
+      className="absolute -right-1 top-0 z-20 flex h-full w-3 cursor-col-resize touch-none items-center justify-center rounded-sm text-line-strong hover:bg-brand-soft hover:text-brand-strong focus-visible:bg-brand-soft focus-visible:text-brand-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+    >
+      <span aria-hidden="true" className="h-4 w-0.5 rounded-full bg-current" />
+    </button>
+  );
   const gridClass = "grid";
-  const gridStyle = { gridTemplateColumns: `minmax(18rem, 1fr) ${effectiveWidths.map((width) => `${width}px`).join(" ")}` };
+  const gridStyle = { gridTemplateColumns: effectiveWidths.map((width) => `${width}px`).join(" ") };
+  const tableWidth = effectiveWidths.reduce((total, width) => total + width, 0);
   const sideCell = cn("flex items-center px-3", RULE);
-  const headers = ["Responsável", "Prazo", "Prioridade", ...visibleColumns.map((column) => column.name)];
+  const headers = ["Tarefa", "Responsável", "Prazo", "Prioridade", ...visibleColumns.map((column) => column.name)];
   return (
     <div role="region" aria-label="Plano de trabalho" className="min-w-0 bg-surface">
       <div className="scroll-slim overflow-x-auto">
-      <div style={{ minWidth: `${720 + visibleColumns.length * 160}px` }}>
+      <div style={{ width: `${tableWidth}px`, minWidth: "100%" }}>
       <div
         className={cn(
           gridClass,
@@ -79,11 +104,10 @@ export function PlanList({
         )}
         style={gridStyle}
       >
-        <span className="flex items-center pl-5">Tarefa</span>
         {headers.map((header, index) => (
-          <span key={header} className={cn("relative flex min-w-0 items-center truncate px-3", RULE)}>
+          <span key={visibleKeys[index]} className={cn("relative flex min-w-0 items-center truncate px-3", index === 0 ? "pl-5" : RULE)}>
             {header}
-            <button type="button" aria-label={`Redimensionar coluna ${header}`} onPointerDown={(event) => { event.preventDefault(); resize(index, event.clientX); }} className="absolute -right-1 top-0 z-20 h-full w-2 cursor-col-resize touch-none" />
+            {resizeHandle(visibleKeys[index], header)}
           </span>
         ))}
       </div>
@@ -99,7 +123,7 @@ export function PlanList({
               )}
               style={gridStyle}
             >
-              <span className="flex min-w-0 items-center gap-2.5 pl-5">
+              <span className="col-[1/-1] flex min-w-0 items-center gap-2.5 pl-5">
                 <ChevronDown
                   className="size-4 shrink-0 -rotate-90 text-faint transition-transform group-open/phase:rotate-0"
                   aria-hidden
@@ -122,10 +146,6 @@ export function PlanList({
                   </Link>
                 ) : null}
               </span>
-              <span />
-              <span />
-              <span className="flex items-center px-3" />
-              {visibleColumns.map((column) => <span key={column.id} />)}
             </summary>
 
             <ul>
