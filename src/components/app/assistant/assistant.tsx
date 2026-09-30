@@ -117,7 +117,7 @@ export function Assistant({ firstName }: { firstName: string }) {
         aria-expanded={open}
         onClick={toggle}
         className={cn(
-          "group fixed right-5 bottom-5 z-40 flex h-13 items-center gap-2 rounded-full bg-navy p-1.5 pr-1.5 text-white shadow-dialog ring-1 ring-white/10 transition-all duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] hover:pr-4 motion-reduce:transition-none",
+          "group fixed right-5 bottom-5 z-40 print:hidden flex h-13 items-center gap-2 rounded-full bg-navy p-1.5 pr-1.5 text-white shadow-dialog ring-1 ring-white/10 transition-all duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] hover:pr-4 motion-reduce:transition-none",
           open && "pointer-events-none scale-90 opacity-0",
         )}
       >
@@ -134,7 +134,7 @@ export function Assistant({ firstName }: { firstName: string }) {
         aria-label="Assistente Vionex"
         aria-hidden={!open}
         className={cn(
-          "fixed right-5 bottom-5 z-50 flex h-[min(680px,calc(100dvh-2.5rem))] w-[min(420px,calc(100vw-2.5rem))] origin-bottom-right flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-dialog transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none",
+          "fixed right-5 bottom-5 z-50 print:hidden flex h-[min(680px,calc(100dvh-2.5rem))] w-[min(420px,calc(100vw-2.5rem))] origin-bottom-right flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-dialog transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none",
           open ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0",
         )}
       >

@@ -53,7 +53,7 @@ export default async function InternalLayout({
       <DemoBanner />
       {/* Lets breadcrumbs and back arrows return to a list exactly as it was left. */}
       <NavMemory />
-      <div className="flex min-h-dvh bg-canvas">
+      <div className="flex min-h-dvh bg-canvas print:block print:bg-white">
         <InternalSidebar
           user={user}
           roleLabel={roleLabel}
@@ -94,7 +94,7 @@ export default async function InternalLayout({
               },
             }}
           />
-          <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
+          <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6 print:p-0">{children}</main>
           {modal}
           {/* The platform assistant, on every internal page (⌘J). */}
           <Assistant firstName={user.name.split(" ")[0]} />

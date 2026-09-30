@@ -560,3 +560,30 @@
     opacity: 1;
   }
 }
+
+/*
+  Impressão (Relatórios → "Imprimir / PDF"): só a página, sem a moldura do
+  app; cores de status preservadas e tabelas que não quebram no meio da linha.
+*/
+@media print {
+  @page {
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tr,
+  li,
+  dl > div {
+    break-inside: avoid;
+  }
+
+  h2 {
+    break-after: avoid;
+  }
+}

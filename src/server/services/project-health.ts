@@ -39,8 +39,9 @@ export type StageSnapshot = {
 
 /**
  * A stage's progress is the share of its tasks that are done. A manual
- * override always wins; with no tasks at all we fall back to the stage's own
- * status so a freshly created project still reads sensibly.
+ * override always wins; with no tasks at all only a completed stage counts
+ * (100%). A stage "em andamento" with nothing in it yet is 0% — its status
+ * already says it started, and a made-up 10% showed progress nobody had made.
  */
 export function stageProgress(stage: StageSnapshot, tasks: TaskSnapshot[]): number {
   if (stage.progress !== null) return toPercent(stage.progress);
@@ -50,7 +51,6 @@ export function stageProgress(stage: StageSnapshot, tasks: TaskSnapshot[]): numb
 
   if (relevant.length === 0) {
     if (stage.status === "COMPLETED") return 100;
-    if (stage.status === "IN_PROGRESS") return 10;
     return 0;
   }
 

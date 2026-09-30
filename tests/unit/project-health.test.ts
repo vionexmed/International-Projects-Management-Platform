@@ -61,6 +61,8 @@ describe("stage progress", () => {
   it("falls back to the stage status when there are no tasks", () => {
     expect(stageProgress(stage("CLINICAL", { status: "COMPLETED" }), [])).toBe(100);
     expect(stageProgress(stage("CLINICAL", { status: "NOT_STARTED" }), [])).toBe(0);
+    // Started but empty: no invented progress.
+    expect(stageProgress(stage("CLINICAL", { status: "IN_PROGRESS" }), [])).toBe(0);
   });
 });
 

@@ -151,7 +151,7 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
   return (
     <aside
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col border-r border-navy-line bg-navy lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col border-r border-navy-line bg-navy lg:flex print:hidden",
         pinned ? "w-[232px]" : "w-12",
       )}
     >

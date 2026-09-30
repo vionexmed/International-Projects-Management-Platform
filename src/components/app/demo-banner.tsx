@@ -13,7 +13,7 @@ export function DemoBanner() {
   if (!isPublicDemo()) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-warn/25 bg-warn-soft px-4 py-1.5 text-[12px] text-warn">
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-warn/25 bg-warn-soft px-4 py-1.5 text-[12px] text-warn print:hidden">
       <span className="inline-flex items-center gap-1.5">
         <TriangleAlert className="size-3.5" />
         <strong className="font-semibold">Demonstração</strong>
