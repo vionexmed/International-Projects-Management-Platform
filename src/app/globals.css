@@ -159,12 +159,18 @@
     background-color: var(--color-canvas);
     overscroll-behavior-y: none;
     -webkit-text-size-adjust: 100%;
-    /* Clip horizontal overflow without creating a scroll container that breaks
-       the sticky sidebar and project header while the page scrolls. */
-    overflow-x: clip;
   }
 
   body {
+    /*
+      Horizontal clipping lives on body, not html. With html left `visible`,
+      the browser hands body's overflow to the viewport, so body never becomes
+      a scroll container of its own. That matters when a dialog locks the page
+      (it sets `overflow: hidden` on body): with the clip on html, body turned
+      into the sticky sidebar's scroll container and the sidebar jumped up by
+      the scroll offset, leaving a blank strip under it.
+    */
+    overflow-x: clip;
     overscroll-behavior-y: none;
     background-color: var(--color-canvas);
     color: var(--color-ink);
