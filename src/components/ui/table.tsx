@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * Flat surface with a hairline border — no shadow, since only overlays lift
- * off the page. `flush` drops the radius and side borders for a grid that
+ * A softly raised surface with a hairline border. `flush` drops the radius,
+ * shadow and side borders for a grid that
  * runs edge to edge inside a work page.
  */
 export function TableShell({
@@ -20,7 +20,7 @@ export function TableShell({
     <div
       className={cn(
         "overflow-hidden bg-surface",
-        variant === "flush" ? "border-y border-line" : "rounded-sm border border-line",
+        variant === "flush" ? "border-y border-line" : "rounded-md border border-line shadow-panel",
         className,
       )}
       {...props}

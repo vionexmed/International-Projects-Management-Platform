@@ -172,7 +172,7 @@ export async function createRegulatoryItemAction(
     // A new item can already be overdue (a back-dated deadline) or push the
     // project past its "on track" threshold — the same rule task creation
     // triggers, applied here for the first time.
-    await recalculateProject(input.projectId, user.id);
+    await recalculateProject(input.projectId, user.id, { changedTaskCategories: ["REGULATORY"] });
 
     revalidatePath(`/projects/${input.projectId}/regulatory`);
     revalidatePath("/regulatory");
@@ -238,7 +238,7 @@ export async function updateRegulatoryItemAction(
       internal: true,
     });
 
-    await recalculateProject(input.projectId, user.id);
+    await recalculateProject(input.projectId, user.id, { changedTaskCategories: ["REGULATORY"] });
 
     revalidatePath(`/projects/${input.projectId}/regulatory`);
     revalidatePath("/regulatory");
@@ -381,7 +381,7 @@ export async function createGtmItemAction(
       supplierId: task.supplierId,
     });
 
-    await recalculateProject(input.projectId, user.id);
+    await recalculateProject(input.projectId, user.id, { changedTaskCategories: ["GO_TO_MARKET"] });
 
     revalidatePath(`/projects/${input.projectId}/go-to-market`);
     return { ok: true, createdId: task.id };
@@ -439,7 +439,7 @@ export async function updateGtmItemAction(
       internal: true,
     });
 
-    await recalculateProject(input.projectId, user.id);
+    await recalculateProject(input.projectId, user.id, { changedTaskCategories: ["GO_TO_MARKET"] });
 
     revalidatePath(`/projects/${input.projectId}/go-to-market`);
     return { ok: true };

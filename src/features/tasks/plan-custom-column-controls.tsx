@@ -29,10 +29,12 @@ function AddPlanColumn({
   projectId,
   pending,
   submit,
+  onCreated,
 }: {
   projectId: string;
   pending: boolean;
-  submit: (action: PlanAction, fields: Record<string, string>, success: string) => void;
+  submit: (action: PlanAction, fields: Record<string, string>, success: string, onSuccess?: () => void) => void;
+  onCreated?: () => void;
 }) {
   const [type, setType] = React.useState<PlanColumn["type"]>("TEXT");
   const [name, setName] = React.useState("");
@@ -45,18 +47,67 @@ function AddPlanColumn({
         event.preventDefault();
         const parsed = type === "SELECT" ? options.split(/\r?\n/).map((item) => item.trim()).filter(Boolean) : [];
         if (!name.trim() || (type === "SELECT" && parsed.length === 0)) return;
-        submit(createProjectPlanColumnAction, { projectId, name: name.trim(), type, options: JSON.stringify(parsed) }, "Coluna criada.");
-        setName(""); setOptions(""); setType("TEXT");
+        submit(createProjectPlanColumnAction, { projectId, name: name.trim(), type, options: JSON.stringify(parsed) }, "Coluna criada.", () => {
+          setName("");
+          setOptions("");
+          setType("TEXT");
+          onCreated?.();
+        });
       }}
     >
       <div className="flex items-center gap-2"><Plus className="size-4 text-brand-strong" /><span className="text-label font-semibold text-ink">Nova coluna</span></div>
-      <Input aria-label="Nome da coluna" fieldSize="sm" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Documento" disabled={pending} />
+      <Input aria-label="Nome da coluna" fieldSize="sm" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Documento" maxLength={80} required disabled={pending} />
       <Select aria-label="Tipo da coluna" value={type} onChange={(event) => setType(event.target.value as PlanColumn["type"])} disabled={pending}>
         {COLUMN_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </Select>
       {type === "SELECT" ? <Textarea aria-label="Opções" value={options} onChange={(event) => setOptions(event.target.value)} placeholder="Uma opção por linha" className="min-h-16" disabled={pending} /> : null}
-      <Button type="submit" size="sm" disabled={pending}>Adicionar ao plano</Button>
+      <Button type="submit" size="sm" disabled={pending || !name.trim() || (type === "SELECT" && !options.trim())}>Adicionar ao plano</Button>
     </form>
+  );
+}
+
+function useColumnAction(projectId: string) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+
+  const submit = (action: PlanAction, fields: Record<string, string>, success: string, onSuccess?: () => void) => {
+    startTransition(async () => {
+      const data = new FormData();
+      data.set("projectId", projectId);
+      for (const [key, value] of Object.entries(fields)) data.set(key, value);
+      try {
+        const result = await action({}, data);
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success(success);
+        onSuccess?.();
+        router.refresh();
+      } catch {
+        toast.error("Não foi possível concluir. Verifique sua conexão e tente novamente.");
+      }
+    });
+  };
+
+  return { pending, submit };
+}
+
+/** Compact create control for placement directly beside the plan table headings. */
+export function PlanAddColumnControl({ projectId }: { projectId: string }) {
+  const { pending, submit } = useColumnAction(projectId);
+  const detailsRef = React.useRef<HTMLDetailsElement>(null);
+
+  return (
+    <details ref={detailsRef} className="relative">
+      <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-sm px-2 text-[13px] font-medium text-brand-strong hover:bg-brand-soft [&::-webkit-details-marker]:hidden">
+        <Plus className="size-4" aria-hidden />
+        Coluna
+      </summary>
+      <div className="absolute right-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-line bg-surface p-2 shadow-overlay">
+        <AddPlanColumn projectId={projectId} pending={pending} submit={submit} onCreated={() => { if (detailsRef.current) detailsRef.current.open = false; }} />
+      </div>
+    </details>
   );
 }
 
@@ -68,24 +119,8 @@ export function PlanCustomColumnControls({
   projectId: string;
   columns: PlanColumn[];
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = React.useTransition();
+  const { pending, submit } = useColumnAction(projectId);
   const [names, setNames] = React.useState<Record<string, string>>({});
-
-  const submit = (action: PlanAction, fields: Record<string, string>, success: string) => {
-    startTransition(async () => {
-      const data = new FormData();
-      data.set("projectId", projectId);
-      for (const [key, value] of Object.entries(fields)) data.set(key, value);
-      const result = await action({}, data);
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(success);
-      router.refresh();
-    });
-  };
 
   const move = (index: number, direction: -1 | 1) => {
     const ids = columns.map((column) => column.id);

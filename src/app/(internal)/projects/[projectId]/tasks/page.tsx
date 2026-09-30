@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, ChevronDown, Columns3, List, Maximize2 } from "lucide-react";
+import { Check, ChevronDown, Maximize2 } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { isNotFoundError } from "@/server/authz/errors";
@@ -12,11 +12,10 @@ import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SheetBody, SheetHeader } from "@/components/ui/dialog";
 import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from "@/components/ui/dropdown";
-import { SegmentedToggle, ViewToolbar } from "@/components/app/view-toolbar";
+import { ViewToolbar } from "@/components/app/view-toolbar";
 import { NewTaskDialog } from "@/features/tasks/new-task-dialog";
 import { PlanList } from "@/features/tasks/plan-list";
 import { PlanCustomColumnControls } from "@/features/tasks/plan-custom-column-controls";
-import { PlanBoard } from "@/features/tasks/plan-board";
 import { PLAN_CATEGORIES, buildPlanGroups, planHref, toPlanColumns } from "@/features/tasks/plan-data";
 import { TaskSheet } from "@/features/tasks/task-sheet";
 import {
@@ -32,13 +31,11 @@ import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, oneOf } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
-type PlanSearch = { category?: string; view?: string; assignee?: string; task?: string };
+type PlanSearch = { category?: string; assignee?: string; task?: string };
 
 /**
- * "Plano": the project's tasks grouped by stage, as a list (default) or a
- * board. View, stage filter, assignee filter and the open task all live in
- * the URL, so every state is a link. The old `/tasks?category=` links from
- * the stage pages land on the matching stage filter.
+ * "Plano": project tasks grouped by stage. Stage and assignee filters and
+ * the open task live in the URL; older links with `view=board` show the list.
  */
 export default async function ProjectPlanPage({
   params,
@@ -56,7 +53,6 @@ export default async function ProjectPlanPage({
   const dict = getDictionary(locale);
 
   const category = oneOf(search.category, OPTIONS.taskCategory);
-  const view = search.view === "board" ? "board" : "list";
 
   const [owners, stages] = await Promise.all([
     listInternalUserOptions(user),
@@ -97,9 +93,8 @@ export default async function ProjectPlanPage({
   });
 
   const base = `/projects/${projectId}/tasks`;
-  const current = { view: view === "board" ? "board" : undefined, category, assignee };
+  const current = { category, assignee };
   const href = (changes: Record<string, string | null>) => planHref(base, current, changes);
-  const taskHref = (taskId: string) => href({ task: taskId });
   const editable = can(user, "task:update");
   const people = allTasks
     .map((task) => task.assignedTo)
@@ -111,14 +106,17 @@ export default async function ProjectPlanPage({
 
   return (
     <div className={PROJECT_GUTTER}>
+      <div className="mb-5">
+        <h2 className="text-2xl font-semibold tracking-tight text-ink">Plano de trabalho</h2>
+        <p className="mt-1 text-sm text-muted">Organize as tarefas por etapa e edite os campos diretamente na lista.</p>
+      </div>
       <ViewToolbar
-        className="rounded-t-md border border-line bg-surface px-4 sm:px-6"
+        className="mb-3 rounded-xl border border-line bg-surface px-4 shadow-sm sm:px-5"
         left={
           <>
             <Dropdown>
               <DropdownTrigger asChild>
                 <Button variant="ghost" size="sm" className="-ml-2 px-2" trailingIcon={<ChevronDown />}>
-                  <span className="text-muted">Visão:</span>
                   <span className="text-ink">{viewLabel}</span>
                 </Button>
               </DropdownTrigger>
@@ -135,21 +133,12 @@ export default async function ProjectPlanPage({
                 ))}
               </DropdownContent>
             </Dropdown>
-            <span className="text-meta text-faint tabular-nums">{result.total}</span>
+            <span className="rounded-full bg-raised px-2 py-0.5 text-meta text-muted tabular-nums">{result.total}</span>
           </>
-        }
-        center={
-          <SegmentedToggle
-            label="Modo de visualização"
-            items={[
-              { href: href({ view: null }), label: "Lista", icon: <List />, active: view === "list" },
-              { href: href({ view: "board" }), label: "Quadro", icon: <Columns3 />, active: view === "board" },
-            ]}
-          />
         }
         right={
           <>
-            {view === "list" && can(user, "task:update") ? (
+            {can(user, "task:update") ? (
               <PlanCustomColumnControls projectId={projectId} columns={columns} />
             ) : null}
             {people.length > 0 ? (
@@ -200,11 +189,7 @@ export default async function ProjectPlanPage({
         </p>
       ) : null}
 
-      {view === "board" ? (
-        <PlanBoard groups={groups} owners={owners} editable={editable} taskHref={taskHref} dict={dict} />
-      ) : (
-        <PlanList groups={groups} owners={owners} editable={editable} projectId={projectId} columns={columns} dict={dict} />
-      )}
+      <PlanList groups={groups} owners={owners} editable={editable} canCreate={can(user, "task:create")} projectId={projectId} columns={columns} dict={dict} />
 
       {openTask ? (
         <TaskSheet

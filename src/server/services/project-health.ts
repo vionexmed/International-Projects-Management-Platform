@@ -59,6 +59,41 @@ export function stageProgress(stage: StageSnapshot, tasks: TaskSnapshot[]): numb
 }
 
 /**
+ * A task write can invalidate a stage's terminal status or 100% override.
+ * Leave empty stages and intermediate manual progress alone; the stage editor
+ * still owns those choices. Count cancelled work the same way as progress.
+ */
+export function reconcileStageWithTasks(
+  stage: StageSnapshot,
+  tasks: TaskSnapshot[],
+): Pick<StageSnapshot, "status" | "progress"> {
+  const relevant = tasks.filter(
+    (task) => task.category === STAGE_TASK_CATEGORY[stage.key] && task.status !== "CANCELLED",
+  );
+  if (relevant.length === 0) {
+    return { status: stage.status, progress: stage.progress };
+  }
+
+  if (stage.status === "BLOCKED") {
+    return {
+      status: "BLOCKED",
+      progress: relevant.some((task) => task.status !== "COMPLETED") && stage.progress === 100
+        ? null
+        : stage.progress,
+    };
+  }
+
+  if (relevant.every((task) => task.status === "COMPLETED")) {
+    return { status: "COMPLETED", progress: stage.progress === 100 ? 100 : null };
+  }
+
+  return {
+    status: stage.status === "COMPLETED" ? "IN_PROGRESS" : stage.status,
+    progress: stage.progress === 100 ? null : stage.progress,
+  };
+}
+
+/**
  * A shipment that should have arrived and has not.
  *
  * Unlike a task this is not countable work — it is one record moving through

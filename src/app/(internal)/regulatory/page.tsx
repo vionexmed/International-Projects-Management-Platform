@@ -98,7 +98,20 @@ export default async function RegulatoryPage({
 
   return (
     <>
-      <PageHeader title="Regulatório" />
+      <PageHeader
+        title="Regulatório"
+        description="Solicitações de documentos e itens regulatórios de todos os projetos."
+        meta={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href="/regulatory?status=overdue" className="font-medium text-risk hover:underline">
+              {counts.overdue} {counts.overdue === 1 ? "solicitação atrasada" : "solicitações atrasadas"}
+            </Link>
+            <Link href="/regulatory?status=review" className="font-medium text-brand-strong hover:underline">
+              {counts.review} aguardando análise
+            </Link>
+          </div>
+        }
+      />
 
       {/*
         The queue is chosen in the section header — one filter writing the
@@ -148,7 +161,10 @@ export default async function RegulatoryPage({
                   {openRequests.map((request) => {
                     const status = meta.request(request.status as RequestStatus, dict);
                     const remaining = daysUntil(request.dueDate);
-                    const late = remaining !== null && remaining < 0 && request.status === "PENDING";
+                    const late =
+                      remaining !== null &&
+                      remaining < 0 &&
+                      ["PENDING", "REJECTED"].includes(request.status);
 
                     return (
                       <TR key={request.id} interactive>
@@ -164,8 +180,8 @@ export default async function RegulatoryPage({
                         <TD label="Solicitado a">{request.supplier.name}</TD>
                         <TD label="Responsável">{request.requestedBy.name}</TD>
                         <TD label="Prazo" className={cn(late && "font-medium text-risk")}>
-                          {request.dueDate ? formatDateShort(request.dueDate, locale) : ""}
-                          {late ? ` · ${Math.abs(remaining)}d` : ""}
+                          {request.dueDate ? formatDateShort(request.dueDate, locale) : "—"}
+                          {late ? " · atrasado" : ""}
                         </TD>
                         <TD label="Status">
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
@@ -216,6 +232,11 @@ export default async function RegulatoryPage({
                 <TBody>
                   {items.map((item) => {
                     const status = meta.task(item.status as TaskStatus, dict);
+                    const remaining = daysUntil(item.dueDate);
+                    const late =
+                      remaining !== null &&
+                      remaining < 0 &&
+                      !["COMPLETED", "CANCELLED"].includes(item.status);
                     return (
                       <TR key={item.id} interactive>
                         <TD>
@@ -229,7 +250,10 @@ export default async function RegulatoryPage({
                         <TD label="Projeto">{item.project.name}</TD>
                         <TD label="Órgão">{item.authority ?? ""}</TD>
                         <TD label="Solicitado a">{item.requestedFrom ?? ""}</TD>
-                        <TD label="Prazo">{item.dueDate ? formatDateShort(item.dueDate, locale) : ""}</TD>
+                        <TD label="Prazo" className={cn(late && "font-medium text-risk")}>
+                          {item.dueDate ? formatDateShort(item.dueDate, locale) : "—"}
+                          {late ? " · atrasado" : ""}
+                        </TD>
                         <TD label="Status">
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />

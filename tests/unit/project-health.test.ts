@@ -5,6 +5,7 @@ import {
   isOverdue,
   isShipmentLate,
   projectProgress,
+  reconcileStageWithTasks,
   stageProgress,
   type StageSnapshot,
   type TaskSnapshot,
@@ -60,6 +61,40 @@ describe("stage progress", () => {
   it("falls back to the stage status when there are no tasks", () => {
     expect(stageProgress(stage("CLINICAL", { status: "COMPLETED" }), [])).toBe(100);
     expect(stageProgress(stage("CLINICAL", { status: "NOT_STARTED" }), [])).toBe(0);
+  });
+});
+
+describe("stage reconciliation after task changes", () => {
+  it("reopens a completed stage and removes a stale 100% override when a task is open", () => {
+    expect(reconcileStageWithTasks(
+      stage("CLINICAL", { status: "COMPLETED", progress: 100 }),
+      [task({ category: "CLINICAL", status: "OPEN" })],
+    )).toEqual({ status: "IN_PROGRESS", progress: null });
+  });
+
+  it("marks a stage complete when all its counted tasks are complete", () => {
+    expect(reconcileStageWithTasks(
+      stage("CLINICAL", { status: "IN_PROGRESS", progress: 35 }),
+      [task({ category: "CLINICAL", status: "COMPLETED" })],
+    )).toEqual({ status: "COMPLETED", progress: null });
+  });
+
+  it("preserves intermediate manual progress and blocked status", () => {
+    const open = [task({ category: "CLINICAL", status: "OPEN" })];
+    expect(reconcileStageWithTasks(stage("CLINICAL", { progress: 60 }), open))
+      .toEqual({ status: "IN_PROGRESS", progress: 60 });
+    expect(reconcileStageWithTasks(stage("CLINICAL", { status: "BLOCKED", progress: 60 }), open))
+      .toEqual({ status: "BLOCKED", progress: 60 });
+    expect(reconcileStageWithTasks(stage("CLINICAL", { status: "BLOCKED", progress: 100 }), open))
+      .toEqual({ status: "BLOCKED", progress: null });
+  });
+
+  it("does not infer state from unrelated or cancelled tasks", () => {
+    const completed = stage("CLINICAL", { status: "COMPLETED", progress: 100 });
+    expect(reconcileStageWithTasks(completed, [task({ category: "REGULATORY" })]))
+      .toEqual({ status: "COMPLETED", progress: 100 });
+    expect(reconcileStageWithTasks(completed, [task({ category: "CLINICAL", status: "CANCELLED" })]))
+      .toEqual({ status: "COMPLETED", progress: 100 });
   });
 });
 

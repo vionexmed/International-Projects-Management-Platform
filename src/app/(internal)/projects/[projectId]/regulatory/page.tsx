@@ -71,7 +71,9 @@ export default async function ProjectRegulatoryPage({
 
   const canManage = can(user, "regulatory:manage");
   const approved = items.filter((item) => item.status === "COMPLETED").length;
-  const openRequests = requests.filter((request) => request.status === "PENDING").length;
+  const openRequests = requests.filter((request) =>
+    ["PENDING", "SUBMITTED", "IN_REVIEW", "REJECTED"].includes(request.status),
+  ).length;
   // The authority most items answer to; a row repeats it only when it differs.
   const authority = items.find((item) => item.authority)?.authority ?? null;
 
@@ -85,7 +87,7 @@ export default async function ProjectRegulatoryPage({
       {/* Document requests to the supplier */}
       <WorkBlock
         title="Solicitações ao fornecedor"
-        count={openRequests > 0 ? `${openRequests} ${openRequests === 1 ? "aberta" : "abertas"}` : undefined}
+        count={openRequests > 0 ? `${openRequests} em aberto` : undefined}
         description={`Documentos pedidos a ${project.supplier.name} pelo portal.`}
       >
         {requests.length === 0 ? (
@@ -127,7 +129,7 @@ export default async function ProjectRegulatoryPage({
                         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                       </TD>
                       <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
-                        {request.dueDate ? formatDateShort(request.dueDate, locale) : null}
+                        {request.dueDate ? formatDateShort(request.dueDate, locale) : "—"}
                         {late ? " · atrasado" : ""}
                       </TD>
                       <TD className="text-right whitespace-nowrap max-md:mt-3">
@@ -209,36 +211,45 @@ export default async function ProjectRegulatoryPage({
                 </TR>
               </THead>
               <TBody>
-                {items.map((item) => (
-                  <TR key={item.id}>
-                    <TD>
-                      <CellStack
-                        title={
-                          <Link href={`/tasks/${item.id}`} className="hover:underline">
-                            {item.title}
-                          </Link>
-                        }
-                        subtitle={item.authority !== authority ? item.authority : null}
-                      />
-                    </TD>
-                    <TD label="Solicitado a">{item.requestedFrom}</TD>
-                    <TD label="Responsável">{item.assignedTo?.name}</TD>
-                    <TD label="Status">
-                      <StatusMenu
-                        action={updateRegulatoryItemAction}
-                        hidden={{ projectId, itemId: item.id }}
-                        name="status"
-                        value={item.status}
-                        options={statusOptions}
-                        ariaLabel={`Status de ${item.title}`}
-                        readOnly={!canManage}
-                      />
-                    </TD>
-                    <TD label="Prazo" align="right">
-                      {item.dueDate ? formatDateShort(item.dueDate, locale) : null}
-                    </TD>
-                  </TR>
-                ))}
+                {items.map((item) => {
+                  const remaining = daysUntil(item.dueDate);
+                  const late =
+                    remaining !== null &&
+                    remaining < 0 &&
+                    !["COMPLETED", "CANCELLED"].includes(item.status);
+
+                  return (
+                    <TR key={item.id}>
+                      <TD>
+                        <CellStack
+                          title={
+                            <Link href={`/tasks/${item.id}`} className="hover:underline">
+                              {item.title}
+                            </Link>
+                          }
+                          subtitle={item.authority !== authority ? item.authority : null}
+                        />
+                      </TD>
+                      <TD label="Solicitado a">{item.requestedFrom}</TD>
+                      <TD label="Responsável">{item.assignedTo?.name}</TD>
+                      <TD label="Status">
+                        <StatusMenu
+                          action={updateRegulatoryItemAction}
+                          hidden={{ projectId, itemId: item.id }}
+                          name="status"
+                          value={item.status}
+                          options={statusOptions}
+                          ariaLabel={`Status de ${item.title}`}
+                          readOnly={!canManage}
+                        />
+                      </TD>
+                      <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
+                        {item.dueDate ? formatDateShort(item.dueDate, locale) : "—"}
+                        {late ? " · atrasado" : ""}
+                      </TD>
+                    </TR>
+                  );
+                })}
               </TBody>
             </Table>
           </TableScroll>

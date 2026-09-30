@@ -264,7 +264,7 @@ export async function createTask(user: SessionUser, input: CreateTaskInput) {
 
   await notifyAboutDeadline(task);
 
-  await recalculateProject(project.id, user.id);
+  await recalculateProject(project.id, user.id, { changedTaskCategories: [task.category] });
   return task;
 }
 
@@ -350,7 +350,12 @@ export async function updateTask(user: SessionUser, taskId: string, input: Updat
     await notifyAboutDeadline(task);
   }
 
-  await recalculateProject(existing.projectId, user.id);
+  await recalculateProject(existing.projectId, user.id, {
+    changedTaskCategories:
+      input.status !== undefined || input.category !== undefined
+        ? [existing.category, task.category]
+        : [],
+  });
   return task;
 }
 

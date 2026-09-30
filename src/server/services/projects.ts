@@ -1,5 +1,5 @@
 import "server-only";
-import type { HealthStatus, Prisma, StageKey } from "@/generated/prisma";
+import type { HealthStatus, Prisma, StageKey, TaskCategory } from "@/generated/prisma";
 
 /** The four values `Project.status` actually holds — never `INACTIVE`, which only `Supplier.status` uses. */
 export type ProjectStatus = Extract<HealthStatus, "ON_TRACK" | "AT_RISK" | "BLOCKED" | "COMPLETED">;
@@ -16,10 +16,12 @@ import { notifyOnce, supplierRecipients } from "@/server/services/notifications"
 import { recordAudit } from "@/server/services/audit";
 import {
   STAGE_ORDER,
+  STAGE_TASK_CATEGORY,
   deriveCurrentStage,
   deriveProjectStatus,
   projectProgress,
   stageProgress,
+  reconcileStageWithTasks,
   type StageSnapshot,
   type TaskSnapshot,
 } from "@/server/services/project-health";
@@ -355,7 +357,11 @@ export async function createProject(user: SessionUser, input: CreateProjectInput
  * after any mutation that can change them, so the portfolio view never drifts
  * from the underlying tasks.
  */
-export async function recalculateProject(projectId: string, actorId: string | null) {
+export async function recalculateProject(
+  projectId: string,
+  actorId: string | null,
+  options: { changedTaskCategories?: TaskCategory[] } = {},
+) {
   const project = await db.project.findUnique({
     where: { id: projectId },
     select: {
@@ -365,7 +371,7 @@ export async function recalculateProject(projectId: string, actorId: string | nu
       status: true,
       currentStage: true,
       blockerNote: true,
-      stages: { select: { key: true, status: true, progress: true } },
+      stages: { select: { id: true, key: true, status: true, progress: true } },
       tasks: { select: { category: true, status: true, priority: true, dueDate: true } },
     },
   });
@@ -374,13 +380,26 @@ export async function recalculateProject(projectId: string, actorId: string | nu
   const stages = project.stages as StageSnapshot[];
   const tasks = project.tasks as TaskSnapshot[];
 
+  // Only task writes reconcile stage state. A direct edit in the stage editor
+  // remains an explicit manual choice, even if tasks suggest another value.
+  const effectiveStages = options.changedTaskCategories?.length
+    ? await Promise.all(project.stages.map(async (stage) => {
+        const snapshot = stage as StageSnapshot;
+        if (!options.changedTaskCategories?.includes(STAGE_TASK_CATEGORY[stage.key])) return snapshot;
+        const next = reconcileStageWithTasks(snapshot, tasks);
+        if (next.status === stage.status && next.progress === stage.progress) return snapshot;
+        await db.projectStage.update({ where: { id: stage.id }, data: next });
+        return { ...snapshot, ...next };
+      }))
+    : stages;
+
   const nextStatus = deriveProjectStatus({
     currentStatus: project.status as ProjectStatus,
     hasExplicitBlocker: Boolean(project.blockerNote?.trim()),
-    stages,
+    stages: effectiveStages,
     tasks,
   });
-  const nextStage = deriveCurrentStage(stages);
+  const nextStage = deriveCurrentStage(effectiveStages);
 
   if (nextStatus === project.status && nextStage === project.currentStage) return;
 
