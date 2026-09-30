@@ -25,7 +25,6 @@ import {
   TaskEyebrow,
   loadTaskDetail,
 } from "@/features/tasks/task-detail";
-import { PROJECT_GUTTER } from "@/features/projects/project-frame";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, oneOf } from "@/lib/labels";
@@ -105,13 +104,14 @@ export default async function ProjectPlanPage({
   const openTask = sheet && sheet.task.projectId === projectId ? sheet : null;
 
   return (
-    <div className={PROJECT_GUTTER}>
+    <div className="min-w-0">
       <div className="mb-5">
-        <h2 className="text-2xl font-semibold tracking-tight text-ink">Plano de trabalho</h2>
-        <p className="mt-1 text-sm text-muted">Organize as tarefas por etapa e edite os campos diretamente na lista.</p>
+        <h2 className="text-page text-ink">Plano de trabalho</h2>
+        <p className="mt-1 text-body text-muted">Organize as tarefas por etapa e edite os campos diretamente na lista.</p>
       </div>
+      <section className="overflow-hidden rounded-lg border border-line-soft bg-surface">
       <ViewToolbar
-        className="mb-3 rounded-xl border border-line bg-surface px-4 shadow-sm sm:px-5"
+        className="px-4 sm:px-5"
         left={
           <>
             <Dropdown>
@@ -190,6 +190,7 @@ export default async function ProjectPlanPage({
       ) : null}
 
       <PlanList groups={groups} owners={owners} editable={editable} canCreate={can(user, "task:create")} projectId={projectId} columns={columns} dict={dict} />
+      </section>
 
       {openTask ? (
         <TaskSheet

@@ -29,7 +29,7 @@
 
   /* Structure */
   --color-line: #d4e0e2;
-  --color-line-soft: #e4ecee;
+  --color-line-soft: #e8eff0;
   --color-line-strong: #adc1c5;
 
   /* Brand — turquoise */
@@ -67,7 +67,7 @@
 
   /* Row rule inside dense grids — one step lighter than `line-soft`, so 40-px
      rows read as a list rather than a stack of boxes. */
-  --color-line-faint: #edf2f3;
+  --color-line-faint: #f0f4f5;
 
   /* A gentle progression keeps small controls tidy and gives panels room to
      breathe. Avatars and progress tracks retain their full-round shape. */
@@ -335,12 +335,10 @@
 
     .table-stacked > tbody > tr > td[data-label]::before {
       content: attr(data-label);
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 500;
-      letter-spacing: 0.06em;
       line-height: 1.45;
-      text-transform: uppercase;
-      color: var(--color-faint);
+      color: var(--color-muted);
     }
 
     /* Larguras pensadas para a coluna do desktop não valem no cartão. */
@@ -352,6 +350,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

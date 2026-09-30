@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * A softly raised surface with a hairline border. `flush` drops the radius,
- * shadow and side borders for a grid that
+ * A quiet surface with a hairline border. `flush` drops the radius and side borders for a grid that
  * runs edge to edge inside a work page.
  */
 export function TableShell({
@@ -20,7 +19,7 @@ export function TableShell({
     <div
       className={cn(
         "overflow-hidden bg-surface",
-        variant === "flush" ? "border-y border-line" : "rounded-md border border-line shadow-panel",
+        variant === "flush" ? "border-y border-line-soft" : "rounded-md border border-line-soft",
         className,
       )}
       {...props}
@@ -114,7 +113,7 @@ export function TH({
     <th
       scope="col"
       className={cn(
-        "h-[38px] border-b border-line bg-subtle px-3 text-label font-semibold whitespace-nowrap text-ink-soft first:pl-4 last:pr-4",
+        "h-[38px] border-b border-line-soft bg-subtle px-3 text-label font-semibold whitespace-nowrap text-ink-soft first:pl-4 last:pr-4",
         // The older overline header, kept for `density="comfortable"`.
         "in-[.table-comfortable]:h-9 in-[.table-comfortable]:bg-transparent in-[.table-comfortable]:px-4 in-[.table-comfortable]:text-[11px] in-[.table-comfortable]:font-medium in-[.table-comfortable]:tracking-[0.06em] in-[.table-comfortable]:text-muted in-[.table-comfortable]:uppercase",
         COLUMN_RULE,

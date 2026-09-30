@@ -15,11 +15,10 @@ const FIELD_HEIGHT: Record<FieldSize, string> = {
 };
 
 /*
-  Filled fields: a tinted `raised` fill with a hairline, turning white with a
-  2-px brand edge (1-px border + 1-px ring, so nothing shifts) on focus.
+  Quiet white fields with a hairline and a 2-px brand edge on focus.
 */
 const FIELD_BASE = cn(
-  "w-full rounded-sm border border-line bg-raised text-ink transition-colors",
+  "w-full rounded-sm border border-line-soft bg-surface text-ink transition-colors",
   "placeholder:text-faint hover:border-line-strong",
   "focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand focus:outline-none",
   "aria-[invalid=true]:border-risk aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-risk",

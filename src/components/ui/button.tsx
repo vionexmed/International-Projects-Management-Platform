@@ -8,16 +8,16 @@ import { cn } from "@/lib/utils";
   as the neutral default (`md`), and 40 px in forms and modals (`lg`).
 */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm font-medium transition-[background-color,border-color,color,box-shadow] duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0 [&_svg]:size-4",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0 [&_svg]:size-4",
   {
     variants: {
       variant: {
         primary:
           // The logo turquoise with dark ink: white on it is only 3.04:1. The
           // outline is the rail colour, since a turquoise ring would vanish.
-          "bg-brand text-on-brand font-semibold shadow-[0_2px_6px_rgba(0,114,126,0.17)] hover:bg-brand-hover hover:shadow-[0_3px_9px_rgba(0,114,126,0.22)] active:bg-brand active:shadow-[inset_0_1px_2px_rgba(5,41,47,0.25)] focus-visible:outline-navy",
+          "bg-brand text-on-brand font-semibold hover:bg-brand-hover active:bg-brand focus-visible:outline-navy",
         secondary:
-          "bg-surface text-ink border border-line shadow-[0_1px_3px_rgba(5,41,47,0.045)] hover:bg-raised hover:border-line-strong",
+          "border border-line-soft bg-surface text-ink hover:border-line hover:bg-subtle",
         /** Accent-outlined secondary, for the second action beside a primary. */
         outline:
           "bg-surface text-brand-strong border border-brand-strong hover:bg-brand-soft",

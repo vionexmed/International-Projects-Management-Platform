@@ -1,7 +1,7 @@
 /**
- * The project layout pads each tab with the 24-px gutter (16 on a phone).
- * A work tab that runs edge to edge — the plan, the documents grid — cancels
- * that padding with this, so its toolbar and grid meet the header flush.
+ * The project frame cancels the general shell inset. This is the one content
+ * gutter for every project tab: 16 px on phones, 24 px on larger screens.
+ * Full-bleed tabs cancel it with PROJECT_FLUSH.
  */
-export const PROJECT_GUTTER = "px-4 py-6 sm:px-6";
-export const PROJECT_FLUSH = "-mx-4 -mt-6 -mb-6 sm:-mx-6";
+export const PROJECT_GUTTER = "px-4 py-5 sm:px-6 sm:py-6";
+export const PROJECT_FLUSH = "-mx-4 -my-5 sm:-mx-6 sm:-my-6";

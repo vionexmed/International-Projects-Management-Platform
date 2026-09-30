@@ -9,7 +9,6 @@ import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
 import { PlanValueCell } from "@/features/tasks/plan-value-cell";
 import { InlineTaskTitleCell } from "@/features/tasks/inline-task-title-cell";
 import { InlineTaskPriorityCell } from "@/features/tasks/inline-task-priority-cell";
-import { PlanAddColumnControl } from "@/features/tasks/plan-custom-column-controls";
 import { InlineAddTaskRow } from "@/features/tasks/inline-add-task-row";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { meta } from "@/lib/labels";
@@ -70,12 +69,8 @@ export function PlanList({
   const sideCell = cn("flex items-center px-3", RULE);
   const headers = ["Responsável", "Prazo", "Prioridade", ...visibleColumns.map((column) => column.name)];
   return (
-    <div className="rounded-xl border border-line bg-surface shadow-[0_12px_32px_-24px_rgba(8,56,65,0.45)]">
-      <div className="flex h-11 items-center justify-between border-b border-line-faint px-4">
-        <span className="text-sm font-semibold text-ink">Tarefas por etapa</span>
-        {editable ? <PlanAddColumnControl projectId={projectId} /> : null}
-      </div>
-      <div className="overflow-x-auto rounded-b-xl">
+    <div role="region" aria-label="Plano de trabalho" className="min-w-0 bg-surface">
+      <div className="scroll-slim overflow-x-auto">
       <div style={{ minWidth: `${720 + visibleColumns.length * 160}px` }}>
       <div
         className={cn(
