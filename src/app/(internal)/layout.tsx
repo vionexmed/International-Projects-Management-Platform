@@ -11,6 +11,7 @@ import { Topbar } from "@/components/app/topbar";
 import { DemoBanner } from "@/components/app/demo-banner";
 import { NavMemory } from "@/components/app/nav-memory";
 import { Assistant } from "@/components/app/assistant/assistant";
+import { isDemoEnabled } from "@/lib/demo";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label } from "@/lib/labels";
@@ -59,6 +60,7 @@ export default async function InternalLayout({
           roleLabel={roleLabel}
           notificationCount={notificationCount}
           taskCount={openTasks}
+          demo={isDemoEnabled()}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">

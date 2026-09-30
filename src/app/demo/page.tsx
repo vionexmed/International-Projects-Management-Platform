@@ -5,6 +5,7 @@ import { VionexLogo } from "@/components/app/logo";
 import { Panel } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/avatar";
 import { isDemoEnabled, isPublicDemo } from "@/lib/demo";
+import { DEMO_INTERNAL as INTERNAL, DEMO_SUPPLIERS as SUPPLIERS } from "@/lib/demo-accounts";
 
 /**
  * Rendered per request, never prerendered: DEMO_MODE is read at runtime, so a
@@ -26,21 +27,6 @@ export const metadata: Metadata = {
  * isolation between suppliers behave exactly as in production — the only thing
  * skipped is typing the password.
  */
-const INTERNAL = [
-  { key: "admin", name: "Lucas Silva", role: "Administrador", note: "Acesso total à plataforma" },
-  { key: "regulatory", name: "Stefany Rocha", role: "Regulatório", note: "Áreas regulatória e clínica" },
-  { key: "manager", name: "João Mendes", role: "Gestor", note: "Portfólio e fornecedores" },
-  { key: "marketing", name: "Maria Santos", role: "Marketing", note: "Go-to-Market" },
-  { key: "viewer", name: "Paulo Reis", role: "Visualizador", note: "Somente leitura" },
-];
-
-const SUPPLIERS = [
-  { key: "emily", name: "Emily Carter", role: "Manufacturer C · Estados Unidos", note: "Só enxerga os projetos da C" },
-  { key: "supplier", name: "John Smith", role: "Manufacturer A · Administrador", note: "Tem solicitações pendentes e gere os usuários da empresa" },
-  { key: "supplier-user", name: "Wei Zhang", role: "Manufacturer A · Usuário", note: "Mesmos projetos, sem gerir usuários" },
-  { key: "klaus", name: "Klaus Weber", role: "Manufacturer B · Alemanha", note: "Só enxerga os projetos da B" },
-];
-
 export default function DemoPage() {
   if (!isDemoEnabled()) notFound();
 

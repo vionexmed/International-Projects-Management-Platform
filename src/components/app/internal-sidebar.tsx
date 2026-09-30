@@ -23,6 +23,7 @@ import {
 import { VionexLogo, VionexMarkColor } from "@/components/app/logo";
 import { SidebarSearch } from "@/components/app/sidebar-search";
 import { NavPending } from "@/components/app/nav-pending";
+import { DemoSwitcher } from "@/components/app/demo-switcher";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -57,6 +58,8 @@ type SidebarProps = {
   roleLabel: string;
   notificationCount: number;
   taskCount: number;
+  /** Demonstration: show "Mudar pessoa" at the top. */
+  demo?: boolean;
 };
 
 /*
@@ -106,7 +109,7 @@ function badgeText(value: number) {
   return value > 99 ? "99+" : String(value);
 }
 
-export function InternalSidebar({ user, roleLabel, notificationCount, taskCount }: SidebarProps) {
+export function InternalSidebar({ user, roleLabel, notificationCount, taskCount, demo = false }: SidebarProps) {
   const pathname = usePathname();
   const pinned = React.useSyncExternalStore(
     pinnedStore.subscribe,
@@ -171,11 +174,11 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
     >
       {pinned ? (
         <ExpandedSidebar
-          {...{ user, roleLabel, primary, isActive }}
+          {...{ user, roleLabel, primary, isActive, demo }}
           secondary={[notifications]}
         />
       ) : (
-        <Rail {...{ user, primary, isActive, notifications }} />
+        <Rail {...{ user, primary, isActive, notifications, demo }} />
       )}
     </aside>
   );
@@ -215,11 +218,13 @@ function Rail({
   primary,
   notifications,
   isActive,
+  demo,
 }: {
   user: SessionUser;
   primary: NavGroup[];
   notifications: NavEntry;
   isActive: (entry: NavEntry) => boolean;
+  demo: boolean;
 }) {
   return (
     <>
@@ -228,6 +233,11 @@ function Rail({
           <VionexMarkColor className="size-9" />
         </Link>
       </div>
+      {demo ? (
+        <div className="relative flex justify-center pb-2">
+          <DemoSwitcher current={user.name} variant="rail" />
+        </div>
+      ) : null}
 
       <nav
         className="scroll-slim relative flex flex-1 flex-col items-center overflow-y-auto py-1"
@@ -311,12 +321,14 @@ function ExpandedSidebar({
   primary,
   secondary,
   isActive,
+  demo,
 }: {
   user: SessionUser;
   roleLabel: string;
   primary: NavGroup[];
   secondary: NavEntry[];
   isActive: (entry: NavEntry) => boolean;
+  demo: boolean;
 }) {
   return (
     <>
@@ -331,6 +343,11 @@ function ExpandedSidebar({
       <div className="relative px-3 pb-1">
         <SidebarSearch />
       </div>
+      {demo ? (
+        <div className="relative px-3 pt-2">
+          <DemoSwitcher current={user.name} variant="sidebar" />
+        </div>
+      ) : null}
 
       <nav className="scroll-slim relative flex-1 overflow-y-auto px-3 pb-3" aria-label="Navegação principal">
         {primary.map((group) => (

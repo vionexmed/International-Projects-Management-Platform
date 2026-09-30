@@ -9,6 +9,8 @@ import { SupplierMobileNav } from "@/components/app/supplier-mobile-nav";
 import { CommandPalette } from "@/components/app/command-palette";
 import { DemoBanner } from "@/components/app/demo-banner";
 import { NavMemory } from "@/components/app/nav-memory";
+import { DemoSwitcher } from "@/components/app/demo-switcher";
+import { isDemoEnabled } from "@/lib/demo";
 import { getDictionary, plural } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 
@@ -76,6 +78,8 @@ export default async function SupplierLayout({ children }: { children: React.Rea
           />
 
           <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+            {/* Demonstration only: step into another seeded account from here. */}
+            {isDemoEnabled() ? <DemoSwitcher current={user.name} /> : null}
             <Link
               href="/supplier/notifications"
               aria-label={
