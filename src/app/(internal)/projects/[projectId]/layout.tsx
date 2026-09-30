@@ -6,7 +6,7 @@ import { listSupplierOptions } from "@/server/services/suppliers";
 import { listInternalUserOptions } from "@/server/services/users";
 import { db } from "@/server/db";
 import { BackLink } from "@/components/app/nav-memory";
-import { AvatarStack } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/avatar";
 import { ProjectTabs } from "@/features/projects/project-tabs";
 import { EditProjectDialog } from "@/features/projects/edit-project-dialog";
 import { RequestDocumentDialog } from "@/features/documents/request-document-dialog";
@@ -16,7 +16,7 @@ import { PROJECT_GUTTER } from "@/features/projects/project-frame";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { meta, type StageProgress } from "@/lib/labels";
-import { cn, initials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { ProjectStatus } from "@/server/services/projects";
 
 export async function generateMetadata({ params }: { params: Promise<{ projectId: string }> }) {
@@ -71,48 +71,34 @@ export default async function ProjectLayout({
   return (
     // Cancels the shell's padding: the project is one white surface, edge to edge.
     <div className="-mx-4 -mt-5 -mb-5 flex min-h-[calc(100dvh-3rem)] flex-col bg-surface sm:-mx-6 sm:-mt-6 sm:-mb-6 lg:min-h-dvh">
-      <header className="sticky top-12 z-20 bg-surface shadow-[0_1px_3px_rgba(5,41,47,0.06)] lg:top-0">
-        <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+      <header className="sticky top-12 z-20 bg-surface lg:top-0">
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3 sm:px-6">
           {/*
             Back to wherever the project was opened from (the list, a supplier's
             folder, the dashboard); the list, as it was left, on a fresh tab.
           */}
-          <BackLink href="/projects" label="Voltar" history className="-ml-1.5 -mr-1" />
-          <span
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-xs bg-brand-soft text-label font-semibold text-brand-deep select-none"
-            aria-hidden
-          >
-            {initials(project.name)}
-          </span>
+          <BackLink href="/projects" label="Voltar" history className="-ml-1.5" />
+          {/* The name first; one quiet line of context under it. */}
           <div className="min-w-0 flex-1">
-            <p className="flex min-w-0 items-center gap-1.5 text-label">
-              <Link
-                href={`/suppliers/${project.supplier.id}`}
-                className="truncate text-brand-strong hover:underline"
-              >
+            <h1 className="truncate text-[18px] leading-7 font-semibold tracking-[-0.01em] text-ink">{project.name}</h1>
+            <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-meta text-muted">
+              <span className="font-mono text-ink-soft">{project.projectCode}</span>
+              <span className="text-faint" aria-hidden>·</span>
+              <Link href={`/suppliers/${project.supplier.id}`} className="truncate text-ink-soft hover:text-brand-strong hover:underline">
                 {project.supplier.name}
               </Link>
-              <span className="hidden shrink-0 text-muted sm:inline">
-                · {project.country} · {project.projectCode}
+              <span className="hidden text-faint sm:inline" aria-hidden>·</span>
+              <span className="hidden sm:inline">{project.country}</span>
+              <span className="hidden text-faint md:inline" aria-hidden>·</span>
+              <span className="hidden items-center gap-1.5 md:inline-flex" title="Responsável pelo projeto">
+                <UserAvatar name={project.owner.name} size="xs" />
+                {project.owner.name}
               </span>
             </p>
-            <h1 className="truncate text-section text-ink">{project.name}</h1>
           </div>
 
+          {/* Secondary actions, then the project's primary one at the edge. */}
           <div className="flex shrink-0 items-center gap-2">
-            <AvatarStack
-              people={[{ id: project.owner.id, name: project.owner.name }]}
-              size={24}
-              className={cn("mr-1 hidden md:inline-flex")}
-            />
-            {/*
-              The project's primary action, in the header so it is one click
-              away from every tab. It used to live only on the regulatory
-              stage page, three levels down, where nobody looked for it.
-            */}
-            {can(user, "document:request") ? (
-              <RequestDocumentDialog projectId={project.id} supplierName={project.supplier.name} />
-            ) : null}
             {editable ? (
               <>
                 <EditProjectDialog
@@ -138,6 +124,14 @@ export default async function ProjectLayout({
                   size="iconSm"
                 />
               </>
+            ) : null}
+            {/*
+              The project's primary action, in the header so it is one click
+              away from every tab. It used to live only on the regulatory
+              stage page, three levels down, where nobody looked for it.
+            */}
+            {can(user, "document:request") ? (
+              <RequestDocumentDialog projectId={project.id} supplierName={project.supplier.name} />
             ) : null}
           </div>
         </div>

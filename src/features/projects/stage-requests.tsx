@@ -67,6 +67,10 @@ export async function StageRequests({
     : [];
   const reviewsByRequest = Map.groupBy(reviews, (review) => review.requestId);
   const open = requests.filter((request) => OPEN.includes(request.status)).length;
+  const reviewable = (request: (typeof requests)[number]) =>
+    canReviewDocumentType(user.role, request.type) && ["SUBMITTED", "IN_REVIEW"].includes(request.status);
+  // The action column exists only while some row has something to review — never an empty strip.
+  const withActions = requests.some(reviewable);
 
   return (
     <WorkBlock
@@ -90,7 +94,7 @@ export async function StageRequests({
                 <TH className="w-px">Solicitado por</TH>
                 <TH className="w-px">Status</TH>
                 <TH className="w-px" align="right">Prazo</TH>
-                <TH className="w-px" />
+                {withActions ? <TH className="w-px" /> : null}
               </TR>
             </THead>
             <TBody>
@@ -112,9 +116,9 @@ export async function StageRequests({
                       {request.dueDate ? formatDateShort(request.dueDate, locale) : "—"}
                       {late ? " · atrasado" : ""}
                     </TD>
+                    {withActions ? (
                     <TD className="text-right whitespace-nowrap max-md:mt-3">
-                      {canReviewDocumentType(user.role, request.type) &&
-                      ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
+                      {reviewable(request) ? (
                         <ReviewRequestDialog
                           requestId={request.id}
                           projectId={projectId}
@@ -141,6 +145,7 @@ export async function StageRequests({
                         />
                       ) : null}
                     </TD>
+                    ) : null}
                   </TR>
                 );
               })}

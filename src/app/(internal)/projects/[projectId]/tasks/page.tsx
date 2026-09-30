@@ -99,16 +99,16 @@ export default async function ProjectPlanPage({
     <div className="min-w-0">
       <TableShell variant="workspace" className="rounded-lg">
       {/*
-        The table is the plan; "Ver por etapa" is the other way to read it —
+        The table is the plan; "Ver completo" is the other way to read it —
         the stage pages, opened at the current stage, with their own switcher
         and a way back here.
       */}
       <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft px-3 py-2 sm:px-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Button asChild variant="secondary" size="sm">
-            <Link href={`/projects/${projectId}/${stageSegment(project.currentStage)}`}>
+            <Link href={`/projects/${projectId}/${stageSegment(project.currentStage)}`} transitionTypes={["nav-forward"]}>
               <Layers />
-              Ver por etapa
+              Ver completo
             </Link>
           </Button>
           <span className="hidden shrink-0 text-meta text-muted tabular-nums sm:inline">

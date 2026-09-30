@@ -40,6 +40,7 @@ export function StageSwitcher({
         // Back to the plan in its remembered view (list/board, stage, assignee).
         <RememberedLink
           href={`${base}/tasks`}
+          transitionTypes={["nav-back"]}
           className="inline-flex items-center gap-1.5 text-label font-medium text-muted transition-colors hover:text-ink"
         >
           <ArrowLeft className="size-4" aria-hidden />

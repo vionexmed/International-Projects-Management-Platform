@@ -75,9 +75,9 @@ const STAGE_FILL: Record<ProjectStageSummary["status"], string> = {
 
 /**
  * The row's "Etapas" cell: the four stages stretched across the column, each
- * filled as far as it has gone, with the current stage and the project's
- * overall progress under it. Hovering (or focusing) a segment names that
- * stage and how it stands; each segment opens its stage page.
+ * filled as far as it has gone, and the project's overall progress beside
+ * them. Hovering (or focusing) a segment names that stage and how it stands;
+ * each segment opens its stage page.
  */
 function StageTrack({
   projectId,
@@ -92,10 +92,9 @@ function StageTrack({
   progress: number;
   dict: Dictionary;
 }) {
-  const index = stages.findIndex((stage) => stage.key === current);
   return (
-    <div className="min-w-0">
-      <span className="relative z-10 flex items-center gap-1">
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="relative z-10 flex min-w-0 flex-1 items-center gap-1">
         {stages.map((stage) => {
           const name = label.stageKey(stage.key, dict);
           const status = meta.stage(stage.status as StageProgress, dict).label;
@@ -124,13 +123,8 @@ function StageTrack({
           );
         })}
       </span>
-      <div className="mt-1 flex items-baseline justify-between gap-3 text-meta">
-        <span className="min-w-0 truncate">
-          <span className="font-medium text-ink">{label.stageKey(current, dict)}</span>
-          {index >= 0 ? <span className="text-muted"> · etapa {index + 1} de {stages.length}</span> : null}
-        </span>
-        <span className="shrink-0 font-medium text-ink tabular-nums">{progress}%</span>
-      </div>
+      {/* The stage names are in each segment's tooltip; the row keeps just the share done. */}
+      <span className="w-9 shrink-0 text-right text-meta font-medium text-ink tabular-nums">{progress}%</span>
     </div>
   );
 }

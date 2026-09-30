@@ -206,6 +206,7 @@ export function PlanList({
                 {group.stageHref ? (
                   <Link
                     href={group.stageHref}
+                    transitionTypes={["nav-forward"]}
                     className="ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-sm px-1.5 py-0.5 text-meta font-medium text-muted transition-colors hover:bg-raised hover:text-brand-strong"
                   >
                     Ver etapa
