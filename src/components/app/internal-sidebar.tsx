@@ -14,14 +14,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PieChart,
-  Search,
   Settings,
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { VionexLogo, VionexMark } from "@/components/app/logo";
-import { openCommandPalette } from "@/components/app/command-palette";
+import { VionexLogo, VionexMarkColor } from "@/components/app/logo";
 import { SidebarSearch } from "@/components/app/sidebar-search";
+import { NavPending } from "@/components/app/nav-pending";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -185,7 +184,7 @@ function Rail({
     <>
       <div className="flex h-14 shrink-0 items-center justify-center">
         <Link href="/dashboard" className="rounded-sm" aria-label="Vionex — Dashboard">
-          <VionexMark className="size-8 text-brand" />
+          <VionexMarkColor className="size-9" />
         </Link>
       </div>
 
@@ -199,17 +198,8 @@ function Rail({
       </nav>
 
       <div className="flex shrink-0 flex-col items-center gap-1 border-t border-navy-line py-2">
-        <Tooltip content="Buscar (⌘K)" side="right">
-          <button
-            type="button"
-            onClick={openCommandPalette}
-            aria-label="Buscar"
-            aria-keyshortcuts="Meta+K Control+K"
-            className={RAIL_ITEM}
-          >
-            <Search className="size-[18px]" />
-          </button>
-        </Tooltip>
+        {/* The same magnifier as the full sidebar: it opens into a field that grows out over the page. */}
+        <SidebarSearch variant="rail" />
         <RailLink entry={notifications} active={isActive(notifications)} />
         <Tooltip content="Fixar menu expandido" side="right">
           <button
@@ -248,8 +238,10 @@ function RailLink({ entry, active }: { entry: NavEntry; active: boolean }) {
         href={entry.href}
         aria-label={label}
         aria-current={active ? "page" : undefined}
+        transitionTypes={["nav-page"]}
         className={cn(RAIL_ITEM, active && "bg-navy-soft text-white")}
       >
+        <NavPending />
         {active ? (
           <span className="absolute top-2 bottom-2 -left-1 w-[2px] rounded-r-full bg-brand" aria-hidden />
         ) : null}
@@ -284,8 +276,11 @@ function ExpandedSidebar({
 }) {
   return (
     <>
-      <div className="px-4 pt-5 pb-4">
-        <VionexLogo tone="rail" width={124} />
+      {/* The logo centred in the rail, as the mark is when it is collapsed. */}
+      <div className="flex justify-center px-4 pt-5 pb-4">
+        <Link href="/dashboard" aria-label="Vionex — Dashboard" className="rounded-sm">
+          <VionexLogo tone="rail" width={124} className="items-center" />
+        </Link>
       </div>
 
       {/* A magnifier that opens into a field where it sits; ⌘K still opens the full palette. */}
@@ -344,6 +339,7 @@ function ExpandedLink({ entry, active }: { entry: NavEntry; active: boolean }) {
       <Link
         href={entry.href}
         aria-current={active ? "page" : undefined}
+        transitionTypes={["nav-page"]}
         className={cn(
           "relative flex h-9 items-center gap-2.5 rounded-sm px-2.5 text-[13px] transition-colors",
           active
@@ -351,6 +347,7 @@ function ExpandedLink({ entry, active }: { entry: NavEntry; active: boolean }) {
             : "text-navy-ink hover:bg-navy-soft/70 hover:text-white",
         )}
       >
+        <NavPending />
         {active ? (
           <span className="absolute top-1.5 bottom-1.5 -left-2.5 w-[3px] rounded-r-full bg-brand" aria-hidden />
         ) : null}

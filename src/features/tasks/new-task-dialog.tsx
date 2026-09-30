@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,6 +27,84 @@ export const TASK_PRIORITIES = [
 export const SUPPLIER_TASK_HINT =
   "O envio acontece na aba Documentos e não conclui a tarefa. Para coletar um arquivo com revisão, use uma solicitação de documento formal.";
 
+export type TaskProjectOption = {
+  id: string;
+  name: string;
+  projectCode?: string;
+  supplier?: { id: string; name: string };
+};
+
+/**
+ * Company first, then one of its projects: picking the company narrows the
+ * projects to the right ones, so a task cannot land on a namesake project of
+ * another supplier. A company with a single project has it chosen for you.
+ */
+function CompanyProjectPicker({
+  projects,
+  state,
+  onSupplier,
+}: {
+  projects: TaskProjectOption[];
+  state: Parameters<typeof Field>[0]["state"];
+  onSupplier: (name: string | undefined) => void;
+}) {
+  const companies = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const project of projects) if (project.supplier) seen.set(project.supplier.id, project.supplier.name);
+    return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [projects]);
+  const [companyId, setCompanyId] = React.useState("");
+  const [projectId, setProjectId] = React.useState("");
+  const options = projects.filter((project) => project.supplier?.id === companyId);
+
+  return (
+    <FieldGrid>
+      <Field name="companyId" label="Empresa" required state={state}>
+        <Select
+          id="companyId"
+          required
+          value={companyId}
+          onChange={(event) => {
+            const next = event.target.value;
+            setCompanyId(next);
+            const own = projects.filter((project) => project.supplier?.id === next);
+            setProjectId(own.length === 1 ? own[0].id : "");
+            onSupplier(companies.find((company) => company.id === next)?.name);
+          }}
+        >
+          <option value="" disabled>
+            Selecione a empresa…
+          </option>
+          {companies.map((company) => (
+            <option key={company.id} value={company.id}>
+              {company.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field name="projectId" label="Projeto" required state={state}>
+        <Select
+          id="projectId"
+          name="projectId"
+          required
+          disabled={!companyId}
+          value={projectId}
+          onChange={(event) => setProjectId(event.target.value)}
+        >
+          <option value="" disabled>
+            {companyId ? "Selecione o projeto…" : "Escolha a empresa primeiro"}
+          </option>
+          {options.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.projectCode ? `${project.projectCode} · ${project.name}` : project.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    </FieldGrid>
+  );
+}
+
 export function NewTaskDialog({
   projects,
   projectId,
@@ -35,7 +114,7 @@ export function NewTaskDialog({
   variant = "primary",
   size,
 }: {
-  projects?: { id: string; name: string }[];
+  projects?: TaskProjectOption[];
   projectId?: string;
   owners: { id: string; name: string }[];
   /** Shown next to the "waiting on supplier" toggle when the project is fixed. */
@@ -45,6 +124,10 @@ export function NewTaskDialog({
   /** Defaults to 36 px for a primary and 32 px for a secondary; toolbars pass "sm". */
   size?: "sm" | "md";
 }) {
+  // The supplier the "waiting" toggle names: fixed with the project, or the company picked.
+  const [pickedSupplier, setPickedSupplier] = React.useState<string | undefined>();
+  const waitingOn = supplierName ?? pickedSupplier;
+  const byCompany = Boolean(projects?.length && projects.every((project) => project.supplier));
   return (
     <FormDialog
       trigger={
@@ -63,7 +146,11 @@ export function NewTaskDialog({
         <>
           {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
 
-          {!projectId && projects ? (
+          {!projectId && projects && byCompany ? (
+            <CompanyProjectPicker projects={projects} state={state} onSupplier={setPickedSupplier} />
+          ) : null}
+
+          {!projectId && projects && !byCompany ? (
             <Field name="projectId" label="Projeto" required state={state}>
               <Select id="projectId" name="projectId" required defaultValue="">
                 <option value="" disabled>
@@ -127,7 +214,7 @@ export function NewTaskDialog({
             <Checkbox id="waitingOnSupplier" name="waitingOnSupplier" className="mt-0.5" />
             <div>
               <Label htmlFor="waitingOnSupplier" className="cursor-pointer font-normal">
-                Aguardando o fornecedor{supplierName ? ` (${supplierName})` : ""}
+                Aguardando o fornecedor{waitingOn ? ` (${waitingOn})` : ""}
               </Label>
               <p className="mt-0.5 text-[12px] text-muted">
                 A tarefa ficará visível para o fornecedor no Supplier Portal.

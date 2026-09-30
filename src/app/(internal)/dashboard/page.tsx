@@ -105,7 +105,7 @@ export default async function DashboardPage() {
         {/* The business at a glance: every supplier country routed to Brazil, from real data. */}
         <WorldRoutes
           origins={suppliers.map((supplier) => ({ country: supplier.country, projects: supplier.projectCount }))}
-          className="pointer-events-none absolute top-1/2 right-0 h-[115%] w-auto -translate-y-1/2 [mask-image:linear-gradient(to_right,transparent,black_30%)]"
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[64%] [mask-image:linear-gradient(to_right,transparent,black_20%)]"
         />
         <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#071726] via-[#071726]/75 to-transparent" />
         <div className="relative flex max-w-xl flex-col gap-6">

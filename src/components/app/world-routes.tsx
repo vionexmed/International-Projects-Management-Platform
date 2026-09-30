@@ -153,8 +153,15 @@ export function WorldRoutes({ origins, className }: { origins: RouteOrigin[]; cl
   const routes = [...byCountry.values()];
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={className} aria-hidden fill="none" preserveAspectRatio="xMaxYMid meet">
+    <svg viewBox={`0 0 ${W} ${H}`} className={className} aria-hidden fill="none" preserveAspectRatio="xMidYMid slice">
       <defs>
+        <filter id="vx-route-blur" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
         <radialGradient id="vx-route-glow">
           <stop offset="0%" stopColor="var(--color-brand)" stopOpacity="0.55" />
           <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0" />
@@ -167,15 +174,36 @@ export function WorldRoutes({ origins, className }: { origins: RouteOrigin[]; cl
         ))}
       </g>
 
-      {routes.map((route) => {
+      {routes.map((route, index) => {
         const [x1, y1] = route.point;
         const [x2, y2] = home;
         const lift = Math.hypot(x2 - x1, y2 - y1) * 0.32;
         const d = `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${Math.min(y1, y2) - lift} ${x2} ${y2}`;
+        // Routes draw in one after another, then a shipment of light keeps travelling each one.
+        const drawDelay = `${index * 0.35}s`;
+        const cometDelay = `${1.4 + index * 0.9}s`;
         return (
           <g key={route.label}>
-            <path d={d} stroke="var(--color-brand)" strokeOpacity="0.35" strokeWidth={1.4} />
-            <path d={d} stroke="var(--color-brand-line)" strokeWidth={1.6} strokeDasharray="3 14" className="vx-route-flow" />
+            <path d={d} stroke="var(--color-brand)" strokeOpacity="0.28" strokeWidth={1.2} />
+            <path
+              d={d}
+              pathLength={1}
+              stroke="var(--color-brand-line)"
+              strokeOpacity="0.55"
+              strokeWidth={1.3}
+              className="vx-route-draw"
+              style={{ animationDelay: drawDelay }}
+            />
+            <path
+              d={d}
+              pathLength={1}
+              stroke="#d9fbff"
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              filter="url(#vx-route-blur)"
+              className="vx-route-comet"
+              style={{ animationDelay: cometDelay }}
+            />
             <circle cx={x1} cy={y1} r={14} fill="url(#vx-route-glow)" />
             <circle cx={x1} cy={y1} r={3} fill="var(--color-brand-line)" />
             <text x={x1 + 8} y={y1 - 8} fill="white" fillOpacity="0.7" fontSize="12" fontWeight="500">

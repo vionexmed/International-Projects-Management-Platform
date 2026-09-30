@@ -19,7 +19,8 @@ const KIND: Record<Hit["kind"], string> = {
  * Enter move through them; Escape — or leaving it empty — folds it back.
  * ⌘K still opens the full palette.
  */
-export function SidebarSearch() {
+export function SidebarSearch({ variant = "full" }: { variant?: "full" | "rail" }) {
+  const rail = variant === "rail";
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [open, setOpen] = React.useState(false);
@@ -42,21 +43,30 @@ export function SidebarSearch() {
   }, [open]);
 
   return (
-    <div className="relative">
+    // On the collapsed rail the field grows out over the page, anchored at the icon.
+    <div className={cn("relative", rail && "size-10")}>
       <div
         className={cn(
-          "flex h-8 items-center overflow-hidden rounded-sm transition-[width,background-color] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none",
-          open ? "w-full bg-navy-soft ring-1 ring-navy-line" : "w-8 hover:bg-navy-soft",
+          "flex items-center overflow-hidden rounded-sm transition-[width,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none",
+          rail ? "absolute top-0 left-0 z-50 h-10" : "h-8",
+          open
+            ? cn("bg-navy-soft ring-1 ring-navy-line", rail ? "w-80 shadow-overlay" : "w-full")
+            : cn(rail ? "w-10" : "w-8", "hover:bg-navy-soft"),
         )}
       >
         <button
           type="button"
           aria-label="Buscar"
           aria-expanded={open}
+          aria-keyshortcuts="Meta+K Control+K"
+          title={open ? undefined : "Buscar (⌘K)"}
           onClick={() => (open ? inputRef.current?.focus() : setOpen(true))}
-          className="flex size-8 shrink-0 items-center justify-center text-navy-ink transition-colors hover:text-white"
+          className={cn(
+            "flex shrink-0 items-center justify-center text-navy-ink transition-colors hover:text-white",
+            rail ? "size-10" : "size-8",
+          )}
         >
-          <Search className="size-4" />
+          <Search className={rail ? "size-[18px]" : "size-4"} />
         </button>
         <input
           ref={inputRef}
@@ -113,7 +123,13 @@ export function SidebarSearch() {
       </div>
 
       {open && ready ? (
-        <div className="absolute inset-x-0 top-full z-40 mt-1.5 overflow-hidden rounded-md border border-navy-line bg-navy-soft shadow-overlay data-[state=open]:animate-fade-in">
+        <div
+          className={cn(
+            "absolute z-50 overflow-hidden rounded-md border border-navy-line bg-navy-soft shadow-overlay",
+            // The rail's search sits low in the rail, so its results open upward.
+            rail ? "bottom-full left-0 mb-1.5 w-80" : "inset-x-0 top-full mt-1.5",
+          )}
+        >
           {!settled && visible.length === 0 ? (
             <p className="px-3 py-3 text-[12px] text-navy-ink">Buscando…</p>
           ) : visible.length === 0 ? (

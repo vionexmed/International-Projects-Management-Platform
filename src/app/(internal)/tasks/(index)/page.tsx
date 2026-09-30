@@ -67,7 +67,12 @@ export default async function TasksPage({
         actions={
           can(user, "task:create") ? (
             <NewTaskDialog
-              projects={projects.items.map((project) => ({ id: project.id, name: project.name }))}
+              projects={projects.items.map((project) => ({
+                id: project.id,
+                name: project.name,
+                projectCode: project.projectCode,
+                supplier: { id: project.supplier.id, name: project.supplier.name },
+              }))}
               owners={owners}
             />
           ) : null

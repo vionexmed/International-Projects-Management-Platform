@@ -1,3 +1,4 @@
+import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,36 @@ export function VionexMark({ className }: { className?: string }) {
         mask="url(#vionex-mark-cut)"
       />
       <circle cx="540" cy="378" r="163" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * The mark in its own colours, for the collapsed rail: the turquoise circle
+ * and left arm, and the right arm folding from the deep teal of the fold up
+ * to the turquoise — drawn right arm first, so the left one crosses over it
+ * at the bottom, as in the logo artwork.
+ */
+export function VionexMarkColor({ className }: { className?: string }) {
+  const id = React.useId();
+  return (
+    <svg viewBox="140 190 800 700" className={cn("size-8", className)} role="img" aria-label="Vionex" fill="none">
+      <defs>
+        <mask id={`${id}-cut`}>
+          <rect x="0" y="0" width="1080" height="1080" fill="white" />
+          <circle cx="540" cy="378" r="203" fill="black" />
+        </mask>
+        <linearGradient id={`${id}-fold`} x1="560" y1="760" x2="832" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#004e57" />
+          <stop offset="0.55" stopColor="#007886" />
+          <stop offset="1" stopColor="#00a3b5" />
+        </linearGradient>
+      </defs>
+      <g mask={`url(#${id}-cut)`} strokeWidth="152" strokeLinecap="round">
+        <path d="M540 798 L832 512" stroke={`url(#${id}-fold)`} />
+        <path d="M248 512 L540 798" stroke="#00a3b5" />
+      </g>
+      <circle cx="540" cy="378" r="163" fill="#00a3b5" />
     </svg>
   );
 }
