@@ -7,18 +7,18 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * A quiet surface with a hairline border. `flush` drops the radius and side borders for a grid that
- * runs edge to edge inside a work page.
+ * A quiet surface with a hairline border. `flush` drops the radius and side
+ * borders; `workspace` leaves overflow visible so toolbar menus can expand.
  */
 export function TableShell({
   className,
   variant = "card",
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { variant?: "card" | "flush" }) {
+}: React.HTMLAttributes<HTMLDivElement> & { variant?: "card" | "flush" | "workspace" }) {
   return (
     <div
       className={cn(
-        "overflow-hidden bg-surface",
+        variant === "workspace" ? "bg-surface" : "overflow-hidden bg-surface",
         variant === "flush" ? "border-y border-line-soft" : "rounded-md border border-line-soft",
         className,
       )}

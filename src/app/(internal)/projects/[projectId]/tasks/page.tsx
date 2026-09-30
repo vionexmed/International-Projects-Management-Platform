@@ -10,6 +10,7 @@ import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { TableShell } from "@/components/ui/table";
 import { SheetBody, SheetHeader } from "@/components/ui/dialog";
 import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from "@/components/ui/dropdown";
 import { ViewToolbar } from "@/components/app/view-toolbar";
@@ -109,7 +110,7 @@ export default async function ProjectPlanPage({
         <h2 className="text-page text-ink">Plano de trabalho</h2>
         <p className="mt-1 text-body text-muted">Organize as tarefas por etapa e edite os campos diretamente na lista.</p>
       </div>
-      <section className="overflow-hidden rounded-lg border border-line-soft bg-surface">
+      <TableShell variant="workspace" className="rounded-lg">
       <ViewToolbar
         className="px-4 sm:px-5"
         left={
@@ -190,7 +191,7 @@ export default async function ProjectPlanPage({
       ) : null}
 
       <PlanList groups={groups} owners={owners} editable={editable} canCreate={can(user, "task:create")} projectId={projectId} columns={columns} dict={dict} />
-      </section>
+      </TableShell>
 
       {openTask ? (
         <TaskSheet
