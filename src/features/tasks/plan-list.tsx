@@ -238,20 +238,27 @@ export function PlanList({
                         />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col">
-                        <InlineTaskTitleCell key={task.title} taskId={task.id} title={task.title} editable={editable} />
+                        <InlineTaskTitleCell
+                          key={task.title}
+                          taskId={task.id}
+                          title={task.title}
+                          editable={editable}
+                          trailing={
+                            // Right after the title, wherever it ends; the reason shows on hover or focus.
+                            task.supplierName && task.status !== "COMPLETED" && task.status !== "CANCELLED" ? (
+                              <Tooltip content={`Aguardando ${task.supplierName}`}>
+                                <button
+                                  type="button"
+                                  aria-label={`Aguardando ${task.supplierName}`}
+                                  className="relative z-10 inline-flex size-6 cursor-default items-center justify-center rounded-sm text-warn transition-colors hover:bg-warn-soft focus-visible:outline-2 focus-visible:outline-brand"
+                                >
+                                  <AlertCircle className="size-4" aria-hidden />
+                                </button>
+                              </Tooltip>
+                            ) : null
+                          }
+                        />
                       </span>
-                      {/* One line: the reason waits behind a glyph and shows on hover or focus. */}
-                      {task.supplierName && task.status !== "COMPLETED" && task.status !== "CANCELLED" ? (
-                        <Tooltip content={`Aguardando ${task.supplierName}`}>
-                          <button
-                            type="button"
-                            aria-label={`Aguardando ${task.supplierName}`}
-                            className="relative z-10 mt-1 inline-flex size-6 shrink-0 cursor-default items-center justify-center rounded-sm text-warn transition-colors hover:bg-warn-soft focus-visible:outline-2 focus-visible:outline-brand"
-                          >
-                            <AlertCircle className="size-4" aria-hidden />
-                          </button>
-                        </Tooltip>
-                      ) : null}
                       {href ? (
                         <Link
                           href={href}
