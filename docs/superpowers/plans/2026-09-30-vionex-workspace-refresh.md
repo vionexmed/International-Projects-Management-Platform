@@ -17,6 +17,7 @@
 - Desktop gutters at least 24 px, mobile at least 16 px; spacing rhythm 4/8/12/16/24/32 px.
 - Plan zoom 70–150% in 10% steps, default 100%; mobile uses ordinary 100% scrolling.
 - Only view preferences go in browser storage; task/column data stays in the database.
+- Apply title/context, grouped actions, deliberate spacing and restrained information density across internal and supplier route families; do not add margins around clutter without reorganizing it.
 - Leave the existing localhost demo running during implementation; do not publish to `main` until the user reviews the result.
 - Regulatory folders are a separate deliverable and are not part of this plan.
 
@@ -78,7 +79,19 @@
 - [ ] **Step 4: Verify.** Run targeted tests, `npm run typecheck`, and `npm run lint`; all pass.
 - [ ] **Step 5: Commit** Task 4 files with message `feat: add bounded plan workspace navigation`.
 
-### Task 5: Release verification and local review
+### Task 5: Page-wide hierarchy and action placement
+
+**Files:** Modify `src/components/app/page-header.tsx`, `src/components/app/view-toolbar.tsx`, `src/features/projects/work-block.tsx`, `src/app/(supplier)/supplier/layout.tsx`, `src/app/(internal)/projects/[projectId]/page.tsx`, `src/app/(supplier)/supplier/action-required/[requestId]/page.tsx`, `src/app/(internal)/documents/page.tsx`, `src/app/(supplier)/supplier/documents/page.tsx`; create `tests/unit/page-hierarchy.test.tsx`.
+
+**Interfaces:** Preserve existing component props, route data, permissions and actions. Shared headers/toolbars must wrap actions cleanly; WorkBlock rows must permit content wrapping; supplier/internal shells share the 24/16 px gutter rule.
+
+- [ ] **Step 1: Write failing tests.** Static-render `PageHeader`, `ViewToolbar` and `WorkBlock` with multiple actions/long labels and assert one clear primary action group, accessible labels and no truncation class on important content. Cover route-family visual assertions in Task 6.
+- [ ] **Step 2: Confirm failure.** Run `npx vitest run tests/unit/page-hierarchy.test.tsx`; new assertions fail.
+- [ ] **Step 3: Implement.** Group actions by the content they affect, keep one page identity, put secondary metadata below or behind existing disclosures, and normalize responsive gutters/spacing. Reuse `PageHeader`/`Section`/`Panel`; do not duplicate cards or change workflows.
+- [ ] **Step 4: Verify.** Run targeted tests, `npm run typecheck` and `npm run lint`; all pass.
+- [ ] **Step 5: Commit** Task 5 files with message `refactor: clarify page hierarchy across internal and supplier views`.
+
+### Task 6: Release verification and local review
 
 **Files:** Test-only adjustments if regressions are found; no new product scope.
 
