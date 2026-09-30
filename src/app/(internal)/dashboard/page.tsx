@@ -7,6 +7,7 @@ import { countAttentionItems, listAttentionItems } from "@/server/services/atten
 import { countDocumentRequestsByQueue } from "@/server/services/documents";
 import { listProjects } from "@/server/services/projects";
 import { AttentionList } from "@/components/app/attention-list";
+import { VionexMark } from "@/components/app/logo";
 import { CardLink, CardSection } from "@/components/app/card-section";
 import { StageTrack } from "@/features/projects/stage-track";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -93,19 +94,44 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] leading-8 font-semibold tracking-[-0.015em] text-ink">{greeting(user.name)}</h1>
-          <p className="mt-0.5 text-body text-muted">{today()}</p>
+      {/*
+        The welcome band, as large products open their home screen: graphite,
+        the Vionex mark oversized and cropped by the edge one step off the
+        background (as on the sign-in page) — a shape, not an illustration —
+        and the day's one sentence with the two ways onward.
+      */}
+      <section className="relative mb-6 overflow-hidden rounded-2xl bg-navy px-6 py-7 sm:px-9 sm:py-9">
+        <span aria-hidden className="pointer-events-none absolute -top-28 -right-24 sm:-right-6">
+          <VionexMark className="size-[380px] text-navy-line" />
+        </span>
+        <span aria-hidden className="pointer-events-none absolute top-1/2 right-24 size-64 -translate-y-1/2 rounded-full bg-brand/15 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
+          <div className="min-w-0">
+            <p className="text-meta font-medium tracking-[0.14em] text-navy-ink uppercase">{today()}</p>
+            <h1 className="mt-2 text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white">{greeting(user.name)}</h1>
+            <p className="mt-2 max-w-xl text-body text-navy-ink">
+              {counts.total > 0
+                ? `${counts.total} ${counts.total === 1 ? "item precisa" : "itens precisam"} da sua atenção hoje.`
+                : "Tudo em dia no portfólio. Nenhum atraso ou bloqueio."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/regulatory?view=pendencias"
+              className="inline-flex h-9 items-center gap-2 rounded-sm bg-white px-3.5 text-label font-medium text-ink transition-colors hover:bg-white/90"
+            >
+              Ver pendências
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+            <Link
+              href="/reports"
+              className="inline-flex h-9 items-center gap-2 rounded-sm border border-navy-line px-3.5 text-label font-medium text-white transition-colors hover:bg-navy-soft"
+            >
+              Relatórios
+            </Link>
+          </div>
         </div>
-        <Link
-          href="/reports"
-          className="inline-flex items-center gap-1.5 text-label font-medium text-muted transition-colors hover:text-ink"
-        >
-          Ver relatórios
-          <ArrowRight className="size-3.5" aria-hidden />
-        </Link>
-      </header>
+      </section>
 
       {/* Four numbers, one strip: the hairline gaps are the dividers. */}
       <ul className="mb-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line-soft bg-line-soft lg:grid-cols-4">

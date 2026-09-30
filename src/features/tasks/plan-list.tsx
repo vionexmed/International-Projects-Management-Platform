@@ -236,6 +236,7 @@ export function PlanList({
                           derived={task.derived}
                           title={task.title}
                           readOnly={!editable}
+                          calm
                         />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col">

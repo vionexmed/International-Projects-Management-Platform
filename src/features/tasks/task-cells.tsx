@@ -83,6 +83,7 @@ export function TaskStatusCell({
   title,
   readOnly = false,
   showLabel = false,
+  calm = false,
 }: {
   taskId: string;
   status: string;
@@ -90,18 +91,26 @@ export function TaskStatusCell({
   title: string;
   readOnly?: boolean;
   showLabel?: boolean;
+  /**
+   * In a grid the glyph only says open / in progress / done: lateness is the
+   * red date beside it and waiting has its own attention sign, so an unfinished
+   * task keeps the colour it was created with.
+   */
+  calm?: boolean;
 }) {
   const { pending, submit } = useCellSubmit(setTaskStatusAction, "Tarefa atualizada.");
   const [current, setCurrent] = React.useOptimistic(status);
-  const shown: DerivedTaskStatus = current === status ? derived : (current as DerivedTaskStatus);
+  const derivedShown: DerivedTaskStatus = current === status ? derived : (current as DerivedTaskStatus);
+  const shown: DerivedTaskStatus = calm && derivedShown === "OVERDUE" ? (current as DerivedTaskStatus) : derivedShown;
+  const calmTone = calm && (shown === "WAITING" || shown === "OPEN") ? "text-brand" : undefined;
   const label = derived === "OVERDUE" && current === status ? "Atrasada" : TASK_STATUS_LABELS[current];
 
-  const glyph = <StatusIcon status={shown} />;
+  const glyph = <StatusIcon status={shown} className={calmTone} />;
 
   if (readOnly) {
     return (
       <span className="inline-flex items-center gap-2">
-        <StatusIcon status={shown} label={showLabel ? undefined : `Status: ${label}`} />
+        <StatusIcon status={shown} className={calmTone} label={showLabel ? undefined : `Status: ${label}`} />
         {showLabel ? <span className="text-body text-ink">{label}</span> : null}
       </span>
     );

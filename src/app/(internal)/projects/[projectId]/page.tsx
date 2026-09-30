@@ -229,7 +229,7 @@ export default async function ProjectOverviewPage({
                   const due = distance(task.dueDate, "de atraso");
                   return (
                     <li key={task.id} className="relative flex items-center gap-4 border-t border-line-faint px-6 py-3.5 transition-colors hover:bg-subtle">
-                      <StatusIcon status={late ? "OVERDUE" : (task.status as StageProgress)} />
+                      <StatusIcon status={task.status as StageProgress} className={task.status === "WAITING" ? "text-brand" : undefined} />
                       <div className="min-w-0 flex-1">
                         <Link
                           href={`/tasks/${task.id}`}
