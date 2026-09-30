@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { requireInternalUser } from "@/server/auth/current-user";
+import { getSupplierFolder, listSupplierFolders } from "@/server/services/regulatory-folders";
+import { Button } from "@/components/ui/button";
+import { DocumentsTable } from "@/features/documents/documents-table";
+import { PendingRequests, ProjectFolderTable, SupplierFolderGrid } from "@/features/regulatory/folder-views";
+import type { SessionUser } from "@/types/auth";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionary";
 import {
   countDocumentRequestsByQueue,
   isRequestQueueFilter,
@@ -34,8 +42,8 @@ import {
 } from "@/components/ui/table";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { meta } from "@/lib/labels";
-import { daysUntil, formatDateShort } from "@/lib/format";
+import { label, meta } from "@/lib/labels";
+import { daysUntil, formatDate, formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Regulatório" };
@@ -79,9 +87,16 @@ export default async function RegulatoryPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
+  if (params.supplier) {
+    return (
+      <SupplierFolderView user={user} supplierId={params.supplier} projectId={params.project} locale={locale} dict={dict} />
+    );
+  }
+
   const queue: RequestQueueFilter = isRequestQueueFilter(params.status) ? params.status : "open";
 
-  const [requests, counts, items] = await Promise.all([
+  const [folders, requests, counts, items] = await Promise.all([
+    listSupplierFolders(user),
     pageDocumentRequests(user, { queue, page: Number(params.page ?? 1) || 1, perPage: 25 }),
     countDocumentRequestsByQueue(user),
     db.task.findMany({
@@ -100,7 +115,7 @@ export default async function RegulatoryPage({
     <>
       <PageHeader
         title="Regulatório"
-        description="Solicitações de documentos e itens regulatórios de todos os projetos."
+        description="Uma pasta por fornecedor, com os projetos e todos os documentos enviados."
         meta={
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <Link href="/regulatory?status=overdue" className="font-medium text-risk hover:underline">
@@ -112,6 +127,10 @@ export default async function RegulatoryPage({
           </div>
         }
       />
+
+      <Section title="Pastas" count={folders.length} className="mb-10">
+        <SupplierFolderGrid folders={folders} locale={locale} />
+      </Section>
 
       {/*
         The queue is chosen in the section header — one filter writing the
@@ -268,6 +287,102 @@ export default async function RegulatoryPage({
             </TableScroll>
           )}
         </Panel>
+      </Section>
+    </>
+  );
+}
+
+/**
+ * Inside a folder: a supplier (its projects as sub-folders, the documents
+ * still owed and every document filed) or one of its projects.
+ */
+async function SupplierFolderView({
+  user,
+  supplierId,
+  projectId,
+  locale,
+  dict,
+}: {
+  user: SessionUser;
+  supplierId: string;
+  projectId?: string;
+  locale: Locale;
+  dict: Dictionary;
+}) {
+  const folder = await getSupplierFolder(user, supplierId, projectId);
+  if (!folder) notFound();
+  const { supplier, project, projects, documents, requests } = folder;
+  const supplierHref = `/regulatory?supplier=${supplier.id}`;
+
+  return (
+    <>
+      <PageHeader
+        breadcrumb={[
+          { label: "Regulatório", href: "/regulatory" },
+          project ? { label: supplier.name, href: supplierHref } : { label: supplier.name },
+          ...(project ? [{ label: project.name }] : []),
+        ]}
+        title={project ? project.name : supplier.name}
+        description={
+          project
+            ? [
+                project.projectCode,
+                `Etapa: ${label.stageKey(project.currentStage, dict)}`,
+                `Responsável: ${project.owner.name}`,
+                project.targetLaunchDate ? `Lançamento: ${formatDate(project.targetLaunchDate, locale)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : `${supplier.country} · ${projects.length} ${projects.length === 1 ? "projeto" : "projetos"} · ${documents.total} ${documents.total === 1 ? "documento" : "documentos"}`
+        }
+        actions={
+          <Button asChild variant="secondary" size="sm">
+            <Link href={project ? `/projects/${project.id}` : `/suppliers/${supplier.id}`}>
+              {project ? "Abrir projeto" : "Ver fornecedor"}
+            </Link>
+          </Button>
+        }
+      />
+
+      {!project ? (
+        <Section title="Projetos" count={projects.length} className="mb-10">
+          <ProjectFolderTable supplierId={supplier.id} projects={projects} locale={locale} dict={dict} />
+        </Section>
+      ) : null}
+
+      {requests.length > 0 ? (
+        <Section
+          title="Aguardando documentos"
+          count={requests.length}
+          description="Solicitações em aberto: o que ainda deve chegar ou está em análise."
+          className="mb-10"
+        >
+          <PendingRequests requests={requests} showProject={!project} locale={locale} dict={dict} />
+        </Section>
+      ) : null}
+
+      <Section title={project ? "Documentos do projeto" : "Todos os documentos"} count={documents.total}>
+        <TableShell>
+          <DocumentsTable
+            documents={documents.items}
+            showProject={!project}
+            locale={locale}
+            dict={dict}
+            emptyTitle="Nenhum documento nesta pasta."
+            emptyDescription="Os arquivos enviados pelo fornecedor ou pela equipe aparecem aqui."
+          />
+        </TableShell>
+        {documents.total > documents.items.length ? (
+          <p className="mt-2 text-meta text-muted">
+            Mostrando os {documents.items.length} mais recentes.{" "}
+            <Link
+              href={`/documents?supplier=${supplier.id}${project ? `&project=${project.id}` : ""}`}
+              className="font-medium text-brand-strong hover:underline"
+            >
+              Ver todos em Documentos
+            </Link>
+          </p>
+        ) : null}
       </Section>
     </>
   );

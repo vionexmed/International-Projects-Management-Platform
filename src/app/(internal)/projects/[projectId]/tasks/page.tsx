@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, ChevronDown, Maximize2 } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { isNotFoundError } from "@/server/authz/errors";
@@ -9,14 +9,14 @@ import { listInternalUserOptions } from "@/server/services/users";
 import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
 import { UserAvatar } from "@/components/ui/avatar";
+import { StatusIcon } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/ui/table";
 import { SheetBody, SheetHeader } from "@/components/ui/dialog";
-import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from "@/components/ui/dropdown";
-import { ViewToolbar } from "@/components/app/view-toolbar";
+import { SegmentedToggle } from "@/components/app/view-toolbar";
 import { NewTaskDialog } from "@/features/tasks/new-task-dialog";
 import { PlanList } from "@/features/tasks/plan-list";
-import { PlanCustomColumnControls } from "@/features/tasks/plan-custom-column-controls";
+import { STAGE_ROUTES } from "@/features/projects/stage-routes";
 import { PLAN_CATEGORIES, buildPlanGroups, planHref, toPlanColumns } from "@/features/tasks/plan-data";
 import { TaskSheet } from "@/features/tasks/task-sheet";
 import {
@@ -28,10 +28,11 @@ import {
 } from "@/features/tasks/task-detail";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label, oneOf } from "@/lib/labels";
+import { OPTIONS, label, meta, oneOf, type StageProgress } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 type PlanSearch = { category?: string; assignee?: string; task?: string };
+
 
 /**
  * "Plano": project tasks grouped by stage. Stage and assignee filters and
@@ -104,47 +105,36 @@ export default async function ProjectPlanPage({
   // A task from another project never opens over this plan.
   const openTask = sheet && sheet.task.projectId === projectId ? sheet : null;
 
+  /*
+    The four stage pages, one click away from the plan, each with its status
+    glyph — so the strip also says where the project stands.
+  */
+  const stageLinks = STAGE_ROUTES.map((route) => {
+    const status = (stages.find((item) => item.key === route.key)?.status ?? "NOT_STARTED") as StageProgress;
+    return {
+      href: `/projects/${projectId}/${route.segment}`,
+      label: route.label,
+      icon: <StatusIcon status={status} label={meta.stage(status, dict).label} />,
+      active: false,
+    };
+  });
+
   return (
     <div className="min-w-0">
-      <div className="mb-5">
-        <h2 className="text-page text-ink">Plano de trabalho</h2>
-        <p className="mt-1 text-body text-muted">Organize as tarefas por etapa e edite os campos diretamente na lista.</p>
-      </div>
       <TableShell variant="workspace" className="rounded-lg">
-      <ViewToolbar
-        className="px-4 sm:px-5"
-        left={
-          <>
-            <Dropdown>
-              <DropdownTrigger asChild>
-                <Button variant="ghost" size="sm" className="-ml-2 px-2" trailingIcon={<ChevronDown />}>
-                  <span className="text-ink">{viewLabel}</span>
-                </Button>
-              </DropdownTrigger>
-              <DropdownContent align="start">
-                {[undefined, ...PLAN_CATEGORIES].map((option) => (
-                  <DropdownItem key={option ?? "all"} asChild>
-                    <Link href={href({ category: option ?? null })} scroll={false}>
-                      <span className="flex-1">
-                        {option ? label.taskCategory(option, dict) : "Todas as tarefas"}
-                      </span>
-                      {option === category ? <Check /> : null}
-                    </Link>
-                  </DropdownItem>
-                ))}
-              </DropdownContent>
-            </Dropdown>
-            <span className="rounded-full bg-raised px-2 py-0.5 text-meta text-muted tabular-nums">{result.total}</span>
-          </>
-        }
-        right={
-          <>
-            {can(user, "task:update") ? (
-              <PlanCustomColumnControls projectId={projectId} columns={columns} />
-            ) : null}
+      {/* Stages on the left take the room they need; people and the main action close the row. */}
+      <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <SegmentedToggle label="Etapas do projeto" items={stageLinks} className="scroll-slim max-w-full shrink overflow-x-auto" />
+          <span className="hidden shrink-0 text-meta text-muted tabular-nums lg:inline">
+            {result.total} {result.total === 1 ? "tarefa" : "tarefas"}
+            {category ? ` · ${viewLabel}` : ""}
+          </span>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-3">
             {people.length > 0 ? (
               <nav aria-label="Filtrar por responsável" className="hidden items-center gap-2 sm:flex">
-                <span className="text-label text-muted">Responsável</span>
+                <span className="hidden text-label text-muted xl:inline">Responsável</span>
                 <span className="flex items-center">
                   {people.slice(0, 6).map((person, index) => {
                     const active = person.id === assignee;
@@ -179,9 +169,8 @@ export default async function ProjectPlanPage({
                 size="sm"
               />
             ) : null}
-          </>
-        }
-      />
+        </div>
+      </div>
 
       {result.total > result.items.length ? (
         <p className="border-b border-line bg-warn-soft px-4 py-2 text-meta text-warn sm:px-6">
@@ -190,7 +179,7 @@ export default async function ProjectPlanPage({
         </p>
       ) : null}
 
-      <PlanList groups={groups} owners={owners} editable={editable} canCreate={can(user, "task:create")} projectId={projectId} columns={columns} dict={dict} />
+      <PlanList groups={groups} owners={owners} editable={editable} canCreate={can(user, "task:create")} projectId={projectId} columns={columns} dict={dict} openHref={href({})} />
       </TableShell>
 
       {openTask ? (

@@ -7,7 +7,6 @@ import { listInternalUserOptions } from "@/server/services/users";
 import { db } from "@/server/db";
 import { BackLink } from "@/components/app/nav-memory";
 import { AvatarStack } from "@/components/ui/avatar";
-import { SolidBadge } from "@/components/ui/badge";
 import { ProjectTabs } from "@/features/projects/project-tabs";
 import { EditProjectDialog } from "@/features/projects/edit-project-dialog";
 import { RequestDocumentDialog } from "@/features/documents/request-document-dialog";
@@ -54,7 +53,6 @@ export default async function ProjectLayout({
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
-  const status = meta.project(project.status as ProjectStatus, dict);
   const editable = can(user, "project:update");
 
   const [options, stages] = await Promise.all([
@@ -95,12 +93,7 @@ export default async function ProjectLayout({
                 · {project.country} · {project.projectCode}
               </span>
             </p>
-            <div className="flex min-w-0 items-center gap-2.5">
-              <h1 className="truncate text-section text-ink">{project.name}</h1>
-              <SolidBadge tone={status.tone} className="max-sm:hidden">
-                {status.label}
-              </SolidBadge>
-            </div>
+            <h1 className="truncate text-section text-ink">{project.name}</h1>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

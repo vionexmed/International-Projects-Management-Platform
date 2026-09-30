@@ -18,7 +18,7 @@ describe("plan width preferences", () => {
 
   it("uses safe defaults for missing, corrupt, and legacy array preferences", () => {
     const keys = ["task", "assignee", "due", "priority", "alpha"];
-    const defaults = { task: 288, assignee: 208, due: 136, priority: 104, alpha: 160 };
+    const defaults = { task: 360, assignee: 208, due: 136, priority: 124, alpha: 160 };
     expect(readPlanWidths("project-1", keys, null)).toEqual(defaults);
     expect(readPlanWidths("project-1", keys, "not json")).toEqual(defaults);
     expect(readPlanWidths("project-1", keys, "[500, 500, 500, 500, 500]")).toEqual(defaults);
@@ -27,7 +27,7 @@ describe("plan width preferences", () => {
   it("rejects invalid saved values and clamps every kind of column to a usable minimum", () => {
     const keys = ["task", "assignee", "due", "priority", "alpha"];
     expect(readPlanWidths("project-1", keys, JSON.stringify({ task: 1, assignee: -2, due: "400", priority: null, alpha: 0 })))
-      .toEqual({ task: 288, assignee: 208, due: 136, priority: 104, alpha: 160 });
+      .toEqual({ task: 360, assignee: 208, due: 136, priority: 124, alpha: 160 });
     const widths = { task: 400, assignee: 208, due: 136, priority: 120, alpha: 160 };
     expect(resizePlanWidth(widths, "task", -999).task).toBe(240);
     expect(resizePlanWidth(widths, "assignee", -999).assignee).toBe(144);

@@ -64,6 +64,9 @@ const STATUS_VALUES = ["OPEN", "IN_PROGRESS", "WAITING", "COMPLETED", "CANCELLED
 const MENU_ROW =
   "flex cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-2 text-[13px] text-ink-soft outline-none select-none data-[highlighted]:bg-raised data-[highlighted]:text-ink";
 
+/** An empty-value hint that shows only on the hovered or focused grid row. */
+const QUIET = "opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100";
+
 /** Trigger chrome shared by every editable cell: quiet until hovered. */
 const CELL_TRIGGER =
   "relative z-10 inline-flex min-w-0 items-center gap-1.5 rounded-sm transition-colors hover:bg-raised data-[state=open]:bg-raised disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-brand";
@@ -149,6 +152,7 @@ export function TaskAssigneeCell({
   title,
   readOnly = false,
   avatarOnly = false,
+  quietEmpty = false,
 }: {
   taskId: string;
   assignee: OwnerOption | null;
@@ -157,6 +161,8 @@ export function TaskAssigneeCell({
   readOnly?: boolean;
   /** Board cards show only the avatar. */
   avatarOnly?: boolean;
+  /** In a grid, "Sem responsável" appears only on the hovered row. */
+  quietEmpty?: boolean;
 }) {
   const { pending, submit } = useCellSubmit(setTaskAssigneeAction, "Responsável atualizado.");
   const [current, setCurrent] = React.useOptimistic(assignee);
@@ -171,7 +177,7 @@ export function TaskAssigneeCell({
       <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong text-faint">
         <UserRound className="size-3" aria-hidden />
       </span>
-      {avatarOnly ? null : <span className="truncate text-body text-faint">Sem responsável</span>}
+      {avatarOnly ? null : <span className={cn("truncate text-body text-faint", quietEmpty && QUIET)}>Sem responsável</span>}
     </>
   );
 
@@ -230,6 +236,7 @@ export function TaskDueCell({
   late = false,
   title,
   readOnly = false,
+  quietEmpty = false,
   className,
 }: {
   taskId: string;
@@ -238,6 +245,8 @@ export function TaskDueCell({
   late?: boolean;
   title: string;
   readOnly?: boolean;
+  /** In a grid, "Sem prazo" appears only on the hovered row. */
+  quietEmpty?: boolean;
   className?: string;
 }) {
   const { pending, submit } = useCellSubmit(setTaskDueDateAction, "Prazo atualizado.");
@@ -249,6 +258,7 @@ export function TaskDueCell({
       className={cn(
         "truncate tabular-nums",
         value ? (late ? "font-medium text-risk" : "text-ink-soft") : "text-faint",
+        !value && quietEmpty && QUIET,
         className,
       )}
     >

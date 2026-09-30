@@ -61,7 +61,7 @@ describe("project plan custom cells", () => {
     expect(markup).toContain('aria-label="Redimensionar coluna Score"');
     expect((markup.match(/aria-label="Redimensionar coluna /g) ?? [])).toHaveLength(5);
     expect(markup).toContain('aria-keyshortcuts="ArrowLeft ArrowRight"');
-    expect(markup).toContain('grid-template-columns:288px 208px 136px 104px 160px minmax(0, 1fr)');
+    expect(markup).toContain('grid-template-columns:360px 208px 136px 124px 160px minmax(112px, 1fr)');
     expect(markup).toContain('class="col-[1/-1] flex');
   });
 
@@ -105,5 +105,21 @@ describe("project plan custom cells", () => {
     />);
     expect(markup).not.toContain("Internal secret");
     expect(markup).not.toContain("Private value");
+  });
+
+  it("shows complete read-only text and a named multiline editor", () => {
+    const base = {
+      projectId: "project-1", taskId: "task-1", taskTitle: "Enviar relatório", owners: [],
+      column: { id: "notes", name: "Notas", type: "TEXT" as const, visible: true, options: [], values: [] },
+      value: "Uma palavra muito longa sem espaços",
+    };
+    const readOnly = renderToStaticMarkup(<PlanValueCell {...base} editable={false} />);
+    const editable = renderToStaticMarkup(<PlanValueCell {...base} editable />);
+
+    expect(readOnly).toContain("break-words");
+    expect(readOnly).not.toContain("truncate");
+    expect(readOnly).toContain("Uma palavra muito longa sem espaços");
+    expect(editable).toContain("<textarea");
+    expect(editable).toContain('aria-label="Notas de Enviar relatório"');
   });
 });

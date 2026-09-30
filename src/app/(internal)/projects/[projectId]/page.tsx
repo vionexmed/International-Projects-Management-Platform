@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AlertOctagon } from "lucide-react";
 import { can, requireInternalUser } from "@/server/auth/current-user";
-import { getProjectWorkspace, type ProjectStatus } from "@/server/services/projects";
+import { getProjectWorkspace } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { orNotFound } from "@/server/authz/rsc";
@@ -28,12 +28,21 @@ const STAGE_BAR_TONE: Partial<Record<StageProgress, ProgressTone>> = {
   BLOCKED: "risk",
 };
 
+/** One fact of the strip under the stages: a label, the value, and a short note. */
+function Fact({ label, value, note, noteClass }: { label: string; value: React.ReactNode; note?: React.ReactNode; noteClass?: string }) {
+  return (
+    <div className="min-w-0 px-4 py-3">
+      <dt className="text-meta text-muted">{label}</dt>
+      <dd className="mt-0.5 truncate text-title text-ink">{value}</dd>
+      {note ? <dd className={cn("mt-0.5 truncate text-meta text-muted", noteClass)}>{note}</dd> : null}
+    </div>
+  );
+}
+
 /**
- * "How is this project right now?" — a KPI strip (derived health, progress,
- * open and late work, next milestone, launch), then the stages and the
- * milestones on the left and the record's properties and recent activity on
- * the right. Health is never picked by hand: it is recalculated from
- * deadlines, blockers and stages on every write, and the card says why.
+ * "Where is this project, and what comes next?" — the four stages as one
+ * journey, three facts (open work, next milestone, launch), then the work
+ * coming due and the milestones on the left, details and activity on the right.
  */
 export default async function ProjectOverviewPage({
   params,
@@ -48,42 +57,40 @@ export default async function ProjectOverviewPage({
   const [{ project, stages, milestones, progress }, timeline, tasks] = await Promise.all([
     orNotFound(getProjectWorkspace(user, projectId)),
     listProjectTimeline(user, projectId, 5),
-    // Counts only, for the KPI strip and the stage rows. The project is verified by the layout and the workspace call.
+    // The project is verified by the layout and the workspace call.
     db.task.findMany({
       where: { projectId },
-      select: { category: true, status: true, priority: true, dueDate: true },
+      select: {
+        id: true,
+        title: true,
+        category: true,
+        status: true,
+        dueDate: true,
+        assignedTo: { select: { name: true } },
+      },
     }),
   ]);
 
   const now = new Date();
   const open = tasks.filter((task) => task.status !== "COMPLETED" && task.status !== "CANCELLED");
   const overdue = open.filter((task) => isTaskOverdue(task.status, task.dueDate, now));
-  const criticalOverdue = overdue.filter((task) => task.priority === "HIGH" || task.priority === "URGENT");
-  const blockedStages = stages.filter((stage) => stage.status === "BLOCKED");
-
-  const health = meta.project(project.status as ProjectStatus, dict);
-  const healthReason = project.blockerNote
-    ? "Há um bloqueio registrado."
-    : blockedStages.length > 0
-      ? `${blockedStages.length === 1 ? "Uma etapa bloqueada" : `${blockedStages.length} etapas bloqueadas`}.`
-      : criticalOverdue.length > 0
-        ? `${criticalOverdue.length} ${criticalOverdue.length === 1 ? "tarefa crítica atrasada" : "tarefas críticas atrasadas"}.`
-        : overdue.length > 0
-          ? `${overdue.length} ${overdue.length === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`
-          : project.status === "ON_TRACK" || project.status === "COMPLETED"
-            ? "Nenhum atraso crítico."
-            : "Recalculada a cada alteração do projeto.";
+  // Dated work first, soonest (or most late) on top; undated work after it.
+  const comingUp = [...open]
+    .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity))
+    .slice(0, 6);
 
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");
   const nextMilestone = upcomingMilestones[0] ?? null;
   const milestoneLate = (milestone: (typeof milestones)[number]) =>
     milestone.status === "DELAYED" || (daysUntil(milestone.dueDate) ?? 0) < 0;
+  const launchIn = daysUntil(project.targetLaunchDate);
 
   const base = `/projects/${projectId}`;
   const canAddMilestone =
     can(user, "project:update") || OPTIONS.stageKey.some((key) => can(user, STAGE_PERMISSION[key]));
 
-  const properties = [
+  // Supplier, country and code already sit in the header above.
+  const details = [
     {
       label: "Responsável",
       value: (
@@ -93,22 +100,7 @@ export default async function ProjectOverviewPage({
         </span>
       ),
     },
-    {
-      label: "Fornecedor",
-      value: (
-        <Link href={`/suppliers/${project.supplier.id}`} className="text-brand-strong hover:underline">
-          {project.supplier.name}
-        </Link>
-      ),
-    },
-    { label: "País", value: project.country },
-    { label: "Código", value: <span className="font-mono text-meta">{project.projectCode}</span> },
-    { label: "Etapa atual", value: label.stageKey(project.currentStage, dict) },
     { label: "Início", value: project.startDate ? formatDate(project.startDate, locale) : null },
-    {
-      label: "Lançamento previsto",
-      value: project.targetLaunchDate ? formatDate(project.targetLaunchDate, locale) : null,
-    },
     { label: "Categoria", value: project.category },
     { label: "Tipo de produto", value: project.productType },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
@@ -116,7 +108,7 @@ export default async function ProjectOverviewPage({
   return (
     <div className="space-y-6">
       {project.blockerNote ? (
-        <div role="alert" className="flex items-start gap-3 rounded-sm border border-risk/25 bg-risk-soft px-4 py-3">
+        <div role="alert" className="flex items-start gap-3 rounded-md border border-risk/25 bg-risk-soft px-4 py-3">
           <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
           <div className="min-w-0">
             <p className="text-title text-risk">Bloqueio atual</p>
@@ -125,89 +117,133 @@ export default async function ProjectOverviewPage({
         </div>
       ) : null}
 
-      <section className="border-b border-line pb-6" aria-label="Resumo do projeto">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <section aria-labelledby="journey-title">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
           <div>
-            <p className="text-meta font-medium text-brand-strong">Progresso geral</p>
-            <div className="mt-1 flex items-baseline gap-3">
-              <p className="text-kpi text-ink tabular-nums">{progress}%</p>
-              <span className="text-body text-muted">{label.stageKey(project.currentStage, dict)} · {health.label}</span>
-            </div>
-            <p className="mt-1 text-meta text-muted">{healthReason}</p>
+            <h2 id="journey-title" className="text-section text-ink">Etapas do projeto</h2>
+            <p className="text-meta text-muted">Etapa atual: {label.stageKey(project.currentStage, dict)}</p>
           </div>
-          <div className="text-meta text-muted sm:text-right">
-            <p>{open.length} tarefa{open.length === 1 ? "" : "s"} em aberto{overdue.length ? ` · ${overdue.length} atrasada${overdue.length === 1 ? "" : "s"}` : ""}</p>
-            <p className="mt-1">{nextMilestone ? `Próximo marco: ${nextMilestone.title}` : "Nenhum marco pendente"}</p>
-          </div>
+          <p className="text-meta text-muted">
+            <span className="text-kpi-sm text-ink tabular-nums">{progress}%</span> concluído
+          </p>
         </div>
-        <ProgressBar value={progress} tone={progress === 100 ? "ok" : "neutral"} label="Progresso geral" className="mt-4" barClassName="h-2" />
+
+        <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {stages.map((stage, index) => {
+            const status = meta.stage(stage.status as StageProgress, dict);
+            const name = label.stageKey(stage.key, dict);
+            const category = STAGE_TASK_CATEGORY[stage.key];
+            const stageTasks = tasks.filter((task) => task.category === category && task.status !== "CANCELLED");
+            const done = stageTasks.filter((task) => task.status === "COMPLETED").length;
+            const current = stage.key === project.currentStage;
+            return (
+              <li
+                key={stage.id}
+                className={cn(
+                  "relative flex min-w-0 flex-col gap-2.5 rounded-md border px-4 py-3 transition-colors",
+                  current ? "border-brand-line bg-brand-soft/50" : "border-line-soft bg-surface hover:border-line",
+                )}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <StatusIcon status={stage.status as StageProgress} label={status.label} />
+                  <Link
+                    href={`${base}/${stageSegment(stage.key)}`}
+                    aria-current={current ? "step" : undefined}
+                    className="min-w-0 truncate text-body font-semibold text-ink after:absolute after:inset-0 hover:underline"
+                  >
+                    <span className="mr-1 text-faint tabular-nums">{index + 1}.</span>
+                    {name}
+                  </Link>
+                  {current ? (
+                    <span className="shrink-0 rounded-full bg-brand px-1.5 py-px text-[11px] font-semibold text-on-brand">Atual</span>
+                  ) : null}
+                  {can(user, STAGE_PERMISSION[stage.key]) ? (
+                    <span className="relative z-10 -my-1 -mr-2 ml-auto">
+                      <EditStageDialog
+                        stage={{
+                          id: stage.id,
+                          projectId: project.id,
+                          name,
+                          status: stage.status,
+                          progress: stage.progress,
+                          notes: stage.notes,
+                        }}
+                      />
+                    </span>
+                  ) : null}
+                </div>
+                <ProgressBar
+                  value={stage.computedProgress}
+                  tone={STAGE_BAR_TONE[stage.status as StageProgress]}
+                  label={name}
+                  barClassName="h-1.5"
+                />
+                <p className="flex items-center justify-between gap-2 text-meta text-muted">
+                  <span className="truncate">{status.label}</span>
+                  <span className="shrink-0 tabular-nums">
+                    {stage.computedProgress}% · {done}/{stageTasks.length} tarefas
+                  </span>
+                </p>
+              </li>
+            );
+          })}
+        </ol>
       </section>
+
+      <dl className="grid grid-cols-1 divide-y divide-line-soft rounded-md border border-line-soft bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <Fact
+          label="Tarefas em aberto"
+          value={open.length}
+          note={overdue.length > 0 ? `${overdue.length} atrasada${overdue.length === 1 ? "" : "s"}` : "Nenhuma atrasada"}
+          noteClass={overdue.length > 0 ? "font-medium text-risk" : undefined}
+        />
+        <Fact
+          label="Próximo marco"
+          value={nextMilestone ? nextMilestone.title : "Nenhum pendente"}
+          note={nextMilestone?.dueDate ? formatDate(nextMilestone.dueDate, locale) : undefined}
+          noteClass={nextMilestone && milestoneLate(nextMilestone) ? "font-medium text-risk" : undefined}
+        />
+        <Fact
+          label="Lançamento previsto"
+          value={project.targetLaunchDate ? formatDate(project.targetLaunchDate, locale) : "Sem data"}
+          note={launchIn !== null && launchIn >= 0 ? `em ${launchIn} dias` : undefined}
+        />
+      </dl>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
-          <WorkBlock title="Progresso por etapa" action={{ label: "Abrir plano", href: `${base}/tasks` }}>
-            <DenseList>
-              {stages.map((stage) => {
-                const status = meta.stage(stage.status as StageProgress, dict);
-                const name = label.stageKey(stage.key, dict);
-                const category = STAGE_TASK_CATEGORY[stage.key];
-                const stageTasks = tasks.filter((task) => task.category === category && task.status !== "CANCELLED");
-                const done = stageTasks.filter((task) => task.status === "COMPLETED").length;
-                const current = stage.key === project.currentStage;
-                return (
-                  /*
-                    Fixed tracks so name, bar, number and status line up across
-                    the rows. On a phone: name and status, then bar and number.
-                  */
-                  <li
-                    key={stage.id}
-                    className="grid min-h-10 grid-cols-[minmax(0,1fr)_auto_2rem] items-center gap-x-3 gap-y-1 px-4 py-2 sm:grid-cols-[12rem_minmax(0,1fr)_2.75rem_4rem_8rem_2rem] sm:py-1.5"
-                  >
-                    <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
-                      <StatusIcon status={stage.status as StageProgress} label={status.label} />
-                      <Link
-                        href={`${base}/${stageSegment(stage.key)}`}
-                        aria-current={current ? "step" : undefined}
-                        className="min-w-0 truncate text-body font-medium text-ink hover:underline"
-                      >
-                        {name}
-                      </Link>
-                      {current ? <span className="shrink-0 text-meta text-muted">atual</span> : null}
-                    </span>
-                    <ProgressBar
-                      value={stage.computedProgress}
-                      tone={STAGE_BAR_TONE[stage.status as StageProgress]}
-                      label={name}
-                      barClassName="h-1.5"
-                      className="col-span-2 col-start-1 row-start-2 sm:col-span-1 sm:col-start-2 sm:row-start-1"
+          <WorkBlock title="Próximas tarefas" count={open.length || undefined} action={{ label: "Abrir plano", href: `${base}/tasks` }}>
+            {comingUp.length === 0 ? (
+              <DenseEmpty>Nenhuma tarefa em aberto.</DenseEmpty>
+            ) : (
+              <DenseList>
+                {comingUp.map((task) => {
+                  const late = isTaskOverdue(task.status, task.dueDate, now);
+                  return (
+                    <DenseRow
+                      key={task.id}
+                      href={`${base}/tasks?task=${task.id}`}
+                      leading={<StatusIcon status={late ? "OVERDUE" : (task.status as StageProgress)} />}
+                      title={task.title}
+                      meta={label.taskCategory(task.category, dict)}
+                      trailing={
+                        <>
+                          {task.assignedTo ? (
+                            <span className="hidden items-center gap-1.5 md:inline-flex">
+                              <UserAvatar name={task.assignedTo.name} size="xs" />
+                              {task.assignedTo.name}
+                            </span>
+                          ) : null}
+                          <span className={cn("w-16 text-right tabular-nums", late ? "font-medium text-risk" : "text-ink-soft")}>
+                            {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
+                          </span>
+                        </>
+                      }
                     />
-                    <span className="col-start-3 row-start-2 text-meta font-semibold text-ink tabular-nums sm:col-start-3 sm:row-start-1 sm:text-right">
-                      {stage.computedProgress}%
-                    </span>
-                    <span className="hidden text-meta text-muted tabular-nums sm:col-start-4 sm:row-start-1 sm:block">
-                      {done}/{stageTasks.length}
-                    </span>
-                    <span className="col-start-2 row-start-1 min-w-0 truncate text-meta text-muted sm:col-start-5">
-                      {status.label}
-                    </span>
-                    <span className="col-start-3 row-start-1 flex justify-end sm:col-start-6">
-                      {can(user, STAGE_PERMISSION[stage.key]) ? (
-                        <EditStageDialog
-                          stage={{
-                            id: stage.id,
-                            projectId: project.id,
-                            name,
-                            status: stage.status,
-                            progress: stage.progress,
-                            notes: stage.notes,
-                          }}
-                        />
-                      ) : null}
-                    </span>
-                  </li>
-                );
-              })}
-            </DenseList>
+                  );
+                })}
+              </DenseList>
+            )}
           </WorkBlock>
 
           <WorkBlock
@@ -252,10 +288,10 @@ export default async function ProjectOverviewPage({
         </div>
 
         <div className="min-w-0 space-y-6">
-          <WorkBlock title="Propriedades">
+          <WorkBlock title="Detalhes">
             <dl className="divide-y divide-line-faint">
-              {properties.map((item) => (
-                <div key={item.label} className="grid min-h-10 grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 px-4 py-1.5">
+              {details.map((item) => (
+                <div key={item.label} className="grid min-h-10 grid-cols-[8rem_minmax(0,1fr)] items-center gap-3 px-4 py-1.5">
                   <dt className="text-meta text-muted">{item.label}</dt>
                   <dd className="min-w-0 truncate text-body text-ink">{item.value}</dd>
                 </div>

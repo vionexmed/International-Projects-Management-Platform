@@ -43,8 +43,8 @@ export function InlineAddTaskRow({
   };
 
   return (
-    <li className="grid border-b border-line-faint bg-surface" style={gridStyle}>
-      <div className="col-span-full min-w-0 py-1 pl-10 pr-3 md:pl-14">
+    <li className="grid border-b border-line-soft bg-surface" style={gridStyle}>
+      <div className="col-span-full min-w-0 py-1 pr-3 pl-3">
         {open ? (
           <form
             className="flex flex-wrap items-center gap-2"
@@ -91,7 +91,7 @@ export function InlineAddTaskRow({
         ) : (
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 rounded-sm px-2 text-[13px] font-medium text-brand-strong hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex h-8 items-center gap-2.5 rounded-sm px-1 pr-2.5 text-[13px] text-faint transition-colors hover:bg-raised hover:text-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             onClick={() => {
               reset();
               setOpen(true);

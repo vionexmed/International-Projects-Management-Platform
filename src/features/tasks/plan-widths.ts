@@ -3,7 +3,7 @@ import type { PlanColumn } from "@/features/tasks/plan-data";
 export type PlanWidthMap = Record<string, number>;
 
 /** Widths are pixels. Text cells can wrap, but controls need these usable floors. */
-const DEFAULT_WIDTHS: PlanWidthMap = { task: 288, assignee: 208, due: 136, priority: 104 };
+const DEFAULT_WIDTHS: PlanWidthMap = { task: 360, assignee: 208, due: 136, priority: 124 };
 const MIN_WIDTHS: PlanWidthMap = { task: 240, assignee: 144, due: 112, priority: 104 };
 const CUSTOM_DEFAULT = 160;
 const CUSTOM_MIN = 120;

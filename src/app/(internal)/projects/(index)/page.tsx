@@ -36,7 +36,7 @@ import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta } from "@/lib/labels";
-import { formatDate, daysUntil } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { initials, cn } from "@/lib/utils";
 import type { Tone } from "@/lib/status";
 
@@ -220,15 +220,12 @@ export default async function ProjectsPage({
                     <TH className="w-px">Progresso</TH>
                     <TH className="w-px">Etapas</TH>
                     <TH className="w-px" align="right">Lançamento</TH>
-                    <TH className="w-px">Saúde</TH>
                     {activeTab.archived && canArchive ? <TH className="w-px" /> : null}
                   </TR>
                 </THead>
                 <TBody>
                   {result.items.map((project) => {
                     const status = meta.project(project.status, dict);
-                    const remaining = daysUntil(project.nextMilestone?.dueDate ?? null);
-                    const milestoneLate = project.nextMilestone !== null && remaining !== null && remaining < 0;
 
                     return (
                       <TR key={project.id} interactive>
@@ -276,17 +273,6 @@ export default async function ProjectsPage({
                         </TD>
                         <TD label="Lançamento" align="right">
                           {formatDate(project.targetLaunchDate, locale)}
-                        </TD>
-                        <TD label="Saúde">
-                          {milestoneLate ? (
-                            <span className="font-medium whitespace-nowrap text-risk">
-                              marco atrasado · {Math.abs(remaining ?? 0)}d
-                            </span>
-                          ) : project.status === "AT_RISK" ? (
-                            <span className="font-medium whitespace-nowrap text-warn">em risco</span>
-                          ) : project.status === "BLOCKED" ? (
-                            <span className="font-medium whitespace-nowrap text-risk">bloqueado</span>
-                          ) : null}
                         </TD>
                         {activeTab.archived && canArchive ? (
                           <TD className="text-right max-md:hidden">
