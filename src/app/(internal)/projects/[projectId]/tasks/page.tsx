@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, Maximize2 } from "lucide-react";
+import { Layers } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { isNotFoundError } from "@/server/authz/errors";
@@ -11,19 +11,11 @@ import { db } from "@/server/db";
 import { UserAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/ui/table";
-import { SheetBody, SheetHeader } from "@/components/ui/dialog";
 import { NewTaskDialog } from "@/features/tasks/new-task-dialog";
 import { PlanList } from "@/features/tasks/plan-list";
 import { stageSegment } from "@/features/projects/stage-routes";
 import { PLAN_CATEGORIES, buildPlanGroups, planHref, toPlanColumns } from "@/features/tasks/plan-data";
-import { TaskSheet } from "@/features/tasks/task-sheet";
-import {
-  TaskComments,
-  TaskDetailActions,
-  TaskDetailMain,
-  TaskEyebrow,
-  loadTaskDetail,
-} from "@/features/tasks/task-detail";
+import { TaskWindow, loadTaskDetail } from "@/features/tasks/task-detail";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, oneOf } from "@/lib/labels";
@@ -176,28 +168,7 @@ export default async function ProjectPlanPage({
       </TableShell>
 
       {openTask ? (
-        <TaskSheet
-          closeHref={href({})}
-          aside={<TaskComments data={openTask} locale={locale} />}
-        >
-          <SheetHeader
-            eyebrow={<TaskEyebrow data={openTask} />}
-            title={openTask.task.title}
-            actions={
-              <>
-                <TaskDetailActions data={openTask} owners={owners} />
-                <Button asChild variant="ghost" size="iconSm" aria-label="Abrir em página inteira">
-                  <Link href={`/tasks/${openTask.task.id}`} title="Abrir em página inteira">
-                    <Maximize2 />
-                  </Link>
-                </Button>
-              </>
-            }
-          />
-          <SheetBody>
-            <TaskDetailMain data={openTask} owners={owners} locale={locale} dict={dict} />
-          </SheetBody>
-        </TaskSheet>
+        <TaskWindow data={openTask} owners={owners} locale={locale} dict={dict} closeHref={href({})} />
       ) : null}
     </div>
   );

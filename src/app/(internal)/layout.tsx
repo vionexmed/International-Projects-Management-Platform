@@ -19,7 +19,14 @@ import { label } from "@/lib/labels";
  * layout is guaranteed to have an authenticated Vionex user; supplier accounts
  * are redirected to their own portal.
  */
-export default async function InternalLayout({ children }: { children: React.ReactNode }) {
+export default async function InternalLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  /** A task opened as a window over the current page (`@modal`). */
+  modal: React.ReactNode;
+}) {
   const user = await requireInternalUser();
   const dict = getDictionary(localeFromLanguage(user.language));
 
@@ -87,6 +94,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
             }}
           />
           <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
+          {modal}
         </div>
       </div>
     </>

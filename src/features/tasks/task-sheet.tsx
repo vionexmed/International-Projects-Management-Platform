@@ -1,34 +1,47 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/dialog";
 
 /**
- * The task side sheet opened by `?task=<id>`. The URL is the state: the
- * server renders the sheet when the param is present, and closing it
- * navigates to the same view without the param (Esc does the same).
- * `replace`, not `push`: closing must not leave a history entry that the
- * browser's Back would reopen the sheet from.
+ * A task opened as a centred window over the page it was opened from.
+ *
+ * Two ways in, one look. From the plan, `?task=<id>` is the state: closing
+ * replaces the URL with `closeHref` (`replace`, so Back does not reopen it).
+ * From anywhere else, `/tasks/<id>` is intercepted into this window and
+ * closing steps back through history — to the page underneath.
  */
 export function TaskSheet({
   closeHref,
+  openPath,
   aside,
   children,
 }: {
-  closeHref: string;
+  /** Omit to close by going back (the intercepted `/tasks/<id>` route). */
+  closeHref?: string;
+  /**
+   * The intercepted route's own path. A parallel slot keeps its last content
+   * across client navigations, so the window hides itself once the URL has
+   * moved on (Back, or a link inside it).
+   */
+  openPath?: string;
   aside: React.ReactNode;
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  if (openPath && pathname !== openPath) return null;
   return (
     <Sheet
       open
       onOpenChange={(open) => {
-        if (!open) router.replace(closeHref, { scroll: false });
+        if (open) return;
+        if (closeHref) router.replace(closeHref, { scroll: false });
+        else router.back();
       }}
     >
-      <SheetContent size="lg" aside={aside}>
+      <SheetContent size="modal" aside={aside}>
         {children}
       </SheetContent>
     </Sheet>

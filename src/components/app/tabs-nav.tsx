@@ -37,11 +37,16 @@ export type TabItem = {
 export function TabsNav({
   items,
   groups,
+  replace = false,
   className,
 }: (
   | { items: TabItem[]; groups?: never }
   | { groups: TabItem[][]; items?: never }
-) & { className?: string }) {
+) & {
+  /** Switch tabs without adding history entries, so Back leaves the record instead of retracing its tabs. */
+  replace?: boolean;
+  className?: string;
+}) {
   const sets = groups ?? [items ?? []];
   const activeRef = React.useRef<HTMLAnchorElement>(null);
   const activeHref = sets.flat().find((item) => item.active)?.href;
@@ -75,6 +80,7 @@ export function TabsNav({
                   key={item.href}
                   ref={item.active ? activeRef : undefined}
                   href={item.href}
+                  replace={replace}
                   aria-current={item.active ? "page" : undefined}
                   className={cn(
                     "inline-flex h-10 items-center gap-1.5 border-b-2 px-2.5 text-label font-medium whitespace-nowrap transition-colors sm:px-3",

@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { AlertOctagon } from "lucide-react";
+import { AlertOctagon, ArrowUpRight } from "lucide-react";
 import { can, requireInternalUser } from "@/server/auth/current-user";
 import { getProjectWorkspace } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
 import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
-import { ProgressBar, type ProgressTone } from "@/components/ui/progress";
+import { StatusIcon } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/avatar";
 import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
 import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
 import { stageSegment } from "@/features/projects/stage-routes";
+import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -19,37 +20,61 @@ import { isTaskOverdue } from "@/lib/status";
 import { daysUntil, formatDate, formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/** A bar is neutral unless it has something to say: done, or held up. */
-const STAGE_BAR_TONE: Partial<Record<StageProgress, ProgressTone>> = {
-  COMPLETED: "ok",
-  BLOCKED: "risk",
-};
+/** The fill of a stage on the track: done is green, held up is red, the current one is the brand. */
+function stageFill(status: StageProgress, current: boolean) {
+  if (status === "COMPLETED") return "bg-ok-dot";
+  if (status === "BLOCKED") return "bg-risk-dot";
+  return current ? "bg-brand" : "bg-line-strong";
+}
 
-/** A quiet section: a small heading, an optional link, and unboxed content. */
-function Block({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+/** "em 12 dias", "hoje", "3 dias atrasada" — how far a date is, in words. */
+function distance(date: Date | null, lateWord: string) {
+  const days = daysUntil(date);
+  if (days === null) return null;
+  if (days === 0) return { text: "hoje", late: false };
+  if (days < 0) return { text: `${Math.abs(days)} ${Math.abs(days) === 1 ? "dia" : "dias"} ${lateWord}`, late: true };
+  return { text: `em ${days} ${days === 1 ? "dia" : "dias"}`, late: false };
+}
+
+/** One section of the page: a light card with a roomy title row. */
+function Card({
+  title,
+  count,
+  action,
+  children,
+}: {
+  title: string;
+  count?: number;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="min-w-0">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
-        <h2 className="text-label font-semibold text-ink">{title}</h2>
+    <section className="min-w-0 rounded-xl border border-line-soft bg-surface">
+      <header className="flex min-h-14 items-center justify-between gap-3 px-6 pt-5 pb-3">
+        <h2 className="text-title text-ink">
+          {title}
+          {count ? <span className="ml-2 font-normal text-faint tabular-nums">{count}</span> : null}
+        </h2>
         {action}
-      </div>
+      </header>
       {children}
     </section>
   );
 }
 
-function BlockLink({ href, children }: { href: string; children: React.ReactNode }) {
+function CardLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="text-meta text-muted transition-colors hover:text-ink">
+    <Link href={href} className="inline-flex items-center gap-1 text-label font-medium text-brand-strong hover:underline">
       {children}
     </Link>
   );
 }
 
 /**
- * "Where is this project, and what comes next?" — the four stages as one
- * journey, three facts (open work, next milestone, launch), then the work
- * coming due and the milestones on the left, details and activity on the right.
+ * The project at a glance: where it stands (progress, next milestone,
+ * launch and the four stages), then — each in its own space — the work
+ * coming due, what happened lately, the supplier, the milestones and the
+ * project's details.
  */
 export default async function ProjectOverviewPage({
   params,
@@ -61,7 +86,7 @@ export default async function ProjectOverviewPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [{ project, stages, milestones, progress }, timeline, tasks] = await Promise.all([
+  const [{ project, stages, milestones, progress }, timeline, tasks, documentCount, owedCount] = await Promise.all([
     orNotFound(getProjectWorkspace(user, projectId)),
     listProjectTimeline(user, projectId, 5),
     // The project is verified by the layout and the workspace call.
@@ -76,6 +101,8 @@ export default async function ProjectOverviewPage({
         assignedTo: { select: { name: true } },
       },
     }),
+    db.document.count({ where: { projectId } }),
+    db.documentRequest.count({ where: { projectId, status: { in: ["PENDING", "REJECTED"] } } }),
   ]);
 
   const now = new Date();
@@ -87,9 +114,10 @@ export default async function ProjectOverviewPage({
     .slice(0, 6);
 
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");
+  const nextMilestone = upcomingMilestones[0] ?? null;
   const milestoneLate = (milestone: (typeof milestones)[number]) =>
     milestone.status === "DELAYED" || (daysUntil(milestone.dueDate) ?? 0) < 0;
-  const launchIn = daysUntil(project.targetLaunchDate);
+  const launch = distance(project.targetLaunchDate, "de atraso");
 
   const base = `/projects/${projectId}`;
   const canAddMilestone =
@@ -111,66 +139,99 @@ export default async function ProjectOverviewPage({
     { label: "Tipo de produto", value: project.productType },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
 
-  const facts = [
-    `${open.length} ${open.length === 1 ? "tarefa em aberto" : "tarefas em aberto"}`,
-    overdue.length > 0 ? `${overdue.length} ${overdue.length === 1 ? "atrasada" : "atrasadas"}` : null,
-    project.targetLaunchDate ? `lançamento em ${formatDate(project.targetLaunchDate, locale)}${launchIn !== null && launchIn >= 0 ? ` (${launchIn} dias)` : ""}` : null,
-  ].filter(Boolean);
-
-  const row = "flex min-h-10 items-center gap-3 border-b border-line-faint py-2 last:border-b-0";
-
   return (
-    <div className="mx-auto max-w-5xl space-y-10">
+    <div className="mx-auto max-w-6xl space-y-8 pb-4">
       {project.blockerNote ? (
-        <div role="alert" className="flex items-start gap-3 border-l-2 border-risk pl-3">
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-risk/20 bg-risk-soft px-5 py-4">
           <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
-          <p className="text-body text-ink"><span className="font-semibold text-risk">Bloqueio: </span>{project.blockerNote}</p>
+          <div className="min-w-0">
+            <p className="text-title text-risk">Bloqueio atual</p>
+            <p className="mt-0.5 text-body text-ink">{project.blockerNote}</p>
+          </div>
         </div>
       ) : null}
 
-      <section aria-label="Andamento">
-        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-kpi text-ink tabular-nums">{progress}%</span>
-          <span className="text-body text-muted">
-            {facts.map((fact, index) => (
-              <span key={fact}>
-                {index > 0 ? " · " : ""}
-                <span className={index === 1 && overdue.length > 0 ? "text-risk" : undefined}>{fact}</span>
-              </span>
-            ))}
-          </span>
-        </p>
+      {/* Where the project stands. */}
+      <section aria-label="Andamento do projeto" className="rounded-2xl border border-line-soft bg-subtle px-6 py-6 sm:px-8 sm:py-7">
+        <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-6">
+          <div>
+            <p className="text-meta font-medium text-muted">Progresso geral</p>
+            <p className="mt-2 flex items-baseline gap-2">
+              <span className="text-[40px] leading-none font-semibold tracking-tight text-ink tabular-nums">{progress}%</span>
+              <span className="text-body text-muted">concluído</span>
+            </p>
+            <p className="mt-3 text-body text-ink-soft">
+              {open.length} {open.length === 1 ? "tarefa em aberto" : "tarefas em aberto"}
+              {overdue.length > 0 ? (
+                <span className="font-medium text-risk">
+                  {" · "}
+                  {overdue.length} {overdue.length === 1 ? "atrasada" : "atrasadas"}
+                </span>
+              ) : null}
+            </p>
+          </div>
 
-        <ol className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+          <dl className="flex flex-wrap gap-x-10 gap-y-5">
+            <div className="min-w-0">
+              <dt className="text-meta font-medium text-muted">Próximo marco</dt>
+              <dd className="mt-2 max-w-56 truncate text-title text-ink">{nextMilestone ? nextMilestone.title : "Nenhum pendente"}</dd>
+              {nextMilestone?.dueDate ? (
+                <dd className={cn("mt-0.5 text-meta", milestoneLate(nextMilestone) ? "font-medium text-risk" : "text-muted")}>
+                  {formatDate(nextMilestone.dueDate, locale)}
+                </dd>
+              ) : null}
+            </div>
+            <div className="min-w-0 sm:border-l sm:border-line sm:pl-10">
+              <dt className="text-meta font-medium text-muted">Lançamento previsto</dt>
+              <dd className="mt-2 text-title text-ink">
+                {project.targetLaunchDate ? formatDate(project.targetLaunchDate, locale) : "Sem data"}
+              </dd>
+              {launch ? (
+                <dd className={cn("mt-0.5 text-meta", launch.late ? "font-medium text-risk" : "text-muted")}>{launch.text}</dd>
+              ) : null}
+            </div>
+          </dl>
+        </div>
+
+        {/* The four stages as one track. */}
+        <ol className="mt-8 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-4">
           {stages.map((stage) => {
-            const status = meta.stage(stage.status as StageProgress, dict);
+            const stageStatus = stage.status as StageProgress;
+            const status = meta.stage(stageStatus, dict);
             const name = label.stageKey(stage.key, dict);
             const current = stage.key === project.currentStage;
+            const category = STAGE_TASK_CATEGORY[stage.key];
+            const stageTasks = tasks.filter((task) => task.category === category && task.status !== "CANCELLED");
+            const done = stageTasks.filter((task) => task.status === "COMPLETED").length;
             return (
               <li key={stage.id} className="group relative min-w-0">
-                <ProgressBar
-                  value={stage.computedProgress}
-                  tone={current ? "neutral" : STAGE_BAR_TONE[stage.status as StageProgress]}
-                  label={name}
-                  barClassName={cn("h-0.5", current && "[&>*]:bg-brand")}
-                />
-                <div className="mt-2 flex items-baseline gap-2">
+                <div className="h-1.5 overflow-hidden rounded-full bg-line-soft">
+                  <div
+                    className={cn("h-full rounded-full", stageFill(stageStatus, current))}
+                    style={{ width: `${Math.max(0, Math.min(100, stage.computedProgress))}%` }}
+                  />
+                </div>
+                <div className="mt-3 flex min-w-0 items-center gap-2">
+                  <StatusIcon status={stageStatus} label={status.label} size={14} />
                   <Link
                     href={`${base}/${stageSegment(stage.key)}`}
                     aria-current={current ? "step" : undefined}
                     className={cn(
                       "min-w-0 truncate text-body after:absolute after:inset-0 hover:underline",
-                      current ? "font-semibold text-ink" : "text-ink-soft",
+                      current ? "font-semibold text-ink" : "font-medium text-ink-soft",
                     )}
                   >
                     {name}
                   </Link>
                   <span className="ml-auto shrink-0 text-meta text-muted tabular-nums">{stage.computedProgress}%</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-meta text-muted">{current ? `Atual · ${status.label.toLowerCase()}` : status.label}</span>
+                <div className="mt-0.5 flex min-h-6 items-center gap-2 pl-[22px]">
+                  <span className="truncate text-meta text-muted">
+                    {current ? <span className="font-medium text-brand-strong">Etapa atual</span> : status.label}
+                    {stageTasks.length > 0 ? ` · ${done}/${stageTasks.length} tarefas` : ""}
+                  </span>
                   {can(user, STAGE_PERMISSION[stage.key]) ? (
-                    <span className="relative z-10 -my-1.5 ml-auto opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                    <span className="relative z-10 -my-1 ml-auto opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
                       <EditStageDialog
                         stage={{
                           id: stage.id,
@@ -190,80 +251,48 @@ export default async function ProjectOverviewPage({
         </ol>
       </section>
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="min-w-0 space-y-10">
-          <Block title="Próximas tarefas" action={<BlockLink href={`${base}/tasks`}>Abrir plano</BlockLink>}>
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-8">
+          <Card title="Próximas tarefas" count={open.length} action={<CardLink href={`${base}/tasks`}>Abrir plano</CardLink>}>
             {comingUp.length === 0 ? (
-              <p className="py-2 text-body text-muted">Nenhuma tarefa em aberto.</p>
+              <p className="px-6 pb-6 text-body text-muted">Nenhuma tarefa em aberto.</p>
             ) : (
-              <ul>
+              <ul className="pb-2">
                 {comingUp.map((task) => {
                   const late = isTaskOverdue(task.status, task.dueDate, now);
+                  const due = distance(task.dueDate, "de atraso");
                   return (
-                    <li key={task.id} className={cn(row, "relative")}>
-                      <Link
-                        href={`${base}/tasks?task=${task.id}`}
-                        className="min-w-0 flex-1 truncate text-body text-ink after:absolute after:inset-0 hover:underline"
-                      >
-                        {task.title}
-                      </Link>
-                      {task.assignedTo ? (
-                        <span className="hidden shrink-0 text-meta text-muted md:inline">{task.assignedTo.name}</span>
-                      ) : null}
-                      <span className={cn("w-16 shrink-0 text-right text-meta tabular-nums", late ? "text-risk" : "text-muted")}>
-                        {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
-                      </span>
+                    <li key={task.id} className="relative flex items-center gap-4 border-t border-line-faint px-6 py-3.5 transition-colors hover:bg-subtle">
+                      <StatusIcon status={late ? "OVERDUE" : (task.status as StageProgress)} />
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/tasks/${task.id}`}
+                          className="block truncate text-body font-medium text-ink after:absolute after:inset-0"
+                        >
+                          {task.title}
+                        </Link>
+                        <p className="mt-0.5 truncate text-meta text-muted">
+                          {label.taskCategory(task.category, dict)}
+                          {task.assignedTo ? ` · ${task.assignedTo.name}` : ""}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right text-meta tabular-nums">
+                        <p className="text-ink-soft">{task.dueDate ? formatDateShort(task.dueDate, locale) : "Sem prazo"}</p>
+                        {due ? <p className={cn("mt-0.5", late ? "font-medium text-risk" : "text-muted")}>{due.text}</p> : null}
+                      </div>
                     </li>
                   );
                 })}
               </ul>
             )}
-          </Block>
+          </Card>
 
-          <Block title="Marcos" action={canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null}>
-            {upcomingMilestones.length === 0 ? (
-              <p className="py-2 text-body text-muted">Nenhum marco pendente.</p>
-            ) : (
-              <ul>
-                {upcomingMilestones.map((milestone) => {
-                  const status = meta.milestone(milestone.status as MilestoneProgress, dict);
-                  const late = milestoneLate(milestone);
-                  return (
-                    <li key={milestone.id} className={row}>
-                      <span className="min-w-0 flex-1 truncate text-body text-ink">{milestone.title}</span>
-                      <span className="hidden shrink-0 text-meta text-muted sm:inline">{status.label}</span>
-                      <span className={cn("w-16 shrink-0 text-right text-meta tabular-nums", late ? "text-risk" : "text-muted")}>
-                        {milestone.dueDate ? formatDateShort(milestone.dueDate, locale) : ""}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Block>
-        </div>
-
-        <div className="min-w-0 space-y-10">
-          <Block title="Detalhes">
-            <dl>
-              {details.map((item) => (
-                <div key={item.label} className={row}>
-                  <dt className="w-28 shrink-0 text-meta text-muted">{item.label}</dt>
-                  <dd className="min-w-0 truncate text-body text-ink">{item.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {project.description ? (
-              <p className="mt-3 text-body whitespace-pre-wrap text-ink-soft">{project.description}</p>
-            ) : null}
-          </Block>
-
-          <Block title="Atividade" action={<BlockLink href={`${base}/timeline`}>Ver tudo</BlockLink>}>
-            <div className="pt-2">
+          <Card title="Atividade recente" action={<CardLink href={`${base}/timeline`}>Histórico completo</CardLink>}>
+            <div className="px-6 pt-1 pb-6">
               <Timeline
                 locale={locale}
                 emptyTitle="Nenhuma atividade ainda."
-                items={timeline.slice(0, 4).map((event) => ({
+                items={timeline.map((event) => ({
                   id: event.id,
                   description: event.description,
                   createdAt: event.createdAt,
@@ -271,7 +300,87 @@ export default async function ProjectOverviewPage({
                 }))}
               />
             </div>
-          </Block>
+          </Card>
+        </div>
+
+        <div className="min-w-0 space-y-8">
+          <Card
+            title="Fornecedor"
+            action={
+              <CardLink href={`/regulatory?supplier=${project.supplier.id}&project=${project.id}`}>
+                Ver pasta
+                <ArrowUpRight className="size-3.5" aria-hidden />
+              </CardLink>
+            }
+          >
+            <div className="px-6 pb-6">
+              <Link href={`/suppliers/${project.supplier.id}`} className="text-section text-ink hover:underline">
+                {project.supplier.name}
+              </Link>
+              <p className="mt-0.5 text-meta text-muted">{project.supplier.country}</p>
+              <dl className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-subtle px-4 py-3">
+                  <dt className="text-meta text-muted">Documentos</dt>
+                  <dd className="mt-1 text-section text-ink tabular-nums">{documentCount}</dd>
+                </div>
+                <div className={cn("rounded-lg px-4 py-3", owedCount > 0 ? "bg-warn-soft" : "bg-subtle")}>
+                  <dt className={cn("text-meta", owedCount > 0 ? "text-warn" : "text-muted")}>Pendentes</dt>
+                  <dd className={cn("mt-1 text-section tabular-nums", owedCount > 0 ? "text-warn" : "text-ink")}>{owedCount}</dd>
+                </div>
+              </dl>
+            </div>
+          </Card>
+
+          <Card
+            title="Marcos"
+            count={upcomingMilestones.length}
+            action={canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null}
+          >
+            {upcomingMilestones.length === 0 ? (
+              <p className="px-6 pb-6 text-body text-muted">Nenhum marco pendente.</p>
+            ) : (
+              <ol className="px-6 pt-1 pb-6">
+                {upcomingMilestones.map((milestone, index) => {
+                  const status = meta.milestone(milestone.status as MilestoneProgress, dict);
+                  const late = milestoneLate(milestone);
+                  return (
+                    <li key={milestone.id} className="relative flex gap-3 pb-5 last:pb-0">
+                      {index < upcomingMilestones.length - 1 ? (
+                        <span className="absolute top-6 bottom-1 left-[7.5px] w-px bg-line" aria-hidden />
+                      ) : null}
+                      <StatusIcon kind="milestone" tone={late ? "risk" : undefined} className="mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-body font-medium text-ink">{milestone.title}</p>
+                        <p className="mt-0.5 truncate text-meta text-muted">
+                          {milestone.stage ? `${label.stageKey(milestone.stage, dict)} · ` : ""}
+                          {status.label}
+                        </p>
+                      </div>
+                      <span className={cn("shrink-0 text-meta tabular-nums", late ? "font-medium text-risk" : "text-ink-soft")}>
+                        {milestone.dueDate ? formatDateShort(milestone.dueDate, locale) : ""}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </Card>
+
+          <Card title="Detalhes">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-5 px-6 pt-1 pb-6">
+              {details.map((item) => (
+                <div key={item.label} className="min-w-0">
+                  <dt className="text-meta text-muted">{item.label}</dt>
+                  <dd className="mt-1 truncate text-body text-ink">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+            {project.description ? (
+              <p className="mx-6 border-t border-line-faint py-5 text-body whitespace-pre-wrap text-ink-soft">
+                {project.description}
+              </p>
+            ) : null}
+          </Card>
         </div>
       </div>
     </div>

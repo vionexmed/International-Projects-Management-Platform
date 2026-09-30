@@ -19,6 +19,7 @@ export function ProjectTabs({ projectId, className }: { projectId: string; class
   return (
     <TabsNav
       className={className}
+      replace
       items={[
         {
           href: base,

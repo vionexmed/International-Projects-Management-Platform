@@ -18,14 +18,18 @@ export function Breadcrumb({
   items,
   labels = TRAIL_LABELS_PT,
   back = true,
-  history = false,
+  history = true,
   className,
 }: {
   items: BreadcrumbItem[];
   labels?: TrailLabels;
   /** Hide the arrow where a page already offers its own way back. */
   back?: boolean;
-  /** The arrow steps back through history when it stays in the app — see `BackLink`. */
+  /**
+   * The arrow steps back through history when it stays in the app — see
+   * `BackLink` — so it returns to where you were, not merely one level up.
+   * The trail's own links still go up a level.
+   */
   history?: boolean;
   className?: string;
 }) {

@@ -137,14 +137,20 @@ export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
 export const SheetClose = DialogPrimitive.Close;
 
-export type SheetSize = "sm" | "lg";
+/** `modal` is the record opened as a centred window (the task), laid out like `lg`. */
+export type SheetSize = "sm" | "lg" | "modal";
 
 const SheetSizeContext = React.createContext<SheetSize>("sm");
 
 const SHEET_WIDTH: Record<SheetSize, string> = {
   sm: "sm:w-[368px]",
   lg: "md:w-[min(1040px,72vw)]",
+  modal: "",
 };
+
+const SHEET_FRAME = "fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-surface shadow-sheet outline-none data-[state=open]:animate-sheet-in";
+const MODAL_FRAME =
+  "fixed top-1/2 left-1/2 z-50 flex max-h-[min(90dvh,880px)] w-[calc(100vw-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface shadow-dialog outline-none data-[state=open]:animate-fade-in";
 
 export const SheetContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
@@ -158,19 +164,19 @@ export const SheetContent = React.forwardRef<
     <Overlay />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn(
-        "fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-surface shadow-sheet outline-none",
-        "data-[state=open]:animate-sheet-in",
-        SHEET_WIDTH[size],
-        className,
-      )}
+      className={cn(size === "modal" ? MODAL_FRAME : SHEET_FRAME, SHEET_WIDTH[size], className)}
       {...props}
     >
       <SheetSizeContext.Provider value={size}>
         {aside ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
             <div className="flex min-w-0 flex-col md:min-h-0 md:flex-1">{children}</div>
-            <aside className="flex flex-col border-t border-line bg-subtle md:min-h-0 md:w-[32%] md:shrink-0 md:border-t-0 md:border-l">
+            <aside
+              className={cn(
+                "flex flex-col border-t border-line bg-subtle md:min-h-0 md:shrink-0 md:border-t-0 md:border-l",
+                size === "modal" ? "md:w-[340px]" : "md:w-[32%]",
+              )}
+            >
               {aside}
             </aside>
           </div>
