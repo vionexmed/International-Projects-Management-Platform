@@ -6,8 +6,9 @@ import { getPortfolioSummary, listUpcomingDeadlines } from "@/server/services/da
 import { countAttentionItems, listAttentionItems } from "@/server/services/attention";
 import { countDocumentRequestsByQueue } from "@/server/services/documents";
 import { listProjects } from "@/server/services/projects";
+import { listSuppliers } from "@/server/services/suppliers";
 import { AttentionList } from "@/components/app/attention-list";
-import { VionexMark } from "@/components/app/logo";
+import { WorldRoutes } from "@/components/app/world-routes";
 import { CardLink, CardSection } from "@/components/app/card-section";
 import { StageTrack } from "@/features/projects/stage-track";
 import { getDictionary } from "@/lib/i18n/dictionary";
@@ -58,13 +59,14 @@ export default async function DashboardPage() {
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [summary, attention, counts, deadlines, queue, portfolio] = await Promise.all([
+  const [summary, attention, counts, deadlines, queue, portfolio, suppliers] = await Promise.all([
     getPortfolioSummary(user),
     listAttentionItems(user, 6),
     countAttentionItems(user),
     listUpcomingDeadlines(user, 7),
     countDocumentRequestsByQueue(user),
     listProjects(user, { perPage: 8 }),
+    listSuppliers(user),
   ]);
 
   const stats = [
@@ -96,16 +98,17 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-7xl">
       {/*
         The welcome band, as large products open their home screen: graphite,
-        the Vionex mark oversized and cropped by the edge one step off the
-        background (as on the sign-in page) — a shape, not an illustration —
-        and the day's one sentence with the two ways onward.
+        a dotted world map with the routes from each supplier country to
+        Brazil, the day's one sentence and the two ways onward.
       */}
-      <section className="relative mb-6 overflow-hidden rounded-2xl bg-navy px-6 py-7 sm:px-9 sm:py-9">
-        <span aria-hidden className="pointer-events-none absolute -top-28 -right-24 sm:-right-6">
-          <VionexMark className="size-[380px] text-navy-line" />
-        </span>
-        <span aria-hidden className="pointer-events-none absolute top-1/2 right-24 size-64 -translate-y-1/2 rounded-full bg-brand/15 blur-3xl" />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
+      <section className="relative mb-6 overflow-hidden rounded-2xl bg-navy px-6 py-8 sm:px-9 sm:py-12">
+        {/* The business at a glance: every supplier country routed to Brazil, from real data. */}
+        <WorldRoutes
+          origins={suppliers.map((supplier) => ({ country: supplier.country, projects: supplier.projectCount }))}
+          className="pointer-events-none absolute top-1/2 right-0 h-[115%] w-auto -translate-y-1/2 [mask-image:linear-gradient(to_right,transparent,black_30%)]"
+        />
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-navy via-navy/80 to-transparent" />
+        <div className="relative flex max-w-xl flex-col gap-6">
           <div className="min-w-0">
             <p className="text-meta font-medium tracking-[0.14em] text-navy-ink uppercase">{today()}</p>
             <h1 className="mt-2 text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white">{greeting(user.name)}</h1>
