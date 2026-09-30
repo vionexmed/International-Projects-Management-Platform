@@ -212,7 +212,6 @@ export default async function ProjectOverviewPage({
                   />
                 </div>
                 <div className="mt-3 flex min-w-0 items-center gap-2">
-                  <StatusIcon status={stageStatus} label={status.label} size={14} />
                   <Link
                     href={`${base}/${stageSegment(stage.key)}`}
                     aria-current={current ? "step" : undefined}
@@ -225,7 +224,7 @@ export default async function ProjectOverviewPage({
                   </Link>
                   <span className="ml-auto shrink-0 text-meta text-muted tabular-nums">{stage.computedProgress}%</span>
                 </div>
-                <div className="mt-0.5 flex min-h-6 items-center gap-2 pl-[22px]">
+                <div className="mt-0.5 flex min-h-6 items-center gap-2">
                   <span className="truncate text-meta text-muted">
                     {current ? <span className="font-medium text-brand-strong">Etapa atual</span> : status.label}
                     {stageTasks.length > 0 ? ` · ${done}/${stageTasks.length} tarefas` : ""}

@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { Calendar, ChevronDown, ChevronRight, Flag, PanelRightOpen, Type, UserRound, type LucideIcon } from "lucide-react";
-import { StatusIcon } from "@/components/ui/badge";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
 import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
 import { planColumnKeys, readPlanWidths, resizePlanWidth, widthsForProject } from "@/features/tasks/plan-widths";
@@ -192,11 +191,9 @@ export function PlanList({
                   className="size-4 shrink-0 -rotate-90 text-faint transition-transform group-open/phase:rotate-0"
                   aria-hidden
                 />
-                <StatusIcon
-                  status={group.stageStatus ?? "NOT_STARTED"}
-                  label={stageStatus ? `Etapa: ${stageStatus.label}` : undefined}
-                />
+                {/* Status glyphs belong to tasks; the count and bar say how the stage is going. */}
                 <span className="truncate text-body font-semibold text-ink">{group.name}</span>
+                {stageStatus ? <span className="sr-only">Etapa: {stageStatus.label}</span> : null}
                 <span className="shrink-0 text-meta text-muted tabular-nums" title={`${group.done} de ${group.tasks.length} concluídas`}>
                   {group.done}/{group.tasks.length}
                 </span>
