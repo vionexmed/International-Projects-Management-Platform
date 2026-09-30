@@ -169,11 +169,6 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
         pinned ? "w-[236px]" : "w-14",
       )}
     >
-      {/* A faint teal light from the top, behind the mark. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-[radial-gradient(90%_100%_at_50%_0%,rgba(13,127,138,0.2),transparent_70%)]"
-      />
       {pinned ? (
         <ExpandedSidebar
           {...{ user, roleLabel, primary, isActive }}
