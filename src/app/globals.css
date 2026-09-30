@@ -521,7 +521,7 @@
 */
 .vx-page > :not(:only-child),
 .vx-page > :only-child > * {
-  animation: vx-rise 520ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: vx-block-in 520ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .vx-page > :nth-child(2):not(:only-child),
@@ -544,7 +544,12 @@
   animation-delay: 200ms;
 }
 
-@keyframes vx-rise {
+/* A full-bleed band joined to the sidebar only fades in: rising would open a gap at its edges. */
+.vx-page > .vx-bleed {
+  animation: vx-fade 420ms ease-out backwards;
+}
+
+@keyframes vx-block-in {
   from {
     opacity: 0;
     translate: 0 14px;

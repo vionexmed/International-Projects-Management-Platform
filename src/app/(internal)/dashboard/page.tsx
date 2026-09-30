@@ -95,20 +95,22 @@ export default async function DashboardPage() {
   ] as const;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <>
       {/*
-        The welcome band, as large products open their home screen: a deep
-        ocean blue under a dotted world map with the routes from each supplier country to
-        Brazil, the day's one sentence and the two ways onward.
+        The welcome band runs out of the sidebar and across the top of the
+        page: it starts in the sidebar's own graphite (#15191d, which the
+        sidebar holds for its first 340px) and deepens into ocean blue under
+        the dotted map, so rail and band read as one surface. The routes from
+        each supplier country to Brazil come from real data.
       */}
-      <section className="relative mb-6 overflow-hidden rounded-2xl bg-[linear-gradient(115deg,#071726_0%,#0a2438_42%,#0f3f5f_78%,#14506f_100%)] px-6 py-8 sm:px-9 sm:py-12">
+      <section className="vx-bleed relative -mx-4 -mt-5 overflow-hidden bg-[linear-gradient(90deg,#15191d_0%,#101d28_30%,#0a2438_55%,#0f3f5f_82%,#14506f_100%)] px-4 sm:-mx-6 sm:-mt-6 sm:px-6">
         {/* The business at a glance: every supplier country routed to Brazil, from real data. */}
         <WorldRoutes
           origins={suppliers.map((supplier) => ({ country: supplier.country, projects: supplier.projectCount }))}
-          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[64%] [mask-image:linear-gradient(to_right,transparent,black_20%)]"
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[64%] [mask-image:linear-gradient(to_right,transparent,black_20%)] sm:aspect-[1000/380] sm:w-auto"
         />
-        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#071726] via-[#071726]/75 to-transparent" />
-        <div className="relative flex max-w-xl flex-col gap-6">
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#15191d] via-[#15191d]/70 to-transparent" />
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-6 py-10 sm:py-14 sm:pl-5">
           <div className="min-w-0">
             <p className="text-meta font-medium tracking-[0.14em] text-sky-200/70 uppercase">{today()}</p>
             <h1 className="mt-2 text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white">{greeting(user.name)}</h1>
@@ -136,6 +138,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      <div className="mx-auto mt-6 max-w-7xl">
       {/* Four numbers, one strip: the hairline gaps are the dividers. */}
       <ul className="mb-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line-soft bg-line-soft lg:grid-cols-4">
         {stats.map((stat) => (
@@ -246,6 +249,7 @@ export default async function DashboardPage() {
           )}
         </CardSection>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

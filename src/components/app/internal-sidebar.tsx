@@ -165,7 +165,7 @@ export function InternalSidebar({ user, roleLabel, notificationCount, taskCount 
   return (
     <aside
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col border-r border-white/[0.06] bg-[linear-gradient(180deg,#161a1e_0%,#111417_42%,#0c0e10_100%)] lg:flex print:hidden",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col bg-[linear-gradient(180deg,#15191d_0,#15191d_340px,#0c0e10_100%)] lg:flex print:hidden",
         pinned ? "w-[236px]" : "w-14",
       )}
     >
