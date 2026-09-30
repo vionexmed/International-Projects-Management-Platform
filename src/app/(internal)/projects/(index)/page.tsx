@@ -18,6 +18,8 @@ import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Tooltip } from "@/components/ui/tooltip";
+import { stageSegment } from "@/features/projects/stage-routes";
 import {
   CellStack,
   Table,
@@ -34,7 +36,7 @@ import { NewProjectDialog } from "@/features/projects/new-project-dialog";
 import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label } from "@/lib/labels";
+import { OPTIONS, label, meta, type StageProgress } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 import { initials, cn } from "@/lib/utils";
 import type { Tone } from "@/lib/status";
@@ -70,17 +72,54 @@ const STAGE_TONE: Record<ProjectStageSummary["status"], string> = {
   BLOCKED: "bg-risk-dot",
 };
 
-/** The row's "Etapas" cell: four small segments, one per stage, coloured by its own progress. */
-function StageStrip({ stages, dict }: { stages: ProjectStageSummary[]; dict: Dictionary }) {
+/**
+ * The row's "Etapas" cell: one segment per stage, coloured by its status.
+ * Hovering (or focusing) a segment names the stage and how it stands; the
+ * current stage is the wider one, and each segment opens its stage page.
+ */
+function StageStrip({
+  projectId,
+  stages,
+  current,
+  dict,
+}: {
+  projectId: string;
+  stages: ProjectStageSummary[];
+  current: StageKey;
+  dict: Dictionary;
+}) {
   return (
-    <span className="inline-flex items-center gap-1">
-      {stages.map((stage) => (
-        <span
-          key={stage.key}
-          title={`${label.stageKey(stage.key, dict)} · ${stage.progress}%`}
-          className={cn("h-1.5 w-4 shrink-0 rounded-full", STAGE_TONE[stage.status])}
-        />
-      ))}
+    <span className="relative z-10 inline-flex items-center gap-1">
+      {stages.map((stage) => {
+        const name = label.stageKey(stage.key, dict);
+        const status = meta.stage(stage.status as StageProgress, dict).label;
+        const isCurrent = stage.key === current;
+        return (
+          <Tooltip
+            key={stage.key}
+            content={
+              <span className="block text-left">
+                <span className="block font-semibold">{name}{isCurrent ? " · etapa atual" : ""}</span>
+                <span className="block font-normal opacity-80">{status} · {stage.progress}%</span>
+              </span>
+            }
+          >
+            <Link
+              href={`/projects/${projectId}/${stageSegment(stage.key)}`}
+              aria-label={`${name}: ${status}, ${stage.progress}%${isCurrent ? " (etapa atual)" : ""}`}
+              className="group/segment flex h-6 items-center rounded-sm px-0.5 focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <span
+                className={cn(
+                  "block h-1.5 rounded-full transition-transform group-hover/segment:scale-y-150",
+                  isCurrent ? "w-7" : "w-4",
+                  STAGE_TONE[stage.status],
+                )}
+              />
+            </Link>
+          </Tooltip>
+        );
+      })}
     </span>
   );
 }
@@ -196,11 +235,12 @@ export default async function ProjectsPage({
               <Table>
                 <THead>
                   <TR>
-                    <TH className="min-w-64">Nome</TH>
-                    <TH className="w-px">Etapa atual</TH>
-                    <TH className="w-px">Progresso</TH>
-                    <TH className="w-px">Etapas</TH>
-                    <TH className="w-px" align="right">Lançamento</TH>
+                    {/* Shares, not "name takes the slack": the columns spread evenly across the row. */}
+                    <TH className="w-[30%] min-w-60">Nome</TH>
+                    <TH className="w-[20%]">Etapa atual</TH>
+                    <TH className="w-[20%]">Progresso</TH>
+                    <TH className="w-[14%]">Etapas</TH>
+                    <TH className="w-[16%]" align="right">Lançamento</TH>
                     {activeTab.archived && canArchive ? <TH className="w-px" /> : null}
                   </TR>
                 </THead>
@@ -233,7 +273,7 @@ export default async function ProjectsPage({
                         </TD>
                         <TD label="Progresso">
                           {/* Number beside the bar, not above it: one line, like every other cell. */}
-                          <div className="flex w-36 items-center gap-2.5 max-md:w-full">
+                          <div className="flex w-full max-w-52 items-center gap-2.5">
                             <ProgressBar value={project.progress} label={`Progresso de ${project.name}`} />
                             <span className="w-9 shrink-0 text-right text-meta font-medium text-ink tabular-nums">
                               {project.progress}%
@@ -241,7 +281,7 @@ export default async function ProjectsPage({
                           </div>
                         </TD>
                         <TD label="Etapas">
-                          <StageStrip stages={project.stages} dict={dict} />
+                          <StageStrip projectId={project.id} stages={project.stages} current={project.currentStage} dict={dict} />
                         </TD>
                         <TD label="Lançamento" align="right">
                           {formatDate(project.targetLaunchDate, locale)}
