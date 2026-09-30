@@ -113,9 +113,32 @@ export default async function SuppliersPage({
                           ) : null}
                         </TD>
                         <TD label="Status">
+                          {/*
+                            One question per supplier: do they owe us a document?
+                            An inactive supplier still says so.
+                          */}
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                            <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
-                            {status.label}
+                            {supplier.status === "INACTIVE" ? (
+                              <>
+                                <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
+                                {status.label}
+                              </>
+                            ) : supplier.pendingDocumentCount > 0 ? (
+                              <Link
+                                href={`/regulatory?supplier=${supplier.id}`}
+                                className="relative z-10 inline-flex items-center gap-1.5 text-warn hover:underline"
+                              >
+                                <StatusIcon kind="waiting" tone="warn" />
+                                {supplier.pendingDocumentCount === 1
+                                  ? "1 documento pendente"
+                                  : `${supplier.pendingDocumentCount} documentos pendentes`}
+                              </Link>
+                            ) : (
+                              <>
+                                <StatusIcon kind="done" tone="ok" />
+                                Em dia
+                              </>
+                            )}
                           </span>
                         </TD>
                         <TD className="max-md:hidden text-right">

@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PlanColumn } from "@/features/tasks/plan-data";
 import type { OwnerOption } from "@/features/tasks/task-cells";
+import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
+import { Check } from "lucide-react";
+import { Dropdown, DropdownContent, DropdownTrigger } from "@/components/ui/dropdown";
 import { saveInlineDraft, useAutoGrow } from "@/features/tasks/inline-edit";
+import { PlanTag } from "@/features/tasks/plan-tags";
 import { setTaskPlanValueAction } from "@/server/actions/project-plan";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +39,9 @@ function displayValue(column: PlanColumn, value: unknown, owners: OwnerOption[])
   }
   return inputValue(value);
 }
+
+const MENU_ROW =
+  "flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 text-[13px] text-ink-soft outline-none select-none data-[highlighted]:bg-raised data-[highlighted]:text-ink";
 
 /** Quiet until hovered or focused, like the other plan cells. */
 const FIELD =
@@ -67,6 +74,9 @@ export function PlanValueCell({
   useAutoGrow(ref, draft);
 
   if (!editable) {
+    if (column.type === "SELECT" && typeof value === "string" && value) {
+      return <span className="flex h-8 items-center px-2"><PlanTag options={column.options} option={value} /></span>;
+    }
     return (
       <span className="block min-w-0 px-2 py-1.5 text-body whitespace-pre-wrap break-words text-ink-soft">
         {displayValue(column, value, owners)}
@@ -123,15 +133,43 @@ export function PlanValueCell({
     }
   };
 
+  if (column.type === "SELECT") {
+    const pick = (next: string) => {
+      if (next === draft) return;
+      setDraft(next);
+      save(next);
+    };
+    return (
+      <Dropdown>
+        <DropdownTrigger
+          aria-label={`${label}: ${draft || "vazio"}`}
+          disabled={pending}
+          className="relative z-10 flex h-8 w-full min-w-0 items-center rounded-sm px-2 text-left transition-colors hover:bg-raised/70 focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60 data-[state=open]:bg-raised"
+        >
+          {draft ? <PlanTag options={column.options} option={draft} /> : null}
+        </DropdownTrigger>
+        <DropdownContent align="start" className="scroll-slim max-h-72 min-w-48 overflow-y-auto">
+          {column.options.map((option) => (
+            <DropdownPrimitive.Item key={option} className={MENU_ROW} onSelect={() => pick(option)}>
+              <span className="min-w-0 flex-1"><PlanTag options={column.options} option={option} /></span>
+              {option === draft ? <Check className="size-4 text-ink-soft" aria-hidden /> : null}
+            </DropdownPrimitive.Item>
+          ))}
+          {draft ? (
+            <DropdownPrimitive.Item className={cn(MENU_ROW, "mt-1 border-t border-line-soft text-muted")} onSelect={() => pick("")}>
+              Limpar
+            </DropdownPrimitive.Item>
+          ) : null}
+        </DropdownContent>
+      </Dropdown>
+    );
+  }
+
   if (choice) {
     return (
       <select
         aria-label={label}
-        className={cn(
-          FIELD,
-          "h-8 appearance-none",
-          column.type === "SELECT" && draft && "my-1 h-6 w-auto max-w-full self-start rounded-full bg-brand-soft px-2.5 text-meta font-medium text-brand-deep",
-        )}
+        className={cn(FIELD, "h-8 appearance-none")}
         value={draft}
         disabled={pending}
         onChange={(event) => {
@@ -140,13 +178,10 @@ export function PlanValueCell({
         }}
       >
         <option value="" />
-        {(column.type === "SELECT"
-          ? column.options.map((option) => ({ id: option, name: option }))
-          : owners
-        ).map((option) => (
+        {owners.map((option) => (
           <option key={option.id} value={option.id}>{option.name}</option>
         ))}
-        {column.type === "PERSON" && draft && !owners.some((owner) => owner.id === draft) ? (
+        {draft && !owners.some((owner) => owner.id === draft) ? (
           <option value={draft}>Pessoa indisponível</option>
         ) : null}
       </select>

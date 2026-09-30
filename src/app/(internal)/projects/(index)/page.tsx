@@ -16,7 +16,6 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatusFilter } from "@/components/app/status-filter";
 import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
-import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -35,7 +34,7 @@ import { NewProjectDialog } from "@/features/projects/new-project-dialog";
 import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label, meta } from "@/lib/labels";
+import { OPTIONS, label } from "@/lib/labels";
 import { formatDate } from "@/lib/format";
 import { initials, cn } from "@/lib/utils";
 import type { Tone } from "@/lib/status";
@@ -63,23 +62,6 @@ const TABS: {
   { key: "COMPLETED", label: "Concluídos", status: "COMPLETED" },
   { key: "ARCHIVED", label: "Arquivados", archived: true },
 ];
-
-/** Shape, not colour, carries the state — `tone` from `meta.project` supplies the colour. */
-const STATUS_ICON: Record<ProjectStatus, StatusIconKind> = {
-  ON_TRACK: "in-progress",
-  AT_RISK: "waiting",
-  BLOCKED: "blocked",
-  COMPLETED: "done",
-};
-
-/** Mirrors `badge.tsx`'s private text-tone table so the label beside the icon reads the same. */
-const TONE_TEXT: Record<Tone, string> = {
-  ok: "text-ink-soft",
-  warn: "text-warn",
-  risk: "text-risk",
-  info: "text-info",
-  neutral: "text-muted",
-};
 
 const STAGE_TONE: Record<ProjectStageSummary["status"], string> = {
   NOT_STARTED: "bg-line-soft",
@@ -197,7 +179,7 @@ export default async function ProjectsPage({
         </FilterBar>
       </div>
 
-      <TableShell variant="flush">
+      <TableShell>
         {result.items.length === 0 ? (
           <EmptyState
             icon={FolderKanban}
@@ -215,7 +197,6 @@ export default async function ProjectsPage({
                 <THead>
                   <TR>
                     <TH className="min-w-64">Nome</TH>
-                    <TH className="w-px">Status</TH>
                     <TH className="w-px">Etapa atual</TH>
                     <TH className="w-px">Progresso</TH>
                     <TH className="w-px">Etapas</TH>
@@ -225,7 +206,6 @@ export default async function ProjectsPage({
                 </THead>
                 <TBody>
                   {result.items.map((project) => {
-                    const status = meta.project(project.status, dict);
 
                     return (
                       <TR key={project.id} interactive>
@@ -245,14 +225,6 @@ export default async function ProjectsPage({
                               subtitle={`${project.projectCode} · ${project.supplier.name}`}
                             />
                           </Link>
-                        </TD>
-                        <TD label="Status">
-                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                            <StatusIcon kind={STATUS_ICON[project.status]} tone={status.tone} />
-                            <span className={cn(status.tone !== "neutral" && TONE_TEXT[status.tone])}>
-                              {status.label}
-                            </span>
-                          </span>
                         </TD>
                         <TD label="Etapa atual">
                           <span className="inline-flex items-center rounded-xs bg-brand-soft px-2 py-1 text-xs font-medium whitespace-nowrap text-brand-deep">

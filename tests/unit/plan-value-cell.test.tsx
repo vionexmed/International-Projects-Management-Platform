@@ -89,8 +89,8 @@ describe("project plan custom cells", () => {
 
     expect(date).toContain('type="date"');
     expect(date).toContain('aria-label="Entrega de Enviar relatório"');
-    expect(choice).toContain('<select');
-    expect(choice).toContain('Aprovado</option>');
+    expect(choice).toContain('aria-label="Revisão de Enviar relatório: Aprovado"');
+    expect(choice).toContain(">Aprovado</span>");
     expect(person).toContain('Ana</option>');
   });
 

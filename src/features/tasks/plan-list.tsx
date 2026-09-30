@@ -35,6 +35,9 @@ const BUILT_IN: { label: string; icon: LucideIcon }[] = [
 /* v2: the first version stored the defaults on every visit, pinning them. */
 const storageKey = (projectId: string) => `vionex-plan-widths:v2:${projectId}`;
 
+/* Storage is read once per render; nothing else writes it while the plan is open. */
+const subscribeNever = () => () => {};
+
 function savedWidths(projectId: string): string | null {
   if (typeof window === "undefined") return null;
   try { return window.localStorage.getItem(storageKey(projectId)); }
@@ -76,17 +79,21 @@ export function PlanList({
   const visibleColumns = columns.filter((column) => column.visible);
   const keys = planColumnKeys(columns);
   const visibleKeys = planColumnKeys(visibleColumns);
-  const [widthsByProject, setWidthsByProject] = React.useState<Record<string, ReturnType<typeof readPlanWidths>>>(() => ({
-    [projectId]: readPlanWidths(projectId, keys, savedWidths(projectId)),
-  }));
-  const widths = widthsForProject(projectId, keys, widthsByProject, savedWidths(projectId));
+  /*
+    The server has no browser storage, so the first render uses the defaults
+    and a saved preference is applied right after hydration — reading it
+    during render made the server and client markup disagree.
+  */
+  const [widthsByProject, setWidthsByProject] = React.useState<Record<string, ReturnType<typeof readPlanWidths>>>({});
+  const saved = React.useSyncExternalStore(subscribeNever, () => savedWidths(projectId), () => null);
+  const widths = widthsForProject(projectId, keys, widthsByProject, saved);
   // Only a width somebody chose is stored; untouched columns follow the defaults.
   const resized = React.useRef(false);
   const setWidths = (update: (current: typeof widths) => typeof widths) => {
     resized.current = true;
     setWidthsByProject((current) => ({
       ...current,
-      [projectId]: update(widthsForProject(projectId, keys, current, savedWidths(projectId))),
+      [projectId]: update(widthsForProject(projectId, keys, current, saved)),
     }));
   };
   React.useEffect(() => {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Maximize2 } from "lucide-react";
+import { Layers, Maximize2 } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { isNotFoundError } from "@/server/authz/errors";
@@ -9,14 +9,12 @@ import { listInternalUserOptions } from "@/server/services/users";
 import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
 import { UserAvatar } from "@/components/ui/avatar";
-import { StatusIcon } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/ui/table";
 import { SheetBody, SheetHeader } from "@/components/ui/dialog";
-import { SegmentedToggle } from "@/components/app/view-toolbar";
 import { NewTaskDialog } from "@/features/tasks/new-task-dialog";
 import { PlanList } from "@/features/tasks/plan-list";
-import { STAGE_ROUTES } from "@/features/projects/stage-routes";
+import { stageSegment } from "@/features/projects/stage-routes";
 import { PLAN_CATEGORIES, buildPlanGroups, planHref, toPlanColumns } from "@/features/tasks/plan-data";
 import { TaskSheet } from "@/features/tasks/task-sheet";
 import {
@@ -28,7 +26,7 @@ import {
 } from "@/features/tasks/task-detail";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label, meta, oneOf, type StageProgress } from "@/lib/labels";
+import { OPTIONS, label, oneOf } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 type PlanSearch = { category?: string; assignee?: string; task?: string };
@@ -105,28 +103,23 @@ export default async function ProjectPlanPage({
   // A task from another project never opens over this plan.
   const openTask = sheet && sheet.task.projectId === projectId ? sheet : null;
 
-  /*
-    The four stage pages, one click away from the plan, each with its status
-    glyph — so the strip also says where the project stands.
-  */
-  const stageLinks = STAGE_ROUTES.map((route) => {
-    const status = (stages.find((item) => item.key === route.key)?.status ?? "NOT_STARTED") as StageProgress;
-    return {
-      href: `/projects/${projectId}/${route.segment}`,
-      label: route.label,
-      icon: <StatusIcon status={status} label={meta.stage(status, dict).label} />,
-      active: false,
-    };
-  });
-
   return (
     <div className="min-w-0">
       <TableShell variant="workspace" className="rounded-lg">
-      {/* Stages on the left take the room they need; people and the main action close the row. */}
+      {/*
+        The table is the plan; "Ver por etapa" is the other way to read it —
+        the stage pages, opened at the current stage, with their own switcher
+        and a way back here.
+      */}
       <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft px-3 py-2 sm:px-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <SegmentedToggle label="Etapas do projeto" items={stageLinks} className="scroll-slim max-w-full shrink overflow-x-auto" />
-          <span className="hidden shrink-0 text-meta text-muted tabular-nums lg:inline">
+          <Button asChild variant="secondary" size="sm">
+            <Link href={`/projects/${projectId}/${stageSegment(project.currentStage)}`}>
+              <Layers />
+              Ver por etapa
+            </Link>
+          </Button>
+          <span className="hidden shrink-0 text-meta text-muted tabular-nums sm:inline">
             {result.total} {result.total === 1 ? "tarefa" : "tarefas"}
             {category ? ` · ${viewLabel}` : ""}
           </span>

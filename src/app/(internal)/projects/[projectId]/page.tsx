@@ -3,15 +3,12 @@ import { AlertOctagon } from "lucide-react";
 import { can, requireInternalUser } from "@/server/auth/current-user";
 import { getProjectWorkspace } from "@/server/services/projects";
 import { listProjectTimeline } from "@/server/services/timeline";
-import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { orNotFound } from "@/server/authz/rsc";
 import { db } from "@/server/db";
 import { ProgressBar, type ProgressTone } from "@/components/ui/progress";
-import { StatusIcon } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/avatar";
 import { EditStageDialog } from "@/features/projects/edit-stage-dialog";
 import { NewMilestoneDialog } from "@/features/projects/new-milestone-dialog";
-import { DenseEmpty, DenseList, DenseRow, WorkBlock } from "@/features/projects/work-block";
 import { stageSegment } from "@/features/projects/stage-routes";
 import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
@@ -28,14 +25,24 @@ const STAGE_BAR_TONE: Partial<Record<StageProgress, ProgressTone>> = {
   BLOCKED: "risk",
 };
 
-/** One fact of the strip under the stages: a label, the value, and a short note. */
-function Fact({ label, value, note, noteClass }: { label: string; value: React.ReactNode; note?: React.ReactNode; noteClass?: string }) {
+/** A quiet section: a small heading, an optional link, and unboxed content. */
+function Block({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 px-4 py-3">
-      <dt className="text-meta text-muted">{label}</dt>
-      <dd className="mt-0.5 truncate text-title text-ink">{value}</dd>
-      {note ? <dd className={cn("mt-0.5 truncate text-meta text-muted", noteClass)}>{note}</dd> : null}
-    </div>
+    <section className="min-w-0">
+      <div className="mb-1 flex items-baseline justify-between gap-3">
+        <h2 className="text-label font-semibold text-ink">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function BlockLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="text-meta text-muted transition-colors hover:text-ink">
+      {children}
+    </Link>
   );
 }
 
@@ -80,7 +87,6 @@ export default async function ProjectOverviewPage({
     .slice(0, 6);
 
   const upcomingMilestones = milestones.filter((milestone) => milestone.status !== "COMPLETED");
-  const nextMilestone = upcomingMilestones[0] ?? null;
   const milestoneLate = (milestone: (typeof milestones)[number]) =>
     milestone.status === "DELAYED" || (daysUntil(milestone.dueDate) ?? 0) < 0;
   const launchIn = daysUntil(project.targetLaunchDate);
@@ -105,60 +111,66 @@ export default async function ProjectOverviewPage({
     { label: "Tipo de produto", value: project.productType },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
 
+  const facts = [
+    `${open.length} ${open.length === 1 ? "tarefa em aberto" : "tarefas em aberto"}`,
+    overdue.length > 0 ? `${overdue.length} ${overdue.length === 1 ? "atrasada" : "atrasadas"}` : null,
+    project.targetLaunchDate ? `lançamento em ${formatDate(project.targetLaunchDate, locale)}${launchIn !== null && launchIn >= 0 ? ` (${launchIn} dias)` : ""}` : null,
+  ].filter(Boolean);
+
+  const row = "flex min-h-10 items-center gap-3 border-b border-line-faint py-2 last:border-b-0";
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-10">
       {project.blockerNote ? (
-        <div role="alert" className="flex items-start gap-3 rounded-md border border-risk/25 bg-risk-soft px-4 py-3">
+        <div role="alert" className="flex items-start gap-3 border-l-2 border-risk pl-3">
           <AlertOctagon className="mt-0.5 size-4 shrink-0 text-risk" aria-hidden />
-          <div className="min-w-0">
-            <p className="text-title text-risk">Bloqueio atual</p>
-            <p className="mt-0.5 text-body text-ink">{project.blockerNote}</p>
-          </div>
+          <p className="text-body text-ink"><span className="font-semibold text-risk">Bloqueio: </span>{project.blockerNote}</p>
         </div>
       ) : null}
 
-      <section aria-labelledby="journey-title">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-          <div>
-            <h2 id="journey-title" className="text-section text-ink">Etapas do projeto</h2>
-            <p className="text-meta text-muted">Etapa atual: {label.stageKey(project.currentStage, dict)}</p>
-          </div>
-          <p className="text-meta text-muted">
-            <span className="text-kpi-sm text-ink tabular-nums">{progress}%</span> concluído
-          </p>
-        </div>
+      <section aria-label="Andamento">
+        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="text-kpi text-ink tabular-nums">{progress}%</span>
+          <span className="text-body text-muted">
+            {facts.map((fact, index) => (
+              <span key={fact}>
+                {index > 0 ? " · " : ""}
+                <span className={index === 1 && overdue.length > 0 ? "text-risk" : undefined}>{fact}</span>
+              </span>
+            ))}
+          </span>
+        </p>
 
-        <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {stages.map((stage, index) => {
+        <ol className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+          {stages.map((stage) => {
             const status = meta.stage(stage.status as StageProgress, dict);
             const name = label.stageKey(stage.key, dict);
-            const category = STAGE_TASK_CATEGORY[stage.key];
-            const stageTasks = tasks.filter((task) => task.category === category && task.status !== "CANCELLED");
-            const done = stageTasks.filter((task) => task.status === "COMPLETED").length;
             const current = stage.key === project.currentStage;
             return (
-              <li
-                key={stage.id}
-                className={cn(
-                  "relative flex min-w-0 flex-col gap-2.5 rounded-md border px-4 py-3 transition-colors",
-                  current ? "border-brand-line bg-brand-soft/50" : "border-line-soft bg-surface hover:border-line",
-                )}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <StatusIcon status={stage.status as StageProgress} label={status.label} />
+              <li key={stage.id} className="group relative min-w-0">
+                <ProgressBar
+                  value={stage.computedProgress}
+                  tone={current ? "neutral" : STAGE_BAR_TONE[stage.status as StageProgress]}
+                  label={name}
+                  barClassName={cn("h-0.5", current && "[&>*]:bg-brand")}
+                />
+                <div className="mt-2 flex items-baseline gap-2">
                   <Link
                     href={`${base}/${stageSegment(stage.key)}`}
                     aria-current={current ? "step" : undefined}
-                    className="min-w-0 truncate text-body font-semibold text-ink after:absolute after:inset-0 hover:underline"
+                    className={cn(
+                      "min-w-0 truncate text-body after:absolute after:inset-0 hover:underline",
+                      current ? "font-semibold text-ink" : "text-ink-soft",
+                    )}
                   >
-                    <span className="mr-1 text-faint tabular-nums">{index + 1}.</span>
                     {name}
                   </Link>
-                  {current ? (
-                    <span className="shrink-0 rounded-full bg-brand px-1.5 py-px text-[11px] font-semibold text-on-brand">Atual</span>
-                  ) : null}
+                  <span className="ml-auto shrink-0 text-meta text-muted tabular-nums">{stage.computedProgress}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-meta text-muted">{current ? `Atual · ${status.label.toLowerCase()}` : status.label}</span>
                   {can(user, STAGE_PERMISSION[stage.key]) ? (
-                    <span className="relative z-10 -my-1 -mr-2 ml-auto">
+                    <span className="relative z-10 -my-1.5 ml-auto opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
                       <EditStageDialog
                         stage={{
                           id: stage.id,
@@ -172,144 +184,86 @@ export default async function ProjectOverviewPage({
                     </span>
                   ) : null}
                 </div>
-                <ProgressBar
-                  value={stage.computedProgress}
-                  tone={STAGE_BAR_TONE[stage.status as StageProgress]}
-                  label={name}
-                  barClassName="h-1.5"
-                />
-                <p className="flex items-center justify-between gap-2 text-meta text-muted">
-                  <span className="truncate">{status.label}</span>
-                  <span className="shrink-0 tabular-nums">
-                    {stage.computedProgress}% · {done}/{stageTasks.length} tarefas
-                  </span>
-                </p>
               </li>
             );
           })}
         </ol>
       </section>
 
-      <dl className="grid grid-cols-1 divide-y divide-line-soft rounded-md border border-line-soft bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <Fact
-          label="Tarefas em aberto"
-          value={open.length}
-          note={overdue.length > 0 ? `${overdue.length} atrasada${overdue.length === 1 ? "" : "s"}` : "Nenhuma atrasada"}
-          noteClass={overdue.length > 0 ? "font-medium text-risk" : undefined}
-        />
-        <Fact
-          label="Próximo marco"
-          value={nextMilestone ? nextMilestone.title : "Nenhum pendente"}
-          note={nextMilestone?.dueDate ? formatDate(nextMilestone.dueDate, locale) : undefined}
-          noteClass={nextMilestone && milestoneLate(nextMilestone) ? "font-medium text-risk" : undefined}
-        />
-        <Fact
-          label="Lançamento previsto"
-          value={project.targetLaunchDate ? formatDate(project.targetLaunchDate, locale) : "Sem data"}
-          note={launchIn !== null && launchIn >= 0 ? `em ${launchIn} dias` : undefined}
-        />
-      </dl>
-
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0 space-y-6">
-          <WorkBlock title="Próximas tarefas" count={open.length || undefined} action={{ label: "Abrir plano", href: `${base}/tasks` }}>
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0 space-y-10">
+          <Block title="Próximas tarefas" action={<BlockLink href={`${base}/tasks`}>Abrir plano</BlockLink>}>
             {comingUp.length === 0 ? (
-              <DenseEmpty>Nenhuma tarefa em aberto.</DenseEmpty>
+              <p className="py-2 text-body text-muted">Nenhuma tarefa em aberto.</p>
             ) : (
-              <DenseList>
+              <ul>
                 {comingUp.map((task) => {
                   const late = isTaskOverdue(task.status, task.dueDate, now);
                   return (
-                    <DenseRow
-                      key={task.id}
-                      href={`${base}/tasks?task=${task.id}`}
-                      leading={<StatusIcon status={late ? "OVERDUE" : (task.status as StageProgress)} />}
-                      title={task.title}
-                      meta={label.taskCategory(task.category, dict)}
-                      trailing={
-                        <>
-                          {task.assignedTo ? (
-                            <span className="hidden items-center gap-1.5 md:inline-flex">
-                              <UserAvatar name={task.assignedTo.name} size="xs" />
-                              {task.assignedTo.name}
-                            </span>
-                          ) : null}
-                          <span className={cn("w-16 text-right tabular-nums", late ? "font-medium text-risk" : "text-ink-soft")}>
-                            {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
-                          </span>
-                        </>
-                      }
-                    />
+                    <li key={task.id} className={cn(row, "relative")}>
+                      <Link
+                        href={`${base}/tasks?task=${task.id}`}
+                        className="min-w-0 flex-1 truncate text-body text-ink after:absolute after:inset-0 hover:underline"
+                      >
+                        {task.title}
+                      </Link>
+                      {task.assignedTo ? (
+                        <span className="hidden shrink-0 text-meta text-muted md:inline">{task.assignedTo.name}</span>
+                      ) : null}
+                      <span className={cn("w-16 shrink-0 text-right text-meta tabular-nums", late ? "text-risk" : "text-muted")}>
+                        {task.dueDate ? formatDateShort(task.dueDate, locale) : ""}
+                      </span>
+                    </li>
                   );
                 })}
-              </DenseList>
+              </ul>
             )}
-          </WorkBlock>
+          </Block>
 
-          <WorkBlock
-            title="Próximos marcos"
-            count={upcomingMilestones.length || undefined}
-            action={
-              /*
-                A stage owner adds milestones to their own stage; the general
-                project capability covers the ones that span the project. The
-                action re-checks both — this only decides whether to offer it.
-              */
-              canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null
-            }
-          >
+          <Block title="Marcos" action={canAddMilestone ? <NewMilestoneDialog projectId={project.id} /> : null}>
             {upcomingMilestones.length === 0 ? (
-              <DenseEmpty>Nenhum marco pendente.</DenseEmpty>
+              <p className="py-2 text-body text-muted">Nenhum marco pendente.</p>
             ) : (
-              <DenseList>
+              <ul>
                 {upcomingMilestones.map((milestone) => {
                   const status = meta.milestone(milestone.status as MilestoneProgress, dict);
                   const late = milestoneLate(milestone);
                   return (
-                    <DenseRow
-                      key={milestone.id}
-                      leading={<StatusIcon kind="milestone" tone={late ? "risk" : undefined} />}
-                      title={milestone.title}
-                      meta={milestone.stage ? label.stageKey(milestone.stage, dict) : null}
-                      trailing={
-                        <>
-                          <span className="hidden sm:inline">{status.label}</span>
-                          <span className={cn("w-16 text-right tabular-nums", late ? "font-medium text-risk" : "text-ink-soft")}>
-                            {milestone.dueDate ? formatDateShort(milestone.dueDate, locale) : ""}
-                          </span>
-                        </>
-                      }
-                    />
+                    <li key={milestone.id} className={row}>
+                      <span className="min-w-0 flex-1 truncate text-body text-ink">{milestone.title}</span>
+                      <span className="hidden shrink-0 text-meta text-muted sm:inline">{status.label}</span>
+                      <span className={cn("w-16 shrink-0 text-right text-meta tabular-nums", late ? "text-risk" : "text-muted")}>
+                        {milestone.dueDate ? formatDateShort(milestone.dueDate, locale) : ""}
+                      </span>
+                    </li>
                   );
                 })}
-              </DenseList>
+              </ul>
             )}
-          </WorkBlock>
+          </Block>
         </div>
 
-        <div className="min-w-0 space-y-6">
-          <WorkBlock title="Detalhes">
-            <dl className="divide-y divide-line-faint">
+        <div className="min-w-0 space-y-10">
+          <Block title="Detalhes">
+            <dl>
               {details.map((item) => (
-                <div key={item.label} className="grid min-h-10 grid-cols-[8rem_minmax(0,1fr)] items-center gap-3 px-4 py-1.5">
-                  <dt className="text-meta text-muted">{item.label}</dt>
+                <div key={item.label} className={row}>
+                  <dt className="w-28 shrink-0 text-meta text-muted">{item.label}</dt>
                   <dd className="min-w-0 truncate text-body text-ink">{item.value}</dd>
                 </div>
               ))}
             </dl>
             {project.description ? (
-              <p className="border-t border-line-faint px-4 py-3 text-body whitespace-pre-wrap text-ink-soft">
-                {project.description}
-              </p>
+              <p className="mt-3 text-body whitespace-pre-wrap text-ink-soft">{project.description}</p>
             ) : null}
-          </WorkBlock>
+          </Block>
 
-          <WorkBlock title="Atividade recente" action={{ label: "Histórico completo", href: `${base}/timeline` }}>
-            <div className="px-4 py-4">
+          <Block title="Atividade" action={<BlockLink href={`${base}/timeline`}>Ver tudo</BlockLink>}>
+            <div className="pt-2">
               <Timeline
                 locale={locale}
                 emptyTitle="Nenhuma atividade ainda."
-                items={timeline.map((event) => ({
+                items={timeline.slice(0, 4).map((event) => ({
                   id: event.id,
                   description: event.description,
                   createdAt: event.createdAt,
@@ -317,7 +271,7 @@ export default async function ProjectOverviewPage({
                 }))}
               />
             </div>
-          </WorkBlock>
+          </Block>
         </div>
       </div>
     </div>

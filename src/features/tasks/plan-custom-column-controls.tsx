@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input, Select, Textarea } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
+import { DEFAULT_STATUS_OPTIONS, OptionsEditor } from "@/features/tasks/plan-tags";
 import type { PlanColumn } from "@/features/tasks/plan-data";
 import {
   createProjectPlanColumnAction,
@@ -34,8 +35,8 @@ type PlanAction = (prev: ActionState, formData: FormData) => Promise<ActionState
 type Submit = (action: PlanAction, fields: Record<string, string>, success: string, onSuccess?: () => void) => void;
 
 const COLUMN_TYPES: { value: PlanColumn["type"]; label: string; icon: LucideIcon }[] = [
+  { value: "SELECT", label: "Status (etiquetas)", icon: CircleChevronDown },
   { value: "TEXT", label: "Texto", icon: AlignLeft },
-  { value: "SELECT", label: "Seleção", icon: CircleChevronDown },
   { value: "DATE", label: "Data", icon: Calendar },
   { value: "NUMBER", label: "Número", icon: Hash },
   { value: "PERSON", label: "Pessoa", icon: UserRound },
@@ -90,32 +91,38 @@ function AddPlanColumn({
   submit: Submit;
   onCreated: () => void;
 }) {
-  const [type, setType] = React.useState<PlanColumn["type"]>("TEXT");
+  const [type, setType] = React.useState<PlanColumn["type"]>("SELECT");
   const [name, setName] = React.useState("");
-  const [options, setOptions] = React.useState("");
-  const ready = name.trim() !== "" && (type !== "SELECT" || options.trim() !== "");
+  // A status column starts with the usual steps; each can be removed or renamed by removing and adding.
+  const [options, setOptions] = React.useState<string[]>(DEFAULT_STATUS_OPTIONS);
+  const ready = name.trim() !== "" && (type !== "SELECT" || options.length > 0);
 
   return (
     <form
       className="grid gap-2 p-1"
       onSubmit={(event) => {
         event.preventDefault();
-        const parsed = type === "SELECT" ? options.split(/\r?\n/).map((item) => item.trim()).filter(Boolean) : [];
-        if (!ready || (type === "SELECT" && parsed.length === 0)) return;
+        if (!ready) return;
+        const parsed = type === "SELECT" ? options : [];
         submit(createProjectPlanColumnAction, { projectId, name: name.trim(), type, options: JSON.stringify(parsed) }, "Coluna criada.", () => {
           setName("");
-          setOptions("");
-          setType("TEXT");
+          setOptions(DEFAULT_STATUS_OPTIONS);
+          setType("SELECT");
           onCreated();
         });
       }}
     >
       <p className="text-label font-semibold text-ink">Nova coluna</p>
-      <Input aria-label="Nome da coluna" fieldSize="sm" value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome, ex.: Documento" maxLength={80} required disabled={pending} autoFocus />
+      <Input aria-label="Nome da coluna" fieldSize="sm" value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome, ex.: Status" maxLength={80} required disabled={pending} autoFocus />
       <Select aria-label="Tipo da coluna" fieldSize="sm" value={type} onChange={(event) => setType(event.target.value as PlanColumn["type"])} disabled={pending}>
         {COLUMN_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </Select>
-      {type === "SELECT" ? <Textarea aria-label="Opções" value={options} onChange={(event) => setOptions(event.target.value)} placeholder="Uma opção por linha" className="min-h-16 text-[13px]" disabled={pending} /> : null}
+      {type === "SELECT" ? (
+        <div className="grid gap-1.5 pt-1">
+          <p className="text-meta text-muted">Opções que a equipe poderá escolher em cada tarefa:</p>
+          <OptionsEditor options={options} onChange={setOptions} disabled={pending} />
+        </div>
+      ) : null}
       <Button type="submit" size="sm" variant="primary" disabled={pending || !ready}>Criar coluna</Button>
     </form>
   );
@@ -182,6 +189,8 @@ export function PlanColumnMenu({
   const { pending, submit } = useColumnAction(projectId);
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(column.name);
+  const [options, setOptions] = React.useState(column.options);
+  const optionsChanged = options.join("\n") !== column.options.join("\n");
   const visibleIds = columns.filter((item) => item.visible).map((item) => item.id);
   const position = visibleIds.indexOf(column.id);
   const typeLabel = COLUMN_TYPES.find((option) => option.value === column.type)?.label;
@@ -201,7 +210,10 @@ export function PlanColumnMenu({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setName(column.name);
+        if (next) {
+          setName(column.name);
+          setOptions(column.options);
+        }
       }}
     >
       <PopoverPrimitive.Trigger
@@ -211,7 +223,7 @@ export function PlanColumnMenu({
         {children}
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content align="start" sideOffset={4} collisionPadding={16} className={cn(POPOVER, "w-64")}>
+        <PopoverPrimitive.Content align="start" sideOffset={4} collisionPadding={16} className={cn(POPOVER, "w-72")}>
           <form
             className="p-1"
             onSubmit={(event) => {
@@ -224,6 +236,23 @@ export function PlanColumnMenu({
             <Input aria-label="Nome da coluna" fieldSize="sm" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} disabled={pending} autoFocus />
             <p className="mt-1.5 px-1 text-meta text-muted">Tipo: {typeLabel} · Enter para salvar</p>
           </form>
+          {column.type === "SELECT" ? (
+            <div className="mt-1 grid gap-2 border-t border-line-soft p-1 pt-2">
+              <p className="text-meta text-muted">Opções</p>
+              <OptionsEditor options={options} onChange={setOptions} disabled={pending} />
+              {optionsChanged ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  disabled={pending || options.length === 0}
+                  onClick={() => submit(updateProjectPlanColumnAction, { columnId: column.id, options: JSON.stringify(options) }, "Opções atualizadas.", close)}
+                >
+                  Salvar opções
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-1 border-t border-line-soft pt-1">
             <button type="button" className={MENU_BUTTON} disabled={pending || position <= 0} onClick={() => move(-1)}>
               <ArrowLeft /> Mover para a esquerda

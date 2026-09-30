@@ -18,6 +18,8 @@ export type SupplierRow = {
   projectCount: number;
   openTaskCount: number;
   overdueTaskCount: number;
+  /** Requested documents the supplier still owes (pending, or sent back for changes). */
+  pendingDocumentCount: number;
 };
 
 /**
@@ -42,7 +44,7 @@ export async function listSuppliers(
   if (supplierIds.length === 0) return [];
 
   const now = startOfTodayUtc();
-  const [projectGroups, openGroups, overdueGroups] = await Promise.all([
+  const [projectGroups, openGroups, overdueGroups, requestGroups] = await Promise.all([
     db.project.groupBy({
       by: ["supplierId"],
       where: { supplierId: { in: supplierIds }, archivedAt: null },
@@ -62,6 +64,11 @@ export async function listSuppliers(
       },
       _count: { _all: true },
     }),
+    db.documentRequest.groupBy({
+      by: ["supplierId"],
+      where: { supplierId: { in: supplierIds }, status: { in: ["PENDING", "REJECTED"] } },
+      _count: { _all: true },
+    }),
   ]);
 
   const toMap = (groups: { supplierId: string | null; _count: { _all: number } }[]) =>
@@ -70,6 +77,7 @@ export async function listSuppliers(
   const projects = toMap(projectGroups);
   const open = toMap(openGroups);
   const overdue = toMap(overdueGroups);
+  const pendingDocuments = toMap(requestGroups);
 
   return suppliers.map((supplier) => ({
     id: supplier.id,
@@ -79,6 +87,7 @@ export async function listSuppliers(
     projectCount: projects.get(supplier.id) ?? 0,
     openTaskCount: open.get(supplier.id) ?? 0,
     overdueTaskCount: overdue.get(supplier.id) ?? 0,
+    pendingDocumentCount: pendingDocuments.get(supplier.id) ?? 0,
   }));
 }
 
