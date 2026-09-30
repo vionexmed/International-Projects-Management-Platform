@@ -3,48 +3,49 @@
 /* ---------------------------------------------------------------------------
    Vionex Projects — design tokens
 
-   Identity "Maré Profunda": every hue comes from the logo itself — the
-   turquoise of the mark (#00a3b5) and the deep teal of its fold (#004e57),
-   deepened for the sidebar. The turquoise is too light for white text
-   (3.04:1), so it carries dark ink when it fills a button and is otherwise
-   used for graphics, the active indicator and focus; text in brand colour
-   uses the deeper `brand-strong`. Greys are tinted toward that teal so the
-   neutral surfaces belong to the same family. A gently tinted canvas, soft
-   corners and quiet elevation distinguish the main working surfaces while
-   keeping the dense 40-px rows and 48-px toolbars intact.
+   "Grafite": a neutral, graphite interface in which colour means something.
+   Surfaces and ink are true greys (no teal cast), the main action is near
+   black, and the Vionex turquoise — deepened to read as text on white
+   (4.9:1) — is kept for accents only: focus, the active item, links and
+   progress. The logo keeps its own artwork. Quiet borders, restrained
+   corners and one elevation for things that float.
 --------------------------------------------------------------------------- */
 
 @theme {
   /* Surfaces */
-  --color-canvas: #f3f7f8;
+  --color-canvas: #f6f7f8;
   --color-surface: #ffffff;
-  --color-subtle: #f8fbfb;
-  --color-raised: #edf3f4;
+  --color-subtle: #fafafb;
+  --color-raised: #f1f2f4;
 
   /* Ink */
-  --color-ink: #082126;
-  --color-ink-soft: #30484d;
-  --color-muted: #566b70;
-  --color-faint: #83969a;
+  --color-ink: #111315;
+  --color-ink-soft: #383c42;
+  --color-muted: #62676f;
+  --color-faint: #8e939b;
 
   /* Structure */
-  --color-line: #d4e0e2;
-  --color-line-soft: #e8eff0;
-  --color-line-strong: #adc1c5;
+  --color-line: #e2e4e8;
+  --color-line-soft: #eceef1;
+  --color-line-strong: #c8ccd2;
 
-  /* Brand — turquoise */
-  --color-brand: #00a3b5;
-  --color-brand-strong: #00727e;
-  --color-brand-deep: #005760;
-  --color-brand-soft: #e0f4f6;
-  --color-brand-line: #a6dce2;
+  /* Brand — the Vionex turquoise, deepened, for accents */
+  --color-brand: #0d7f8a;
+  --color-brand-strong: #0a6a73;
+  --color-brand-deep: #08545b;
+  --color-brand-soft: #eaf4f5;
+  --color-brand-line: #b8dbe0;
 
-  /* Rail — the internal sidebar, in the deep teal of the logo's fold. The
-     names stay `navy*` so every existing class keeps working. */
-  --color-navy: #05292f;
-  --color-navy-soft: #0c3a41;
-  --color-navy-line: #17505a;
-  --color-navy-ink: #9ec3c8;
+  /* The main action: graphite, white text. */
+  --color-primary: #16181b;
+  --color-primary-hover: #2c3035;
+
+  /* Rail — the internal sidebar, graphite. The names stay `navy*` so every
+     existing class keeps working. */
+  --color-navy: #121416;
+  --color-navy-soft: #1e2125;
+  --color-navy-line: #2b2f34;
+  --color-navy-ink: #a3a8af;
 
   /* Status — discreet, never saturated. Info is cobalt, kept clearly apart
      from the brand teal so it never reads as "brand". */
@@ -61,26 +62,26 @@
   --color-info-dot: #3d6fe0;
   --color-info-soft: #ecf1fd;
 
-  /* Ink on turquoise fills (5.06:1), and the fill's hover step. */
-  --color-on-brand: #05292f;
-  --color-brand-hover: #1fb3c3;
+  /* Ink on the turquoise fill, and the fill's hover step. */
+  --color-on-brand: #ffffff;
+  --color-brand-hover: #0b727c;
 
   /* Row rule inside dense grids — one step lighter than `line-soft`, so 40-px
      rows read as a list rather than a stack of boxes. */
-  --color-line-faint: #f0f4f5;
+  --color-line-faint: #f2f3f5;
 
   /* A gentle progression keeps small controls tidy and gives panels room to
      breathe. Avatars and progress tracks retain their full-round shape. */
-  --radius-xs: 5px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
   /* Subtle depth for working surfaces; overlays retain stronger elevation. */
-  --shadow-panel: 0 2px 12px rgba(5, 41, 47, 0.055);
-  --shadow-overlay: 0 8px 28px rgba(5, 41, 47, 0.14);
-  --shadow-dialog: 0 16px 48px rgba(5, 41, 47, 0.18);
-  --shadow-sheet: -16px 0 58px rgba(5, 41, 47, 0.16);
+  --shadow-panel: 0 1px 2px rgba(17, 19, 21, 0.05);
+  --shadow-overlay: 0 1px 2px rgba(17, 19, 21, 0.06), 0 8px 24px rgba(17, 19, 21, 0.1);
+  --shadow-dialog: 0 1px 3px rgba(17, 19, 21, 0.08), 0 24px 64px rgba(17, 19, 21, 0.18);
+  --shadow-sheet: -16px 0 48px rgba(17, 19, 21, 0.14);
 
   /* Entrances for overlays — short, and switched off by reduced motion. */
   --animate-fade-in: vx-fade-in 160ms ease-out;
@@ -140,12 +141,11 @@
 
   /* Type */
   /*
-    Manrope: its round geometry echoes the wordmark, and its x-height sits
-    well beside the CJK system fonts the supplier portal falls back to. Both
-    families are self-hosted by next/font — Google's CDN is unreachable from
-    mainland China, where many suppliers work.
+    Inter: a neutral, dense UI face with true tabular figures. Self-hosted by
+    next/font (Google's CDN is unreachable from mainland China, where many
+    suppliers work), with the CJK system fonts behind it.
   */
-  --font-sans: var(--font-manrope), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+  --font-sans: var(--font-inter), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
     "Microsoft YaHei", ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -175,18 +175,12 @@
     background-color: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    /* Manrope is thin at 400 in 13–14px UI text; 500 is its reading weight. */
-    font-weight: 500;
+    font-weight: 400;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* CJK strokes look heavy at Manrope's 500; Chinese reads best at 400. */
-  :lang(zh) body,
-  body:lang(zh) {
-    font-weight: 400;
-  }
 
   /* A single, consistent focus treatment across the whole product. */
   :focus-visible {

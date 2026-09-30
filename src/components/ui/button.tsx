@@ -13,9 +13,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          // The logo turquoise with dark ink: white on it is only 3.04:1. The
-          // outline is the rail colour, since a turquoise ring would vanish.
-          "bg-brand text-on-brand font-semibold hover:bg-brand-hover active:bg-brand focus-visible:outline-navy",
+          // Graphite with white text: the main action reads as the strongest
+          // thing on the page without spending the brand colour on it.
+          "bg-primary text-white hover:bg-primary-hover active:bg-primary focus-visible:outline-brand",
         secondary:
           "border border-line-soft bg-surface text-ink hover:border-line hover:bg-subtle",
         /** Accent-outlined secondary, for the second action beside a primary. */

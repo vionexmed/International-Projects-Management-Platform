@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Manrope } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 /* latin-ext carries Portuguese accents; both are variable fonts. */
-const manrope = Manrope({
+const inter = Inter({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-manrope",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -26,14 +26,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05292f",
+  themeColor: "#121416",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${manrope.variable} ${geistMono.variable}`}>
+    <html lang="pt-BR" className={`${inter.variable} ${geistMono.variable}`}>
       <body className="antialiased">
         {children}
         <Toaster />

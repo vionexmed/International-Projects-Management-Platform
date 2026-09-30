@@ -194,7 +194,7 @@ export default async function ProjectOverviewPage({
         </div>
 
         {/* The four stages as one track. */}
-        <ol className="mt-8 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-4">
+        <ol className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 xl:grid-cols-4 xl:gap-x-3">
           {stages.map((stage) => {
             const stageStatus = stage.status as StageProgress;
             const status = meta.stage(stageStatus, dict);
