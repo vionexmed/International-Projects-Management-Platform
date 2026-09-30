@@ -538,3 +538,25 @@
     animation: none;
   }
 }
+
+/* Assistant: the reply rises in; three dots while the platform is consulted. */
+.vx-assistant-in {
+  animation: vx-page-in 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.vx-typing {
+  animation: vx-typing 1s ease-in-out infinite;
+}
+
+@keyframes vx-typing {
+  0%,
+  60%,
+  100% {
+    translate: 0 0;
+    opacity: 0.45;
+  }
+  30% {
+    translate: 0 -3px;
+    opacity: 1;
+  }
+}

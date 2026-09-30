@@ -10,6 +10,7 @@ import { VionexLogo } from "@/components/app/logo";
 import { Topbar } from "@/components/app/topbar";
 import { DemoBanner } from "@/components/app/demo-banner";
 import { NavMemory } from "@/components/app/nav-memory";
+import { Assistant } from "@/components/app/assistant/assistant";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { label } from "@/lib/labels";
@@ -95,6 +96,8 @@ export default async function InternalLayout({
           />
           <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
           {modal}
+          {/* The platform assistant, on every internal page (⌘J). */}
+          <Assistant firstName={user.name.split(" ")[0]} />
         </div>
       </div>
     </>
