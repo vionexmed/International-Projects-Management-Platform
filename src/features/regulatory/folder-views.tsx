@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { ChevronRight, FileClock, Folder } from "lucide-react";
+import { ChevronRight, Download, FileClock, FileText, Folder } from "lucide-react";
 import type { StageKey } from "@/generated/prisma";
-import type { RequestStatus } from "@/server/services/documents";
+import type { DocumentStatus } from "@/server/services/documents";
+import type { DocumentRow } from "@/features/documents/documents-table";
 import type { SupplierFolder } from "@/server/services/regulatory-folders";
-import { StatusIcon, type StatusIconKind } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CellStack, Table, TableScroll, TableShell, TBody, TD, TH, THead, TR } from "@/components/ui/table";
+import { CellStack, Table, TableScroll, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { label, meta } from "@/lib/labels";
-import { daysUntil, formatDate, formatDateShort } from "@/lib/format";
+import { daysUntil, formatDateShort, formatFileSize } from "@/lib/format";
 import type { Tone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -18,13 +18,6 @@ import { cn } from "@/lib/utils";
  * inside one, and the documents still owed. Pure server markup.
  */
 
-const TONE_ICON: Record<Tone, StatusIconKind> = {
-  ok: "done",
-  warn: "waiting",
-  risk: "blocked",
-  info: "in-progress",
-  neutral: "open",
-};
 
 function FolderGlyph({ className }: { className?: string }) {
   return (
@@ -96,8 +89,8 @@ export type ProjectFolderRow = {
   updatedAt: Date | null;
 };
 
-/** Inside a supplier: each project is a sub-folder row carrying its own facts. */
-export function ProjectFolderTable({
+/** Inside a supplier: each project is a sub-folder tile carrying its own facts. */
+export function ProjectFolderGrid({
   supplierId,
   projects,
   locale,
@@ -108,56 +101,40 @@ export function ProjectFolderTable({
   locale: Locale;
   dict: Dictionary;
 }) {
+  if (projects.length === 0) {
+    return <EmptyState icon={Folder} title="Nenhum projeto ativo com este fornecedor." compact />;
+  }
   return (
-    <TableShell>
-      {projects.length === 0 ? (
-        <EmptyState icon={Folder} title="Nenhum projeto ativo com este fornecedor." compact />
-      ) : (
-        <TableScroll>
-          <Table>
-            <THead>
-              <TR>
-                <TH className="min-w-64">Projeto</TH>
-                <TH className="w-px">Etapa atual</TH>
-                <TH className="w-px">Responsável</TH>
-                <TH className="w-px" align="right">Documentos</TH>
-                <TH className="w-px" align="right">Aguardando envio</TH>
-                <TH className="w-px" align="right">Lançamento</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {projects.map((project) => (
-                <TR key={project.id} interactive>
-                  <TD>
-                    <Link
-                      href={`/regulatory?supplier=${supplierId}&project=${project.id}`}
-                      className="flex items-center gap-3 after:absolute after:inset-0 after:content-['']"
-                    >
-                      <FolderGlyph className="size-8" />
-                      <CellStack
-                        title={project.name}
-                        subtitle={`${project.projectCode}${project.updatedAt ? ` · atualizado em ${formatDateShort(project.updatedAt, locale)}` : ""}`}
-                      />
-                    </Link>
-                  </TD>
-                  <TD label="Etapa atual">
-                    <span className="inline-flex items-center rounded-xs bg-brand-soft px-2 py-1 text-xs font-medium whitespace-nowrap text-brand-deep">
-                      {label.stageKey(project.currentStage, dict)}
-                    </span>
-                  </TD>
-                  <TD label="Responsável">{project.owner.name}</TD>
-                  <TD label="Documentos" align="right">{project.documentCount}</TD>
-                  <TD label="Aguardando envio" align="right" className={cn(project.pending > 0 && "font-medium text-warn")}>
-                    {project.pending}
-                  </TD>
-                  <TD label="Lançamento" align="right">{formatDate(project.targetLaunchDate, locale)}</TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
-        </TableScroll>
-      )}
-    </TableShell>
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {projects.map((project) => (
+        <li key={project.id}>
+          <Link
+            href={`/regulatory?supplier=${supplierId}&project=${project.id}`}
+            className="group flex h-full items-start gap-3 rounded-md border border-line-soft bg-surface p-4 transition-colors hover:border-line-strong hover:bg-subtle"
+          >
+            <FolderGlyph />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1">
+                <span className="truncate text-title text-ink">{project.name}</span>
+                <ChevronRight className="size-4 shrink-0 text-faint opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+              </span>
+              <span className="block text-meta text-muted">
+                {project.projectCode} · {label.stageKey(project.currentStage, dict)}
+              </span>
+              <span className="mt-2 block text-meta text-ink-soft">
+                {plural(project.documentCount, "documento", "documentos")}
+                {project.targetLaunchDate ? ` · lançamento ${formatDateShort(project.targetLaunchDate, locale)}` : ""}
+              </span>
+              {project.pending > 0 ? (
+                <span className="mt-2 inline-flex rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn">
+                  {project.pending} aguardando envio
+                </span>
+              ) : null}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -169,64 +146,129 @@ export type PendingRequestRow = {
   project: { id: string; name: string };
 };
 
-/** Requests still open in this folder: the files that should be here and are not yet. */
-export function PendingRequests({
+const OWED: Record<string, { label: string; tone: string }> = {
+  PENDING: { label: "Aguardando envio", tone: "bg-warn-soft text-warn" },
+  REJECTED: { label: "Correção pedida", tone: "bg-risk-soft text-risk" },
+};
+
+const DOC_TONE: Record<Tone, string> = {
+  ok: "bg-ok-soft text-ok",
+  warn: "bg-warn-soft text-warn",
+  risk: "bg-risk-soft text-risk",
+  info: "bg-info-soft text-info",
+  neutral: "bg-raised text-ink-soft",
+};
+
+function Tag({ tone, children }: { tone: string; children: React.ReactNode }) {
+  return <span className={cn("inline-flex h-6 items-center rounded-full px-2.5 text-meta font-medium whitespace-nowrap", tone)}>{children}</span>;
+}
+
+/**
+ * The folder's contents, as Drive shows a folder: what is still owed sits on
+ * top as dashed placeholder rows (the file that should be there), then every
+ * document received, newest first.
+ */
+export function FolderFiles({
+  documents,
   requests,
   showProject,
   locale,
   dict,
 }: {
+  documents: DocumentRow[];
   requests: PendingRequestRow[];
   showProject: boolean;
   locale: Locale;
   dict: Dictionary;
 }) {
-  if (requests.length === 0) return null;
+  const owed = requests.filter((request) => request.status in OWED);
+  if (owed.length === 0 && documents.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="Nenhum arquivo nesta pasta."
+        description="Os documentos enviados pelo fornecedor ou pela equipe aparecem aqui."
+        compact
+      />
+    );
+  }
+
   return (
-    <TableShell>
-      <TableScroll>
-        <Table>
-          <THead>
-            <TR>
-              <TH className="min-w-64">Solicitação</TH>
-              {showProject ? <TH className="w-px">Projeto</TH> : null}
-              <TH className="w-px">Status</TH>
-              <TH className="w-px" align="right">Prazo</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {requests.map((request) => {
-              const status = meta.request(request.status as RequestStatus, dict);
-              const remaining = daysUntil(request.dueDate);
-              const late = remaining !== null && remaining < 0 && ["PENDING", "REJECTED"].includes(request.status);
-              return (
-                <TR key={request.id} interactive>
-                  <TD>
-                    <Link
-                      href={`/projects/${request.project.id}/regulatory`}
-                      className="flex items-center gap-3 after:absolute after:inset-0 after:content-['']"
-                    >
-                      <FileClock className="size-4 shrink-0 text-faint" aria-hidden />
-                      <CellStack title={request.title} />
-                    </Link>
-                  </TD>
-                  {showProject ? <TD label="Projeto">{request.project.name}</TD> : null}
-                  <TD label="Status">
-                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                      <StatusIcon kind={TONE_ICON[status.tone]} tone={status.tone} />
-                      {status.label}
+    <TableScroll>
+      <Table>
+        <THead>
+          <TR>
+            <TH className="min-w-72">Nome</TH>
+            {showProject ? <TH className="w-px">Projeto</TH> : null}
+            <TH className="w-px">Status</TH>
+            <TH className="w-px" align="right">Data</TH>
+            <TH className="w-px" />
+          </TR>
+        </THead>
+        <TBody>
+          {owed.map((request) => {
+            const state = OWED[request.status];
+            const remaining = daysUntil(request.dueDate);
+            const late = remaining !== null && remaining < 0;
+            return (
+              <TR key={`request-${request.id}`}>
+                <TD>
+                  <span className="flex items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-line-strong text-faint">
+                      <FileClock className="size-4" aria-hidden />
                     </span>
-                  </TD>
-                  <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
-                    {request.dueDate ? formatDateShort(request.dueDate, locale) : "—"}
-                    {late ? " · atrasado" : ""}
-                  </TD>
-                </TR>
-              );
-            })}
-          </TBody>
-        </Table>
-      </TableScroll>
-    </TableShell>
+                    <CellStack title={<span className="text-ink-soft">{request.title}</span>} subtitle="Solicitado ao fornecedor — ainda não enviado" />
+                  </span>
+                </TD>
+                {showProject ? <TD label="Projeto">{request.project.name}</TD> : null}
+                <TD label="Status">
+                  <Tag tone={state.tone}>{state.label}</Tag>
+                </TD>
+                <TD label="Data" align="right" className={cn(late && "font-medium text-risk")}>
+                  {request.dueDate ? `prazo ${formatDateShort(request.dueDate, locale)}` : "sem prazo"}
+                </TD>
+                <TD />
+              </TR>
+            );
+          })}
+          {documents.map((document) => {
+            const status = meta.document(document.status as DocumentStatus, dict);
+            const version = document.currentVersion;
+            return (
+              <TR key={document.id} interactive>
+                <TD>
+                  <span className="flex items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-raised text-muted">
+                      <FileText className="size-4" aria-hidden />
+                    </span>
+                    <CellStack
+                      title={document.name}
+                      subtitle={version ? `${version.fileName} · v${version.version} · ${formatFileSize(version.fileSize)}` : label.documentType(document.type, dict)}
+                    />
+                  </span>
+                </TD>
+                {showProject ? <TD label="Projeto">{document.project.name}</TD> : null}
+                <TD label="Status">
+                  <Tag tone={DOC_TONE[status.tone]}>{status.label}</Tag>
+                </TD>
+                <TD label="Data" align="right">{formatDateShort(document.updatedAt, locale)}</TD>
+                <TD className="text-right">
+                  {version ? (
+                    <a
+                      href={`/api/files/${version.id}`}
+                      aria-label={`Baixar ${document.name}`}
+                      className="relative z-10 inline-flex items-center gap-1.5 font-medium text-brand-strong hover:underline"
+                    >
+                      <Download className="size-3.5" aria-hidden />
+                      Baixar
+                    </a>
+                  ) : null}
+                </TD>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
+    </TableScroll>
   );
 }
