@@ -29,6 +29,7 @@ import { ForbiddenError, NotFoundError } from "@/server/authz/errors";
 import { assertRoleCan, canReviewDocumentType } from "@/server/authz/permissions";
 import { isSupplierRole, type SessionUser } from "@/types/auth";
 import { errorText } from "@/lib/i18n/error-text";
+import { DOCUMENT_STAGE_CATEGORY } from "@/lib/document-stage";
 
 export type DocumentListFilters = {
   query?: string;
@@ -329,7 +330,8 @@ export async function createDocumentRequest(user: SessionUser, input: CreateDocu
             supplierId: project.supplierId,
             title: input.title,
             description: input.description,
-            category: "REGULATORY",
+            // The stage the requested category belongs to, not always Regulatório.
+            category: DOCUMENT_STAGE_CATEGORY[input.type],
             priority: "HIGH",
             status: "WAITING",
             dueDate: input.dueDate,

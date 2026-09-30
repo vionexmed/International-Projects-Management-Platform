@@ -1,24 +1,21 @@
 import Link from "next/link";
-import { Inbox, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
-import { listDocumentRequests, type RequestStatus } from "@/server/services/documents";
 import { db } from "@/server/db";
 import { WorkBlock } from "@/features/projects/work-block";
-import { StatusBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CellStack, Table, TableScroll, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { ReviewRequestDialog } from "@/features/documents/review-request-dialog";
 import { RegulatoryItemDialog } from "@/features/projects/regulatory-item-dialog";
 import { StatusMenu, type StatusOption } from "@/components/app/status-menu";
 import { updateRegulatoryItemAction } from "@/server/actions/stages";
-import { canReviewDocumentType } from "@/server/authz/permissions";
 import { orNotFound } from "@/server/authz/rsc";
 import { StageDocumentList } from "@/features/projects/stage-document-list";
+import { StageRequests } from "@/features/projects/stage-requests";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, meta } from "@/lib/labels";
-import { formatDate, formatDateShort, formatDateTime, daysUntil } from "@/lib/format";
+import { formatDateShort, daysUntil } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default async function ProjectRegulatoryPage({
@@ -33,8 +30,7 @@ export default async function ProjectRegulatoryPage({
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
 
-  const [requests, items, documents] = await Promise.all([
-    listDocumentRequests(user, { projectId }),
+  const [items, documents] = await Promise.all([
     db.task.findMany({
       // Mirror tasks of the requests above are the same pendency; listing
       // them again showed every request twice on this screen.
@@ -49,31 +45,8 @@ export default async function ProjectRegulatoryPage({
     }),
   ]);
 
-  /**
-   * The rounds each request has already been through. One query for the page
-   * rather than one per row; the requests themselves were scoped above, so
-   * these ids are already the caller's to see.
-   */
-  const reviews = await db.documentRequestReview.findMany({
-    where: { requestId: { in: requests.map((request) => request.id) } },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      requestId: true,
-      decision: true,
-      note: true,
-      createdAt: true,
-      reviewer: { select: { id: true, name: true } },
-      documentVersion: { select: { id: true, version: true, fileName: true } },
-    },
-  });
-  const reviewsByRequest = Map.groupBy(reviews, (review) => review.requestId);
-
   const canManage = can(user, "regulatory:manage");
   const approved = items.filter((item) => item.status === "COMPLETED").length;
-  const openRequests = requests.filter((request) =>
-    ["PENDING", "SUBMITTED", "IN_REVIEW", "REJECTED"].includes(request.status),
-  ).length;
   // The authority most items answer to; a row repeats it only when it differs.
   const authority = items.find((item) => item.authority)?.authority ?? null;
 
@@ -84,96 +57,14 @@ export default async function ProjectRegulatoryPage({
 
   return (
     <div className="space-y-6">
-      {/* Document requests to the supplier */}
-      <WorkBlock
-        title="Solicitações ao fornecedor"
-        count={openRequests > 0 ? `${openRequests} em aberto` : undefined}
-        description={`Documentos pedidos a ${project.supplier.name} pelo portal.`}
-      >
-        {requests.length === 0 ? (
-          <EmptyState
-            icon={Inbox}
-            title="Nenhuma solicitação enviada."
-            description="Use “Solicitar documento”, no topo do projeto, para pedir um arquivo ao fornecedor pelo portal."
-            compact
-          />
-        ) : (
-          <TableScroll>
-            <Table columnRules>
-              <THead>
-                {/* Same distribution as the list pages: the name takes the slack, dates close the row. */}
-                <TR>
-                  <TH className="min-w-64">Documento</TH>
-                  <TH className="w-px">Solicitado por</TH>
-                  <TH className="w-px">Status</TH>
-                  <TH className="w-px" align="right">Prazo</TH>
-                  <TH className="w-px" />
-                </TR>
-              </THead>
-              <TBody>
-                {requests.map((request) => {
-                  const status = meta.request(request.status as RequestStatus, dict);
-                  const remaining = daysUntil(request.dueDate);
-                  const late =
-                    remaining !== null &&
-                    remaining < 0 &&
-                    ["PENDING", "REJECTED"].includes(request.status);
-
-                  return (
-                    <TR key={request.id}>
-                      <TD>
-                        <CellStack title={request.title} subtitle={request.document?.name} />
-                      </TD>
-                      <TD label="Solicitado por">{request.requestedBy.name}</TD>
-                      <TD label="Status">
-                        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                      </TD>
-                      <TD label="Prazo" align="right" className={cn(late && "font-medium text-risk")}>
-                        {request.dueDate ? formatDateShort(request.dueDate, locale) : "—"}
-                        {late ? " · atrasado" : ""}
-                      </TD>
-                      <TD className="text-right whitespace-nowrap max-md:mt-3">
-                        {canReviewDocumentType(user.role, request.type) &&
-                        ["SUBMITTED", "IN_REVIEW"].includes(request.status) ? (
-                          <ReviewRequestDialog
-                            requestId={request.id}
-                            projectId={projectId}
-                            title={request.title}
-                            supplierName={request.supplier.name}
-                            status={status.label}
-                            submittedAt={
-                              request.submittedAt ? formatDateTime(request.submittedAt, locale) : null
-                            }
-                            dueDate={request.dueDate ? formatDate(request.dueDate, locale) : null}
-                            rounds={(reviewsByRequest.get(request.id) ?? []).map((review) => ({
-                              ...review,
-                              when: formatDateTime(review.createdAt, locale),
-                            }))}
-                            submission={
-                              request.document?.currentVersion
-                                ? {
-                                    versionId: request.document.currentVersion.id,
-                                    fileName: request.document.currentVersion.fileName,
-                                    fileSize: request.document.currentVersion.fileSize,
-                                    version: request.document.currentVersion.version,
-                                    uploadedAt: formatDateTime(
-                                      request.document.currentVersion.createdAt,
-                                      locale,
-                                    ),
-                                  }
-                                : null
-                            }
-                          />
-                        ) : null}
-                      </TD>
-                    </TR>
-                  );
-                })}
-              </TBody>
-            </Table>
-          </TableScroll>
-        )}
-      </WorkBlock>
+      <StageRequests
+        user={user}
+        projectId={projectId}
+        supplierName={project.supplier.name}
+        stage="REGULATORY"
+        locale={locale}
+        dict={dict}
+      />
 
       {/*
         Regulatory checklist — real tasks (category REGULATORY) since Fase 3

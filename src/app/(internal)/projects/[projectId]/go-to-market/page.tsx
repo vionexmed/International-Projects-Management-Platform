@@ -3,6 +3,7 @@ import type { GtmCategory } from "@/generated/prisma";
 import { requireInternalUser, can } from "@/server/auth/current-user";
 import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
+import { StageRequests } from "@/features/projects/stage-requests";
 import { WorkBlock, DenseList, DenseRow } from "@/features/projects/work-block";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress";
@@ -23,7 +24,7 @@ export default async function ProjectGoToMarketPage({
 }) {
   const { projectId } = await params;
   const user = await requireInternalUser();
-  await orNotFound(requireProjectAccess(user, projectId));
+  const project = await orNotFound(requireProjectAccess(user, projectId));
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
@@ -52,71 +53,82 @@ export default async function ProjectGoToMarketPage({
 
   // The launch date is in the overview; this page is about the checklist.
   return (
-    <WorkBlock
-      title="Itens de lançamento"
-      count={items.length > 0 ? `${completed} de ${items.length} concluídos` : undefined}
-      action={editable ? <GtmItemDialog projectId={projectId} /> : null}
-    >
-      {grouped.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title="Nenhum item de Go-to-Market."
-          description="Adicione itens para acompanhar estratégia, preço, canais e lançamento."
-        />
-      ) : (
-        <>
-          <div className="flex items-center gap-3 border-b border-line-faint px-4 py-3">
-            <ProgressBar
-              value={progress}
-              tone={progress === 100 ? "ok" : "neutral"}
-              label="Progresso do Go-to-Market"
-              barClassName="h-1.5"
-              className="max-w-md"
-            />
-            <span className="text-meta font-semibold text-ink tabular-nums">{progress}%</span>
-          </div>
-
-          {/* Each category is a phase row with its items under it, like the plan. */}
-          {grouped.map((group) => (
-            <div key={group.category}>
-              <h3 className="flex h-10 items-center gap-2 border-b border-line-faint bg-subtle px-4 text-body font-semibold text-ink">
-                {label.gtmCategory(group.category, dict)}
-                <span className="text-meta font-normal text-muted tabular-nums">
-                  {group.items.filter((item) => item.status === "COMPLETED").length}/{group.items.length}
-                </span>
-              </h3>
-              <DenseList className="border-b border-line-faint last:border-b-0">
-                {group.items.map((item) => (
-                  <DenseRow
-                    key={item.id}
-                    href={`/tasks/${item.id}`}
-                    className="pl-10"
-                    title={item.title}
-                    meta={[item.description, item.assignedTo?.name].filter(Boolean).join(" · ")}
-                    trailing={
-                      <>
-                        <span className="hidden w-12 text-right tabular-nums sm:inline">
-                          {item.dueDate ? formatDateShort(item.dueDate, locale) : ""}
-                        </span>
-                        <StatusMenu
-                          action={updateGtmItemAction}
-                          hidden={{ projectId, itemId: item.id }}
-                          name="status"
-                          value={item.status}
-                          options={statusOptions}
-                          ariaLabel={`Status de ${item.title}`}
-                          readOnly={!editable}
-                          align="end"
-                        />
-                      </>
-                    }
-                  />
-                ))}
-              </DenseList>
+    <div className="space-y-6">
+      <WorkBlock
+        title="Itens de lançamento"
+        count={items.length > 0 ? `${completed} de ${items.length} concluídos` : undefined}
+        action={editable ? <GtmItemDialog projectId={projectId} /> : null}
+      >
+        {grouped.length === 0 ? (
+          <EmptyState
+            icon={Megaphone}
+            title="Nenhum item de Go-to-Market."
+            description="Adicione itens para acompanhar estratégia, preço, canais e lançamento."
+          />
+        ) : (
+          <>
+            <div className="flex items-center gap-3 border-b border-line-faint px-4 py-3">
+              <ProgressBar
+                value={progress}
+                tone={progress === 100 ? "ok" : "neutral"}
+                label="Progresso do Go-to-Market"
+                barClassName="h-1.5"
+                className="max-w-md"
+              />
+              <span className="text-meta font-semibold text-ink tabular-nums">{progress}%</span>
             </div>
-          ))}
-        </>
-      )}
-    </WorkBlock>
+
+            {/* Each category is a phase row with its items under it, like the plan. */}
+            {grouped.map((group) => (
+              <div key={group.category}>
+                <h3 className="flex h-10 items-center gap-2 border-b border-line-faint bg-subtle px-4 text-body font-semibold text-ink">
+                  {label.gtmCategory(group.category, dict)}
+                  <span className="text-meta font-normal text-muted tabular-nums">
+                    {group.items.filter((item) => item.status === "COMPLETED").length}/{group.items.length}
+                  </span>
+                </h3>
+                <DenseList className="border-b border-line-faint last:border-b-0">
+                  {group.items.map((item) => (
+                    <DenseRow
+                      key={item.id}
+                      href={`/tasks/${item.id}`}
+                      className="pl-10"
+                      title={item.title}
+                      meta={[item.description, item.assignedTo?.name].filter(Boolean).join(" · ")}
+                      trailing={
+                        <>
+                          <span className="hidden w-12 text-right tabular-nums sm:inline">
+                            {item.dueDate ? formatDateShort(item.dueDate, locale) : ""}
+                          </span>
+                          <StatusMenu
+                            action={updateGtmItemAction}
+                            hidden={{ projectId, itemId: item.id }}
+                            name="status"
+                            value={item.status}
+                            options={statusOptions}
+                            ariaLabel={`Status de ${item.title}`}
+                            readOnly={!editable}
+                            align="end"
+                          />
+                        </>
+                      }
+                    />
+                  ))}
+                </DenseList>
+              </div>
+            ))}
+          </>
+        )}
+      </WorkBlock>
+
+      <StageRequests
+        user={user}
+        projectId={projectId}
+        supplierName={project.supplier.name}
+        stage="GO_TO_MARKET"
+        locale={locale}
+        dict={dict}
+      />
+    </div>
   );
 }

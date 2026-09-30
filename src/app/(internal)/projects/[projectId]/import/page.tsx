@@ -4,6 +4,7 @@ import { requireProjectAccess } from "@/server/authz/access";
 import { db } from "@/server/db";
 import { orNotFound } from "@/server/authz/rsc";
 import { PropertyList } from "@/components/ui/card";
+import { StageRequests } from "@/features/projects/stage-requests";
 import { WorkBlock } from "@/features/projects/work-block";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ShipmentDialog } from "@/features/projects/shipment-dialog";
@@ -23,7 +24,7 @@ export default async function ProjectImportPage({
 }) {
   const { projectId } = await params;
   const user = await requireInternalUser();
-  await orNotFound(requireProjectAccess(user, projectId));
+  const project = await orNotFound(requireProjectAccess(user, projectId));
 
   const locale = localeFromLanguage(user.language);
   const dict = getDictionary(locale);
@@ -136,6 +137,15 @@ export default async function ProjectImportPage({
           </div>
         )}
       </WorkBlock>
+
+      <StageRequests
+        user={user}
+        projectId={projectId}
+        supplierName={project.supplier.name}
+        stage="IMPORT"
+        locale={locale}
+        dict={dict}
+      />
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <WorkBlock

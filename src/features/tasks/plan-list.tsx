@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Calendar, ChevronDown, ChevronRight, Flag, PanelRightOpen, Type, UserRound, type LucideIcon } from "lucide-react";
+import { AlertCircle, Calendar, ChevronDown, ChevronRight, Flag, PanelRightOpen, Type, UserRound, type LucideIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { TaskAssigneeCell, TaskDueCell, TaskStatusCell, type OwnerOption } from "@/features/tasks/task-cells";
 import { type PlanColumn, type PlanGroup } from "@/features/tasks/plan-data";
 import { planColumnKeys, readPlanWidths, resizePlanWidth, widthsForProject } from "@/features/tasks/plan-widths";
@@ -238,12 +239,19 @@ export function PlanList({
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col">
                         <InlineTaskTitleCell key={task.title} taskId={task.id} title={task.title} editable={editable} />
-                        {task.supplierName && task.status !== "COMPLETED" && task.status !== "CANCELLED" ? (
-                          <span title={`Aguardando ${task.supplierName}`} className="mb-1 ml-1.5 self-start rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium leading-4 text-warn">
-                            Aguardando fornecedor
-                          </span>
-                        ) : null}
                       </span>
+                      {/* One line: the reason waits behind a glyph and shows on hover or focus. */}
+                      {task.supplierName && task.status !== "COMPLETED" && task.status !== "CANCELLED" ? (
+                        <Tooltip content={`Aguardando ${task.supplierName}`}>
+                          <button
+                            type="button"
+                            aria-label={`Aguardando ${task.supplierName}`}
+                            className="relative z-10 mt-1 inline-flex size-6 shrink-0 cursor-default items-center justify-center rounded-sm text-warn transition-colors hover:bg-warn-soft focus-visible:outline-2 focus-visible:outline-brand"
+                          >
+                            <AlertCircle className="size-4" aria-hidden />
+                          </button>
+                        </Tooltip>
+                      ) : null}
                       {href ? (
                         <Link
                           href={href}
