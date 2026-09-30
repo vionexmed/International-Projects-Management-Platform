@@ -63,7 +63,14 @@ export async function GET(request: Request) {
     ? destination
     : "/dashboard";
 
-  const response = NextResponse.redirect(new URL(safeDestination, request.url));
+  /*
+    A relative Location keeps the browser on the host it came from. In
+    development `request.url` reports localhost even when the portal is opened
+    on 127.0.0.1 — the address that keeps a supplier session apart from the
+    internal one — so an absolute redirect sent the supplier back into the
+    internal session.
+  */
+  const response = new NextResponse(null, { status: 307, headers: { Location: safeDestination } });
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
