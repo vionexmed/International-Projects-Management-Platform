@@ -85,24 +85,34 @@ DrawerContent.displayName = "DrawerContent";
 export function DialogHeader({
   title,
   description,
+  icon,
   className,
 }: {
   title: string;
   description?: string;
+  /** A badge beside the title (the guided create forms). */
+  icon?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("border-b border-line px-6 py-4 pr-12", className)}>
-      <DialogPrimitive.Title className="text-base font-semibold text-ink">
-        {title}
-      </DialogPrimitive.Title>
-      {description ? (
-        <DialogPrimitive.Description className="mt-1 text-[13px] text-muted">
-          {description}
-        </DialogPrimitive.Description>
-      ) : (
-        <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
-      )}
+    <div className={cn("flex items-start gap-4 border-b border-line px-6 py-4 pr-12", icon && "py-5", className)}>
+      {icon ? (
+        <span className="vx-pop flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand ring-1 ring-brand/15 [&_svg]:size-5">
+          {icon}
+        </span>
+      ) : null}
+      <div className="min-w-0">
+        <DialogPrimitive.Title className="text-base font-semibold text-ink">
+          {title}
+        </DialogPrimitive.Title>
+        {description ? (
+          <DialogPrimitive.Description className="mt-1 text-[13px] text-muted">
+            {description}
+          </DialogPrimitive.Description>
+        ) : (
+          <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
+        )}
+      </div>
     </div>
   );
 }

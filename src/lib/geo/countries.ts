@@ -52,6 +52,9 @@ const COUNTRY_POINTS: [LonLat, string, string[]][] = [
   [[24, -29], "África do Sul", ["south africa", "africa do sul"]],
 ];
 
+/** The Portuguese names, for suggestions in the registration forms. */
+export const COUNTRY_NAMES: string[] = COUNTRY_POINTS.map(([, name]) => name).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
 /** "Alemanha", "ALEMANHA" and "alemanha " all find the same point. */
 export const normalizeCountry = (name: string) =>
   name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();

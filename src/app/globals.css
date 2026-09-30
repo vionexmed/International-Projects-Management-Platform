@@ -654,3 +654,151 @@
   animation-duration: 380ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/*
+  Guided create forms (FormDialog `guided`). The window flies out of the
+  button that opened it (--vx-from-x/y: the button's centre relative to the
+  screen's) and settles in the middle; its sections then rise in one after
+  another; the icon pops. `translate`/`scale` are the individual properties,
+  so the centring the dialog already has (-50% -50%) is where it lands.
+*/
+.vx-launch[data-state="open"] {
+  animation: vx-launch 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.vx-launch[data-state="closed"] {
+  animation: vx-launch-out 180ms ease-in both;
+}
+
+@keyframes vx-launch {
+  from {
+    opacity: 0;
+    translate: calc(-50% + var(--vx-from-x, 0px)) calc(-50% + var(--vx-from-y, 48px));
+    scale: 0.16;
+    filter: blur(8px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    translate: -50% -50%;
+    scale: 1;
+  }
+}
+
+@keyframes vx-launch-out {
+  to {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+.vx-launch-body > * {
+  animation: vx-field-in 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: 380ms;
+}
+
+.vx-launch-body > :nth-child(1) {
+  animation-delay: 160ms;
+}
+
+.vx-launch-body > :nth-child(2) {
+  animation-delay: 215ms;
+}
+
+.vx-launch-body > :nth-child(3) {
+  animation-delay: 270ms;
+}
+
+.vx-launch-body > :nth-child(4) {
+  animation-delay: 325ms;
+}
+
+@keyframes vx-field-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+.vx-pop {
+  animation: vx-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 180ms backwards;
+}
+
+@keyframes vx-pop {
+  from {
+    opacity: 0;
+    scale: 0.4;
+    rotate: -12deg;
+  }
+}
+
+/* Every required field filled: a light sweeps the save button once. */
+.vx-ready {
+  position: relative;
+  overflow: hidden;
+}
+
+.vx-ready::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.35) 50%, transparent 80%);
+  translate: -100% 0;
+  animation: vx-sweep 900ms ease-out 1;
+  pointer-events: none;
+}
+
+@keyframes vx-sweep {
+  to {
+    translate: 100% 0;
+  }
+}
+
+/* Success: the ring draws, the check follows, the sentence settles. */
+.vx-success {
+  animation: vx-fade 200ms ease-out both;
+}
+
+.vx-success-ring {
+  stroke-dasharray: 176;
+  stroke-dashoffset: 176;
+  transform-origin: center;
+  rotate: -90deg;
+  animation: vx-draw 520ms cubic-bezier(0.65, 0, 0.35, 1) 80ms forwards;
+}
+
+.vx-success-check {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: vx-draw 360ms cubic-bezier(0.65, 0, 0.35, 1) 480ms forwards;
+}
+
+.vx-success-text {
+  animation: vx-field-in 420ms cubic-bezier(0.16, 1, 0.3, 1) 560ms backwards;
+}
+
+@keyframes vx-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-launch[data-state="open"],
+  .vx-launch[data-state="closed"],
+  .vx-launch-body > *,
+  .vx-pop,
+  .vx-ready::after,
+  .vx-success,
+  .vx-success-text {
+    animation: none !important;
+  }
+
+  .vx-success-ring,
+  .vx-success-check {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+}
