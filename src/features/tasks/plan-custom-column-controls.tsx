@@ -190,6 +190,7 @@ export function PlanColumnMenu({
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(column.name);
   const [options, setOptions] = React.useState(column.options);
+  const [confirming, setConfirming] = React.useState(false);
   const optionsChanged = options.join("\n") !== column.options.join("\n");
   const visibleIds = columns.filter((item) => item.visible).map((item) => item.id);
   const position = visibleIds.indexOf(column.id);
@@ -213,6 +214,7 @@ export function PlanColumnMenu({
         if (next) {
           setName(column.name);
           setOptions(column.options);
+          setConfirming(false);
         }
       }}
     >
@@ -268,18 +270,39 @@ export function PlanColumnMenu({
             >
               <EyeOff /> Ocultar coluna
             </button>
-            <button
-              type="button"
-              className={cn(MENU_BUTTON, "text-risk hover:bg-risk-soft hover:text-risk [&_svg]:text-risk")}
-              disabled={pending}
-              onClick={() => {
-                if (window.confirm(`Excluir a coluna “${column.name}” e todos os valores preenchidos?`)) {
-                  submit(deleteProjectPlanColumnAction, { columnId: column.id }, "Coluna excluída.", close);
-                }
-              }}
-            >
-              <Trash2 /> Excluir coluna
-            </button>
+            {/*
+              Two steps inside the menu rather than the browser's confirm(),
+              which embedded browsers can block silently — the click then did nothing.
+            */}
+            {confirming ? (
+              <div className="mt-1 rounded-sm bg-risk-soft p-2">
+                <p className="px-1 text-meta text-risk">Excluir “{column.name}” e todos os valores preenchidos?</p>
+                <div className="mt-2 flex gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="danger"
+                    disabled={pending}
+                    autoFocus
+                    onClick={() => submit(deleteProjectPlanColumnAction, { columnId: column.id }, "Coluna excluída.", close)}
+                  >
+                    {pending ? "Excluindo…" : "Excluir"}
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => setConfirming(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={cn(MENU_BUTTON, "text-risk hover:bg-risk-soft hover:text-risk [&_svg]:text-risk")}
+                disabled={pending}
+                onClick={() => setConfirming(true)}
+              >
+                <Trash2 /> Excluir coluna
+              </button>
+            )}
           </div>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>

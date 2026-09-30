@@ -7,7 +7,6 @@ import {
   countProjectsByStatus,
   listProjectCountries,
   listProjects,
-  type ProjectStageSummary,
   type ProjectStatus,
 } from "@/server/services/projects";
 import { listSupplierOptions } from "@/server/services/suppliers";
@@ -18,8 +17,6 @@ import { Pagination } from "@/components/app/pagination";
 import { FilterBar, FilterSelect, SearchInput } from "@/components/app/search-filters";
 import { UserAvatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Tooltip } from "@/components/ui/tooltip";
-import { stageSegment } from "@/features/projects/stage-routes";
 import {
   CellStack,
   Table,
@@ -32,11 +29,12 @@ import {
   THead,
   TR,
 } from "@/components/ui/table";
+import { StageTrack } from "@/features/projects/stage-track";
 import { NewProjectDialog } from "@/features/projects/new-project-dialog";
 import { ProjectActionsMenu } from "@/features/projects/project-actions-menu";
-import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
+import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
-import { OPTIONS, label, meta, type StageProgress } from "@/lib/labels";
+import { OPTIONS, label } from "@/lib/labels";
 import { daysUntil, formatDate } from "@/lib/format";
 import { initials, cn } from "@/lib/utils";
 import type { Tone } from "@/lib/status";
@@ -64,70 +62,6 @@ const TABS: {
   { key: "COMPLETED", label: "Concluídos", status: "COMPLETED" },
   { key: "ARCHIVED", label: "Arquivados", archived: true },
 ];
-
-/** The fill of a stage segment: done is green, held up is red, work under way is the brand. */
-const STAGE_FILL: Record<ProjectStageSummary["status"], string> = {
-  NOT_STARTED: "bg-brand",
-  IN_PROGRESS: "bg-brand",
-  COMPLETED: "bg-ok-dot",
-  BLOCKED: "bg-risk-dot",
-};
-
-/**
- * The row's "Etapas" cell: the four stages stretched across the column, each
- * filled as far as it has gone, and the project's overall progress beside
- * them. Hovering (or focusing) a segment names that stage and how it stands;
- * each segment opens its stage page.
- */
-function StageTrack({
-  projectId,
-  stages,
-  current,
-  progress,
-  dict,
-}: {
-  projectId: string;
-  stages: ProjectStageSummary[];
-  current: StageKey;
-  progress: number;
-  dict: Dictionary;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className="relative z-10 flex min-w-0 flex-1 items-center gap-1">
-        {stages.map((stage) => {
-          const name = label.stageKey(stage.key, dict);
-          const status = meta.stage(stage.status as StageProgress, dict).label;
-          const isCurrent = stage.key === current;
-          const fill = stage.status === "COMPLETED" ? 100 : Math.max(0, Math.min(100, stage.progress));
-          return (
-            <Tooltip
-              key={stage.key}
-              content={
-                <span className="block text-left">
-                  <span className="block font-semibold">{name}{isCurrent ? " · etapa atual" : ""}</span>
-                  <span className="block font-normal opacity-80">{status} · {stage.progress}%</span>
-                </span>
-              }
-            >
-              <Link
-                href={`/projects/${projectId}/${stageSegment(stage.key)}`}
-                aria-label={`${name}: ${status}, ${stage.progress}%${isCurrent ? " (etapa atual)" : ""}`}
-                className="group/segment flex h-5 min-w-0 flex-1 items-center rounded-sm focus-visible:outline-2 focus-visible:outline-brand"
-              >
-                <span className="block h-1.5 w-full overflow-hidden rounded-full bg-line-soft transition-[height] group-hover/segment:h-2">
-                  <span className={cn("block h-full rounded-full", STAGE_FILL[stage.status])} style={{ width: `${fill}%` }} />
-                </span>
-              </Link>
-            </Tooltip>
-          );
-        })}
-      </span>
-      {/* The stage names are in each segment's tooltip; the row keeps just the share done. */}
-      <span className="w-9 shrink-0 text-right text-meta font-medium text-ink tabular-nums">{progress}%</span>
-    </div>
-  );
-}
 
 /** "em 45 dias", "12 dias de atraso": how far the launch is. */
 function launchDistance(date: Date | null) {

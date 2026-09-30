@@ -13,6 +13,7 @@ import { stageSegment } from "@/features/projects/stage-routes";
 import { STAGE_TASK_CATEGORY } from "@/server/services/project-health";
 import { STAGE_PERMISSION } from "@/server/authz/permissions";
 import { Timeline } from "@/components/app/timeline";
+import { CardSection as Card, CardLink } from "@/components/app/card-section";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { localeFromLanguage } from "@/lib/i18n/config";
 import { OPTIONS, label, meta, type MilestoneProgress, type StageProgress } from "@/lib/labels";
@@ -34,40 +35,6 @@ function distance(date: Date | null, lateWord: string) {
   if (days === 0) return { text: "hoje", late: false };
   if (days < 0) return { text: `${Math.abs(days)} ${Math.abs(days) === 1 ? "dia" : "dias"} ${lateWord}`, late: true };
   return { text: `em ${days} ${days === 1 ? "dia" : "dias"}`, late: false };
-}
-
-/** One section of the page: a light card with a roomy title row. */
-function Card({
-  title,
-  count,
-  action,
-  children,
-}: {
-  title: string;
-  count?: number;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="min-w-0 rounded-xl border border-line-soft bg-surface">
-      <header className="flex min-h-14 items-center justify-between gap-3 px-6 pt-5 pb-3">
-        <h2 className="text-title text-ink">
-          {title}
-          {count ? <span className="ml-2 font-normal text-faint tabular-nums">{count}</span> : null}
-        </h2>
-        {action}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function CardLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} className="inline-flex items-center gap-1 text-label font-medium text-brand-strong hover:underline">
-      {children}
-    </Link>
-  );
 }
 
 /**

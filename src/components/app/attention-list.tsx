@@ -1,3 +1,4 @@
+import * as React from "react";
 import Link from "next/link";
 import { CircleCheck } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -43,22 +44,26 @@ export function AttentionList({
   locale,
   emptyTitle,
   emptyDescription,
+  bare = false,
 }: {
   items: AttentionItem[];
   locale: Locale;
   emptyTitle: string;
   emptyDescription?: string;
+  /** Without its own panel, for a caller that already draws the card. */
+  bare?: boolean;
 }) {
+  const Frame = bare ? React.Fragment : Panel;
   if (items.length === 0) {
     return (
-      <Panel>
+      <Frame>
         <EmptyState
           icon={CircleCheck}
           title={emptyTitle}
           description={emptyDescription}
           compact
         />
-      </Panel>
+      </Frame>
     );
   }
 
@@ -70,8 +75,8 @@ export function AttentionList({
   );
 
   return (
-    <Panel>
-      <ul className="divide-y divide-line-soft">
+    <Frame>
+      <ul className={cn("divide-y divide-line-soft", bare && "border-t border-line-faint")}>
         {ranked.map((item) => {
           const remaining = daysUntil(item.dueDate);
           const late = remaining !== null && remaining < 0;
@@ -113,6 +118,6 @@ export function AttentionList({
           );
         })}
       </ul>
-    </Panel>
+    </Frame>
   );
 }
