@@ -137,6 +137,7 @@ export function FileDropzone({
           handleDrop(event);
         }}
         aria-busy={disabled || undefined}
+        data-dropzone=""
         className={cn(
           "rounded-md border border-dashed px-5 py-7 text-center transition-colors",
           dragging ? "border-brand bg-brand-soft" : "border-line-strong bg-subtle",

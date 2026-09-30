@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/app/file-dropzone";
+import { flyFile } from "@/components/app/fly-to";
 import { useFormAction } from "@/components/app/use-form-action";
 import { useDirectUpload } from "@/components/app/use-direct-upload";
 import { submitDocumentRequestAction } from "@/server/actions/documents";
@@ -56,9 +57,15 @@ export function SubmitRequestForm({
   });
   const [localError, setLocalError] = React.useState<string | null>(null);
   const errorRef = React.useRef<HTMLDivElement>(null);
+  // The name of the file being sent: a large one is taken out of the input once uploaded.
+  const sending = React.useRef<string | null>(null);
 
   const handleSuccess = React.useCallback(
     (_result: ActionState, form: HTMLFormElement) => {
+      // The file flies from the drop zone into Documents, before the zone is cleared.
+      const zone = form.querySelector("[data-dropzone]");
+      if (sending.current && zone) flyFile({ from: zone.getBoundingClientRect(), name: sending.current });
+      sending.current = null;
       toast.success(t.submitSuccess);
       form.reset();
       // `form.reset()` empties the native input; the dropzone keeps its own
@@ -102,6 +109,7 @@ export function SubmitRequestForm({
       const message = (form.elements.namedItem("message") as HTMLTextAreaElement | null)?.value;
 
       setLocalError(null);
+      sending.current = file?.name ?? null;
 
       if (!file && !message?.trim()) {
         event.preventDefault();

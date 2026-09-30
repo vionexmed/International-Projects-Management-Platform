@@ -41,6 +41,7 @@ export function FormDialog({
   submitLabel,
   successMessage,
   redirectTo,
+  onSuccess,
   beforeSubmit,
   size = "md",
   labels,
@@ -59,6 +60,8 @@ export function FormDialog({
   successMessage: string;
   /** Builds a destination from the created record's id. */
   redirectTo?: (createdId: string) => string;
+  /** Runs first on success, with the form still on screen (e.g. to animate what was sent). */
+  onSuccess?: (result: ActionState, form: HTMLFormElement) => void;
   /**
    * Runs before the action, with the form in hand. Returning a string cancels
    * the submission and shows it as the error.
@@ -106,6 +109,7 @@ export function FormDialog({
    */
   const handleSuccess = React.useCallback(
     (result: ActionState, form: HTMLFormElement) => {
+      onSuccess?.(result, form);
       const finish = () => {
         setOpen(false);
         setDone(false);
@@ -122,7 +126,7 @@ export function FormDialog({
       setDone(true);
       window.setTimeout(finish, 1150);
     },
-    [guided, successMessage, setOpen, redirectTo, router],
+    [guided, onSuccess, successMessage, setOpen, redirectTo, router],
   );
 
   const { state, pending, onSubmit, reset } = useFormAction(action, handleSuccess, {

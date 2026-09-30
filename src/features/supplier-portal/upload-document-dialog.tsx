@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Field, FieldGrid, FormDialog } from "@/components/app/form-dialog";
 import { FileDropzone } from "@/components/app/file-dropzone";
+import { flyFile } from "@/components/app/fly-to";
 import { useDirectUpload } from "@/components/app/use-direct-upload";
 import { uploadDocumentAction } from "@/server/actions/documents";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionary";
@@ -36,6 +37,8 @@ export function SupplierUploadDialog({
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const t = dict.portal.requests;
+  // The name of the file being sent: a large one is taken out of the input once uploaded.
+  const sending = React.useRef<string | null>(null);
   const { prepare, progress } = useDirectUpload({
     connectionFailed: t.connectionFailed,
     storageRefused: t.storageRefused,
@@ -55,6 +58,7 @@ export function SupplierUploadDialog({
       // Checked here rather than with `required`: the real input is visually
       // hidden, so the browser's own bubble would point at nothing.
       if (!file) return dict.portal.documents.fileRequired;
+      sending.current = file.name;
 
       const target =
         projectId ??
@@ -88,6 +92,11 @@ export function SupplierUploadDialog({
       description={dict.portal.documents.uploadIntro}
       action={uploadDocumentAction}
       beforeSubmit={beforeSubmit}
+      onSuccess={(_result, form) => {
+        const zone = form.querySelector("[data-dropzone]");
+        if (sending.current && zone) flyFile({ from: zone.getBoundingClientRect(), name: sending.current });
+        sending.current = null;
+      }}
       submitLabel={t.sendToVionex}
       successMessage={dict.portal.documents.uploaded}
       labels={dialogLabels(dict)}
